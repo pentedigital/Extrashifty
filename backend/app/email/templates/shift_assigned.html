@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>You've Been Assigned!</h2>
+
+<p>Hi {{ applicant_name }},</p>
+
+<p>Congratulations! Your application has been accepted. You've been assigned to the following shift:</p>
+
+<div class="highlight">
+    <strong>Shift:</strong> {{ shift_title }}<br>
+    <strong>Date:</strong> {{ shift_date }}<br>
+    <strong>Time:</strong> {{ shift_time }}<br>
+    <strong>Location:</strong> {{ location }}
+</div>
+
+<p style="text-align: center;">
+    <a href="https://extrashifty.com/dashboard/shifts" class="button">View Shift Details</a>
+</p>
+
+<p>Please make sure to arrive on time and contact the employer if you have any questions.</p>
+
+<p>Good luck with your shift!</p>
+
+<p>Best regards,<br>The {{ project_name }} Team</p>
+{% endblock %}

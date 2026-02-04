@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>New Shift Application</h2>
+
+<p>Hi {{ company_name }},</p>
+
+<p>Great news! You have received a new application for your shift.</p>
+
+<div class="highlight">
+    <strong>Shift:</strong> {{ shift_title }}<br>
+    <strong>Date:</strong> {{ shift_date }}<br>
+    <strong>Applicant:</strong> {{ applicant_name }}
+</div>
+
+<p style="text-align: center;">
+    <a href="https://extrashifty.com/dashboard/applications" class="button">Review Application</a>
+</p>
+
+<p>Log in to your dashboard to review the applicant's profile and accept or decline their application.</p>
+
+<p>Best regards,<br>The {{ project_name }} Team</p>
+{% endblock %}

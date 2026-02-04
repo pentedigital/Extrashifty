@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Welcome, {{ full_name }}!</h2>
+
+<p>Thank you for joining {{ project_name }}. We're excited to have you on board!</p>
+
+<p>With {{ project_name }}, you can:</p>
+<ul>
+    <li>Browse available shifts in your area</li>
+    <li>Apply to shifts that match your skills</li>
+    <li>Track your applications and work history</li>
+    <li>Get notified about new opportunities</li>
+</ul>
+
+<p style="text-align: center;">
+    <a href="https://extrashifty.com/dashboard" class="button">Go to Dashboard</a>
+</p>
+
+<p>If you have any questions, don't hesitate to reach out to our support team.</p>
+
+<p>Best regards,<br>The {{ project_name }} Team</p>
+{% endblock %}
