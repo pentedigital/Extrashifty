@@ -48,7 +48,7 @@ export function useLogin() {
       formData.append('password', password)
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/auth/login`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'}/auth/login`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

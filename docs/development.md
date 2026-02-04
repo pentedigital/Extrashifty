@@ -28,9 +28,9 @@ docker compose --profile migrate up migrate
 
 Access the application:
 - **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Backend API**: http://localhost:8001
+- **API Docs**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
 ## Local Development (Without Docker)
 
@@ -57,7 +57,7 @@ alembic upgrade head
 python -m app.initial_data
 
 # Start development server
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 ### Frontend Setup
@@ -69,7 +69,7 @@ cd frontend
 npm install
 
 # Copy environment configuration (if not exists)
-echo "VITE_API_URL=http://localhost:8000" > .env
+echo "VITE_API_URL=http://localhost:8001" > .env
 
 # Start development server
 npm run dev
@@ -251,7 +251,7 @@ extrashifty/
 | `POSTGRES_PASSWORD` | Database password | `postgres` |
 | `POSTGRES_DB` | Database name | `extrashifty` |
 | `SECRET_KEY` | JWT signing key | (change in prod) |
-| `VITE_API_URL` | Backend URL for frontend | `http://localhost:8000` |
+| `VITE_API_URL` | Backend URL for frontend | `http://localhost:8001` |
 
 ## Troubleshooting
 

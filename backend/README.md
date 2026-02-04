@@ -29,8 +29,8 @@ uvicorn app.main:app --reload
 ## API Documentation
 
 Once running, access the API docs at:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8001/docs
+- ReDoc: http://localhost:8001/redoc
 
 ## Project Structure
 

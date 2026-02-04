@@ -9,7 +9,7 @@ Welcome to the ExtraShifty documentation.
 
 ## Quick Links
 
-- [Backend API Docs](http://localhost:8000/docs) (when running locally)
+- [Backend API Docs](http://localhost:8001/docs) (when running locally)
 - [GitHub Repository](https://github.com/pentedigital/extrashifty)
 
 ## Tech Stack
