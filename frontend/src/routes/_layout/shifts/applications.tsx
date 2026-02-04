@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { FileText, Search, Loader2 } from 'lucide-react'
+import { FileText, Search, Loader2, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Spinner } from '@/components/ui/spinner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,94 +19,46 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useApplications, useUpdateApplicationStatus } from '@/hooks/api'
+import type { Application, ApplicationStatus } from '@/types/application'
 
 export const Route = createFileRoute('/_layout/shifts/applications')({
   component: ApplicationsPage,
 })
 
-// Mock data
-const mockApplications = {
-  pending: [
-    {
-      id: '1',
-      shift_title: 'Line Cook',
-      business_name: 'Hotel Dublin',
-      date: '2026-02-10',
-      hourly_rate: 20,
-      applied_at: '2026-02-04',
-      status: 'pending',
-    },
-    {
-      id: '2',
-      shift_title: 'Barista',
-      business_name: 'Café Central',
-      date: '2026-02-09',
-      hourly_rate: 14,
-      applied_at: '2026-02-03',
-      status: 'pending',
-    },
-  ],
-  accepted: [
-    {
-      id: '3',
-      shift_title: 'Bartender',
-      business_name: 'The Brazen Head',
-      date: '2026-02-07',
-      hourly_rate: 18,
-      applied_at: '2026-02-01',
-      status: 'accepted',
-    },
-  ],
-  rejected: [
-    {
-      id: '4',
-      shift_title: 'Server',
-      business_name: 'Fine Dining XYZ',
-      date: '2026-02-06',
-      hourly_rate: 22,
-      applied_at: '2026-01-30',
-      status: 'rejected',
-    },
-  ],
-  withdrawn: [],
-}
-
-interface Application {
-  id: string
-  shift_title: string
-  business_name: string
-  date: string
-  hourly_rate: number
-  applied_at: string
-  status: string
-}
-
 function ApplicationsPage() {
   const { addToast } = useToast()
-  const [activeTab, setActiveTab] = useState('pending')
+  const [activeTab, setActiveTab] = useState<ApplicationStatus | 'all'>('pending')
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
-  const [isWithdrawing, setIsWithdrawing] = useState(false)
-  const [applications, setApplications] = useState(mockApplications)
+
+  // Fetch applications
+  const { data, isLoading, error } = useApplications()
+  const updateStatus = useUpdateApplicationStatus()
+
+  // Group applications by status
+  const applicationsByStatus = useMemo(() => {
+    const apps = data?.items ?? []
+    return {
+      pending: apps.filter(a => a.status === 'pending'),
+      accepted: apps.filter(a => a.status === 'accepted'),
+      rejected: apps.filter(a => a.status === 'rejected'),
+      withdrawn: apps.filter(a => a.status === 'withdrawn'),
+    }
+  }, [data])
 
   const handleWithdraw = async () => {
     if (!selectedApplication) return
 
-    setIsWithdrawing(true)
     try {
-      // TODO: Call API to withdraw application
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Update local state
-      setApplications(prev => ({
-        ...prev,
-        pending: prev.pending.filter(app => app.id !== selectedApplication.id),
-        withdrawn: [...prev.withdrawn, { ...selectedApplication, status: 'withdrawn' }],
-      }))
+      await updateStatus.mutateAsync({
+        id: selectedApplication.id,
+        status: 'withdrawn',
+      })
       addToast({
         type: 'success',
         title: 'Application withdrawn',
-        description: `Your application for "${selectedApplication.shift_title}" has been withdrawn.`,
+        description: `Your application for "${selectedApplication.shift?.title}" has been withdrawn.`,
       })
       setWithdrawDialogOpen(false)
       setSelectedApplication(null)
@@ -115,12 +68,10 @@ function ApplicationsPage() {
         title: 'Failed to withdraw',
         description: 'Please try again or contact support.',
       })
-    } finally {
-      setIsWithdrawing(false)
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: ApplicationStatus) => {
     switch (status) {
       case 'pending':
         return <Badge variant="warning">Pending</Badge>
@@ -135,7 +86,7 @@ function ApplicationsPage() {
     }
   }
 
-  const renderApplicationList = (applications: typeof mockApplications.pending) => {
+  const renderApplicationList = (applications: Application[]) => {
     if (applications.length === 0) {
       return (
         <EmptyState
@@ -168,14 +119,14 @@ function ApplicationsPage() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium">{app.shift_title}</p>
+                    <p className="font-medium">{app.shift?.title || 'Shift'}</p>
                     {getStatusBadge(app.status)}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    @ {app.business_name}
+                    @ {app.shift?.company?.company_name || app.shift?.location_name}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(app.date)} • {formatCurrency(app.hourly_rate)}/hr
+                    {app.shift?.date && formatDate(app.shift.date)} • {app.shift?.hourly_rate && formatCurrency(app.shift.hourly_rate)}/hr
                   </p>
                 </div>
                 <div className="text-right space-y-2">
@@ -208,6 +159,16 @@ function ApplicationsPage() {
     )
   }
 
+  if (error) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Failed to load applications"
+        description="There was an error loading your applications. Please try again."
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -223,35 +184,41 @@ function ApplicationsPage() {
         </Link>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending ({applications.pending.length})
-          </TabsTrigger>
-          <TabsTrigger value="accepted">
-            Accepted ({applications.accepted.length})
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected ({applications.rejected.length})
-          </TabsTrigger>
-          <TabsTrigger value="withdrawn">
-            Withdrawn ({applications.withdrawn.length})
-          </TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ApplicationStatus | 'all')}>
+          <TabsList>
+            <TabsTrigger value="pending">
+              Pending ({applicationsByStatus.pending.length})
+            </TabsTrigger>
+            <TabsTrigger value="accepted">
+              Accepted ({applicationsByStatus.accepted.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected ({applicationsByStatus.rejected.length})
+            </TabsTrigger>
+            <TabsTrigger value="withdrawn">
+              Withdrawn ({applicationsByStatus.withdrawn.length})
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="pending" className="mt-6">
-          {renderApplicationList(applications.pending)}
-        </TabsContent>
-        <TabsContent value="accepted" className="mt-6">
-          {renderApplicationList(applications.accepted)}
-        </TabsContent>
-        <TabsContent value="rejected" className="mt-6">
-          {renderApplicationList(applications.rejected)}
-        </TabsContent>
-        <TabsContent value="withdrawn" className="mt-6">
-          {renderApplicationList(applications.withdrawn)}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="pending" className="mt-6">
+            {renderApplicationList(applicationsByStatus.pending)}
+          </TabsContent>
+          <TabsContent value="accepted" className="mt-6">
+            {renderApplicationList(applicationsByStatus.accepted)}
+          </TabsContent>
+          <TabsContent value="rejected" className="mt-6">
+            {renderApplicationList(applicationsByStatus.rejected)}
+          </TabsContent>
+          <TabsContent value="withdrawn" className="mt-6">
+            {renderApplicationList(applicationsByStatus.withdrawn)}
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Withdraw Confirmation Dialog */}
       <AlertDialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
@@ -261,9 +228,9 @@ function ApplicationsPage() {
             <AlertDialogDescription>
               Are you sure you want to withdraw your application for{' '}
               <span className="font-medium text-foreground">
-                {selectedApplication?.shift_title}
+                {selectedApplication?.shift?.title}
               </span>{' '}
-              at {selectedApplication?.business_name}?
+              at {selectedApplication?.shift?.company?.company_name}?
               <br /><br />
               You can re-apply later if the position is still available.
             </AlertDialogDescription>
@@ -273,9 +240,9 @@ function ApplicationsPage() {
             <AlertDialogAction
               variant="destructive"
               onClick={handleWithdraw}
-              disabled={isWithdrawing}
+              disabled={updateStatus.isPending}
             >
-              {isWithdrawing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {updateStatus.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Withdraw
             </AlertDialogAction>
           </AlertDialogFooter>

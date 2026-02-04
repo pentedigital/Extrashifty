@@ -10,6 +10,7 @@ import {
   Calendar,
   Users,
   Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Dialog,
   DialogContent,
@@ -27,54 +30,12 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
-import type { Shift } from '@/types/shift'
+import { useShift } from '@/hooks/api/useShiftsApi'
+import { useCreateApplication } from '@/hooks/api/useApplicationsApi'
 
 export const Route = createFileRoute('/_layout/marketplace/$shiftId')({
   component: ShiftDetailPage,
 })
-
-// Mock data - would come from API
-const mockShift: Shift = {
-  id: '1',
-  company_id: 'b1',
-  title: 'Bartender - Friday Night',
-  description: `We're looking for an experienced bartender to join us for a busy Friday night at Dublin's oldest pub!
-
-Requirements:
-- 2+ years bartending experience
-- Knowledge of classic and modern cocktails
-- RSA certification
-- Ability to work in a fast-paced environment
-- Excellent customer service skills
-
-You'll be working alongside our regular team and serving a mix of locals and tourists. Tips are shared at the end of the night.`,
-  shift_type: 'bar',
-  date: '2026-02-07',
-  start_time: '18:00',
-  end_time: '00:00',
-  duration_hours: 6,
-  location_name: 'The Brazen Head',
-  address: '20 Bridge Street Lower, Dublin 8',
-  city: 'Dublin',
-  hourly_rate: 18,
-  total_pay: 108,
-  currency: 'EUR',
-  spots_total: 1,
-  spots_filled: 0,
-  required_skills: ['Bartending', 'Cocktails', 'Wine Service', 'Customer Service'],
-  status: 'open',
-  created_at: '2026-02-04T10:00:00Z',
-  updated_at: '2026-02-04T10:00:00Z',
-  company: {
-    id: 'b1',
-    company_name: 'The Brazen Head',
-    company_type: 'bar',
-    city: 'Dublin',
-    is_verified: true,
-    average_rating: 4.8,
-    review_count: 124,
-  },
-}
 
 function ShiftDetailPage() {
   const { shiftId } = Route.useParams()
@@ -82,16 +43,21 @@ function ShiftDetailPage() {
   const { addToast } = useToast()
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false)
   const [coverMessage, setCoverMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // In real app, fetch shift by ID
-  const shift = mockShift
+  // Fetch shift data
+  const { data: shift, isLoading, error } = useShift(shiftId)
+
+  // Application mutation
+  const createApplication = useCreateApplication()
 
   const handleApply = async () => {
-    setIsSubmitting(true)
+    if (!shift) return
+
     try {
-      // TODO: Call API to create application
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await createApplication.mutateAsync({
+        shift_id: shift.id,
+        cover_message: coverMessage || undefined,
+      })
       setIsApplyDialogOpen(false)
       addToast({
         type: 'success',
@@ -105,9 +71,31 @@ function ShiftDetailPage() {
         title: 'Failed to submit application',
         description: 'Please try again or contact support if the problem persists.',
       })
-    } finally {
-      setIsSubmitting(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error || !shift) {
+    return (
+      <div className="space-y-6">
+        <Link to="/marketplace" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Marketplace
+        </Link>
+        <EmptyState
+          icon={AlertCircle}
+          title="Shift not found"
+          description="This shift may have been removed or is no longer available."
+        />
+      </div>
+    )
   }
 
   return (
@@ -129,7 +117,9 @@ function ShiftDetailPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h1 className="text-2xl font-bold">{shift.title}</h1>
-                      <Badge variant="success">Open</Badge>
+                      <Badge variant={shift.status === 'open' ? 'success' : 'secondary'}>
+                        {shift.status === 'open' ? 'Open' : shift.status.replace('_', ' ')}
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -175,20 +165,22 @@ function ShiftDetailPage() {
           </Card>
 
           {/* Requirements */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Required Skills</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {shift.required_skills.map((skill) => (
-                  <Badge key={skill} variant="secondary">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {shift.required_skills && shift.required_skills.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Required Skills</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {shift.required_skills.map((skill) => (
+                    <Badge key={skill} variant="secondary">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -215,8 +207,9 @@ function ShiftDetailPage() {
                 className="w-full"
                 size="lg"
                 onClick={() => setIsApplyDialogOpen(true)}
+                disabled={shift.status !== 'open'}
               >
-                Apply Now
+                {shift.status === 'open' ? 'Apply Now' : 'Not Available'}
               </Button>
             </CardContent>
           </Card>
@@ -299,8 +292,8 @@ function ShiftDetailPage() {
             <Button variant="outline" onClick={() => setIsApplyDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleApply} disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleApply} disabled={createApplication.isPending}>
+              {createApplication.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Application
             </Button>
           </DialogFooter>

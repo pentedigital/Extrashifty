@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
 import { cn, formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useCreateShift } from '@/hooks/api'
 
 export const Route = createFileRoute('/_layout/company/shifts/create')({
   component: CreateShiftPage,
@@ -75,8 +76,8 @@ function CreateShiftPage() {
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [currentStep, setCurrentStep] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+  const createShift = useCreateShift()
 
   // Form state for each step
   const [basicInfo, setBasicInfo] = useState<BasicInfoData | null>(null)
@@ -135,16 +136,20 @@ function CreateShiftPage() {
   const handleSubmit = async () => {
     if (!basicInfo || !schedule || !requirements) return
 
-    setIsSubmitting(true)
+    const duration = calculateDuration()
+    const shiftData = {
+      ...basicInfo,
+      ...schedule,
+      ...requirements,
+      duration_hours: duration,
+      total_pay: requirements.hourly_rate * duration,
+      required_skills: selectedSkills,
+      status: 'open' as const,
+      currency: 'EUR',
+    }
+
     try {
-      const shiftData = {
-        ...basicInfo,
-        ...schedule,
-        ...requirements,
-        required_skills: selectedSkills,
-      }
-      // TODO: Call API to create shift
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await createShift.mutateAsync(shiftData)
       addToast({
         type: 'success',
         title: 'Shift created successfully',
@@ -157,8 +162,6 @@ function CreateShiftPage() {
         title: 'Failed to create shift',
         description: 'Please try again or contact support if the problem persists.',
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -507,8 +510,8 @@ function CreateShiftPage() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={createShift.isPending}>
+            {createShift.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Publish Shift
           </Button>
         )}

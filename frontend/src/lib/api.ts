@@ -41,9 +41,48 @@ export class ApiClientError extends Error {
   }
 }
 
+// Token refresh state
+let isRefreshing = false
+let refreshSubscribers: ((token: string) => void)[] = []
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb)
+}
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token))
+  refreshSubscribers = []
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = tokenManager.getRefreshToken()
+  if (!refreshToken) return null
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+
+    if (!response.ok) {
+      tokenManager.clearTokens()
+      return null
+    }
+
+    const data = await response.json()
+    tokenManager.setTokens(data.access_token, data.refresh_token)
+    return data.access_token
+  } catch {
+    tokenManager.clearTokens()
+    return null
+  }
+}
+
 async function baseFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retry = true
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -59,6 +98,42 @@ async function baseFetch<T>(
     ...options,
     headers,
   })
+
+  // Handle 401 - try to refresh token
+  if (response.status === 401 && retry && tokenManager.getRefreshToken()) {
+    if (!isRefreshing) {
+      isRefreshing = true
+      const newToken = await refreshAccessToken()
+      isRefreshing = false
+
+      if (newToken) {
+        onTokenRefreshed(newToken)
+        return baseFetch<T>(endpoint, options, false)
+      } else {
+        window.location.href = '/login'
+        throw new ApiClientError('Session expired', 401)
+      }
+    } else {
+      // Wait for the refresh to complete
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh(async (newToken: string) => {
+          headers['Authorization'] = `Bearer ${newToken}`
+          try {
+            const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+              ...options,
+              headers,
+            })
+            if (!retryResponse.ok) {
+              reject(new ApiClientError('Request failed after token refresh', retryResponse.status))
+            }
+            resolve(retryResponse.json())
+          } catch (err) {
+            reject(err)
+          }
+        })
+      })
+    }
+  }
 
   if (!response.ok) {
     let errorMessage = 'An error occurred'

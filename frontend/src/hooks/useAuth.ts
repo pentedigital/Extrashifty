@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { api, tokenManager, ApiClientError } from '@/lib/api'
+import { useCallback } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useCurrentUser, useLogin, useRegister, useLogout } from './api/useAuthApi'
+import { tokenManager } from '@/lib/api'
 import type { User, UserType } from '@/types/user'
 
 interface UseAuthReturn {
@@ -13,22 +15,26 @@ interface UseAuthReturn {
   isAgency: boolean
   isAdmin: boolean
   isSuperAdmin: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
   register: (data: {
     email: string
     password: string
     full_name: string
     user_type: UserType
-  }) => Promise<void>
+  }) => Promise<User>
   logout: () => void
   refreshUser: () => Promise<void>
   clearError: () => void
 }
 
 export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
+
+  // React Query hooks
+  const { data: user, isLoading: isLoadingUser, error: userError, refetch } = useCurrentUser()
+  const loginMutation = useLogin()
+  const registerMutation = useRegister()
+  const logoutMutation = useLogout()
 
   const isAuthenticated = !!user
   const userType = user?.user_type ?? null
@@ -38,53 +44,33 @@ export function useAuth(): UseAuthReturn {
   const isAdmin = userType === 'admin'
   const isSuperAdmin = userType === 'super_admin'
 
+  // Combine loading states
+  const isLoading = isLoadingUser || loginMutation.isPending || registerMutation.isPending
+
+  // Get error message from any pending mutation or user query
+  const error =
+    loginMutation.error?.message ||
+    registerMutation.error?.message ||
+    (userError?.message && tokenManager.hasTokens() ? userError.message : null)
+
   const clearError = useCallback(() => {
-    setError(null)
-  }, [])
+    loginMutation.reset()
+    registerMutation.reset()
+  }, [loginMutation, registerMutation])
 
   const refreshUser = useCallback(async () => {
-    if (!tokenManager.hasTokens()) {
-      setUser(null)
-      setIsLoading(false)
-      return
+    if (tokenManager.hasTokens()) {
+      await refetch()
     }
+  }, [refetch])
 
-    try {
-      const userData = await api.auth.me()
-      setUser(userData)
-    } catch (err) {
-      if (err instanceof ApiClientError && err.status === 401) {
-        tokenManager.clearTokens()
-        setUser(null)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refreshUser()
-  }, [refreshUser])
-
-  const login = useCallback(async (email: string, password: string) => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await api.auth.login(email, password)
-      tokenManager.setTokens(response.access_token, response.refresh_token)
-      setUser(response.user)
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message)
-      } else {
-        setError('An unexpected error occurred')
-      }
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const user = await loginMutation.mutateAsync({ email, password })
+      return user
+    },
+    [loginMutation]
+  )
 
   const register = useCallback(
     async (data: {
@@ -93,38 +79,25 @@ export function useAuth(): UseAuthReturn {
       full_name: string
       user_type: UserType
     }) => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await api.auth.register(data)
-        tokenManager.setTokens(response.access_token, response.refresh_token)
-        setUser(response.user)
-      } catch (err) {
-        if (err instanceof ApiClientError) {
-          setError(err.message)
-        } else {
-          setError('An unexpected error occurred')
-        }
-        throw err
-      } finally {
-        setIsLoading(false)
-      }
+      const user = await registerMutation.mutateAsync(data)
+      return user
     },
-    []
+    [registerMutation]
   )
 
   const logout = useCallback(() => {
-    tokenManager.clearTokens()
-    setUser(null)
-    setError(null)
-  }, [])
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        navigate({ to: '/login' })
+      },
+    })
+  }, [logoutMutation, navigate])
 
   return {
-    user,
+    user: user ?? null,
     isAuthenticated,
     isLoading,
-    error,
+    error: error ?? null,
     userType,
     isStaff,
     isCompany,
