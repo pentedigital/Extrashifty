@@ -69,4 +69,5 @@ def get_trusted_host_middleware() -> type[TrustedHostMiddleware]:
 
 
 # Trusted hosts configuration
-TRUSTED_HOSTS = ["localhost", "127.0.0.1", "*.extrashifty.com"]
+# Include "testserver" for FastAPI TestClient compatibility
+TRUSTED_HOSTS = ["localhost", "127.0.0.1", "testserver", "*.extrashifty.com"]

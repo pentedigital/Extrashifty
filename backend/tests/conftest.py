@@ -1,5 +1,10 @@
 """Pytest configuration and fixtures for ExtraShifty tests."""
 
+import os
+
+# Set testing environment before importing app modules
+os.environ["TESTING"] = "true"
+
 from collections.abc import Generator
 
 import pytest
