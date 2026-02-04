@@ -31,7 +31,9 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "changeme-in-production-use-openssl-rand-hex-32"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    REFRESH_SECRET_KEY: str = "changeme-refresh-secret-key-different-from-access"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes for access token
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days for refresh token
     ALGORITHM: str = "HS256"
 
     # Database

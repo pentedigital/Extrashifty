@@ -30,8 +30,18 @@ jobs:
     outputs:
       backend-image: ${{ steps.meta-backend.outputs.tags }}
       frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,6 +62,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=latest,enable=${{ github.ref == format('refs/tags/v{0}', steps.version.outputs.version) }}
 
       - name: Build and push backend image
         uses: docker/build-push-action@v6
@@ -72,6 +83,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
+            type=raw,value=latest,enable=${{ github.ref == format('refs/tags/v{0}', steps.version.outputs.version) }}
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
@@ -95,12 +107,77 @@ jobs:
       name: staging
       url: https://staging.extrashifty.com
     steps:
-      - name: Deploy to staging
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+
+      - name: Add host to known_hosts
         run: |
-          echo "Deploying to staging environment"
-          echo "Backend image: ${{ needs.build-and-push.outputs.backend-image }}"
-          echo "Frontend image: ${{ needs.build-and-push.outputs.frontend-image }}"
-          # Add actual deployment commands here (kubectl, docker-compose, etc.)
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to staging server
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend-image }}
+          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend-image }}
+        run: |
+          ssh $USER@$HOST << 'ENDSSH'
+            cd $DEPLOY_PATH
+
+            # Pull latest images
+            docker compose pull
+
+            # Create backup of database before deployment
+            docker compose exec -T db pg_dump -U postgres extrashifty > backup_$(date +%Y%m%d_%H%M%S).sql || true
+
+            # Deploy with zero-downtime rolling update
+            docker compose up -d --no-deps --scale backend=2 backend
+            sleep 10
+            docker compose up -d --no-deps --scale backend=1 backend
+
+            docker compose up -d --no-deps frontend
+
+            # Run database migrations
+            docker compose exec -T backend alembic upgrade head
+
+            # Cleanup old images
+            docker image prune -f
+          ENDSSH
+
+      - name: Health check - Staging
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+
+          # Check backend health
+          for i in {1..5}; do
+            if curl -sf https://staging.extrashifty.com/health; then
+              echo "Backend health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          # Verify response
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://staging.extrashifty.com/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed with status: $STATUS"
+            exit 1
+          fi
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "Staging deployment successful!"
+          echo "Version: ${{ needs.build-and-push.outputs.version }}"
+          echo "URL: https://staging.extrashifty.com"
 
   # Deploy to Production
   deploy-production:
@@ -112,9 +189,113 @@ jobs:
       name: production
       url: https://extrashifty.com
     steps:
-      - name: Deploy to production
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Add host to known_hosts
         run: |
-          echo "Deploying to production environment"
-          echo "Backend image: ${{ needs.build-and-push.outputs.backend-image }}"
-          echo "Frontend image: ${{ needs.build-and-push.outputs.frontend-image }}"
-          # Add actual deployment commands here
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to production server
+        env:
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+          BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend-image }}
+          FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend-image }}
+        run: |
+          ssh $USER@$HOST << 'ENDSSH'
+            cd $DEPLOY_PATH
+
+            # Pull latest images
+            docker compose pull
+
+            # Create backup of database before deployment
+            docker compose exec -T db pg_dump -U postgres extrashifty > backup_$(date +%Y%m%d_%H%M%S).sql
+
+            # Deploy with zero-downtime rolling update
+            docker compose up -d --no-deps --scale backend=2 backend
+            sleep 15
+            docker compose up -d --no-deps --scale backend=1 backend
+
+            docker compose up -d --no-deps frontend
+
+            # Run database migrations
+            docker compose exec -T backend alembic upgrade head
+
+            # Cleanup old images
+            docker image prune -f
+          ENDSSH
+
+      - name: Health check - Production
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+
+          # Check backend health
+          for i in {1..5}; do
+            if curl -sf https://extrashifty.com/health; then
+              echo "Backend health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          # Verify response
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://extrashifty.com/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed with status: $STATUS"
+            exit 1
+          fi
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "Production deployment successful!"
+          echo "Version: ${{ needs.build-and-push.outputs.version }}"
+          echo "URL: https://extrashifty.com"
+
+  # Rollback job (manual trigger only)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: [deploy-staging, deploy-production]
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_SSH_KEY || secrets.STAGING_SSH_KEY }}
+
+      - name: Rollback to previous version
+        env:
+          HOST: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_HOST || secrets.STAGING_HOST }}
+          USER: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_USER || secrets.STAGING_USER }}
+          DEPLOY_PATH: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_DEPLOY_PATH || secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          echo "Rollback initiated for ${{ github.event.inputs.environment }}"
+          ssh $USER@$HOST << 'ENDSSH'
+            cd $DEPLOY_PATH
+
+            # Rollback using the previous image
+            docker compose down
+
+            # Restore from most recent backup if needed
+            LATEST_BACKUP=$(ls -t backup_*.sql | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              echo "Latest backup available: $LATEST_BACKUP"
+              echo "To restore, run: docker compose exec -T db psql -U postgres extrashifty < $LATEST_BACKUP"
+            fi
+
+            docker compose up -d
+          ENDSSH
+
+          echo "Rollback completed. Please verify the application state."

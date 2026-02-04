@@ -18,6 +18,18 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:80
 const TOKEN_KEY = 'extrashifty_access_token'
 const REFRESH_TOKEN_KEY = 'extrashifty_refresh_token'
 
+let isRefreshing = false
+let refreshSubscribers: ((token: string) => void)[] = []
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb)
+}
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token))
+  refreshSubscribers = []
+}
+
 export const tokenManager = {
   getAccessToken: (): string | null => localStorage.getItem(TOKEN_KEY),
   getRefreshToken: (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY),
@@ -49,10 +61,48 @@ export type HTTPValidationError = {
   detail: ValidationError[]
 }
 
-// Fetch wrapper with auth
+// Token response type
+export type TokenResponse = {
+  access_token: string
+  refresh_token: string
+  token_type: string
+}
+
+// Refresh the access token
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = tokenManager.getRefreshToken()
+  if (!refreshToken) {
+    return null
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+
+    if (!response.ok) {
+      tokenManager.clearTokens()
+      return null
+    }
+
+    const data: TokenResponse = await response.json()
+    tokenManager.setTokens(data.access_token, data.refresh_token)
+    return data.access_token
+  } catch {
+    tokenManager.clearTokens()
+    return null
+  }
+}
+
+// Fetch wrapper with auth and automatic token refresh
 export async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retry = true
 ): Promise<T> {
   const token = tokenManager.getAccessToken()
 
@@ -70,10 +120,41 @@ export async function apiFetch<T>(
     headers,
   })
 
-  if (response.status === 401) {
-    tokenManager.clearTokens()
-    window.location.href = '/login'
-    throw new Error('Unauthorized')
+  // Handle 401 - try to refresh token
+  if (response.status === 401 && retry) {
+    if (!isRefreshing) {
+      isRefreshing = true
+
+      const newToken = await refreshAccessToken()
+
+      isRefreshing = false
+
+      if (newToken) {
+        onTokenRefreshed(newToken)
+        // Retry the original request with new token
+        return apiFetch<T>(endpoint, options, false)
+      } else {
+        // Refresh failed, redirect to login
+        window.location.href = '/login'
+        throw new Error('Session expired')
+      }
+    } else {
+      // Wait for the refresh to complete
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh((newToken: string) => {
+          ;(headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`
+          fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers })
+            .then((res) => {
+              if (!res.ok) {
+                reject(new Error('Request failed after token refresh'))
+              }
+              return res.json()
+            })
+            .then(resolve)
+            .catch(reject)
+        })
+      })
+    }
   }
 
   if (!response.ok) {
@@ -89,10 +170,10 @@ export async function apiFetch<T>(
   return response.json()
 }
 
-// API methods (placeholder until generated client is ready)
+// API methods
 export const api = {
   auth: {
-    login: async (email: string, password: string) => {
+    login: async (email: string, password: string): Promise<TokenResponse> => {
       const formData = new URLSearchParams()
       formData.append('username', email)
       formData.append('password', password)
@@ -110,7 +191,34 @@ export const api = {
         throw new Error(error.detail || 'Login failed')
       }
 
-      return response.json()
+      const data: TokenResponse = await response.json()
+      tokenManager.setTokens(data.access_token, data.refresh_token)
+      return data
+    },
+    refresh: async (): Promise<TokenResponse | null> => {
+      const refreshToken = tokenManager.getRefreshToken()
+      if (!refreshToken) return null
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+
+      if (!response.ok) {
+        tokenManager.clearTokens()
+        return null
+      }
+
+      const data: TokenResponse = await response.json()
+      tokenManager.setTokens(data.access_token, data.refresh_token)
+      return data
+    },
+    logout: (): void => {
+      tokenManager.clearTokens()
+      window.location.href = '/login'
     },
     register: (data: { email: string; password: string; full_name: string }) =>
       apiFetch('/api/v1/auth/register', {

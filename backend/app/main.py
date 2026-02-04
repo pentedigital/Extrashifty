@@ -3,11 +3,21 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.config import settings
 from app.api.v1.api import api_router
+from app.core.rate_limit import limiter
+from app.core.middleware import (
+    SecurityHeadersMiddleware,
+    HTTPSRedirectMiddleware,
+    TRUSTED_HOSTS,
+)
 
 
 @asynccontextmanager
@@ -37,6 +47,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Set up CORS middleware
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(
@@ -48,6 +62,18 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Security middleware (order matters - added in reverse order of execution)
+# 1. Security headers on all responses
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 2. HTTPS redirect in production
+if not settings.DEBUG:
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+# 3. Trusted hosts (prevent host header attacks)
+if not settings.DEBUG:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=TRUSTED_HOSTS)
 
 
 @app.get("/health", tags=["Health"])
