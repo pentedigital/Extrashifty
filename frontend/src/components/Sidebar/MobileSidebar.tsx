@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
-import { Menu, X, LogOut } from 'lucide-react'
+import { Menu, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { UserType } from '@/types/user'
 

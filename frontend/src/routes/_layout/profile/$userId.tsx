@@ -34,7 +34,7 @@ const mockUserProfile = {
 }
 
 function UserProfilePage() {
-  const { userId } = Route.useParams()
+  const { userId: _userId } = Route.useParams()
   const user = mockUserProfile // In real app: fetch user by userId
 
   return (

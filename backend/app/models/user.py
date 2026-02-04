@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -25,7 +25,7 @@ class User(SQLModel, table=True):
 
     __tablename__ = "users"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True, max_length=255)
     hashed_password: str = Field(max_length=255)
     full_name: str = Field(max_length=255)

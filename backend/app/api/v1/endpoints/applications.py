@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import SessionDep, ActiveUserDep
-from app.crud import application as application_crud, shift as shift_crud
+from app.api.deps import ActiveUserDep, SessionDep
+from app.crud import application as application_crud
+from app.crud import shift as shift_crud
 from app.models.application import Application, ApplicationStatus
 from app.models.user import UserType
 from app.schemas.application import ApplicationRead, ApplicationUpdate

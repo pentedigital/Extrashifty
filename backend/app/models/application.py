@@ -25,11 +25,11 @@ class Application(SQLModel, table=True):
 
     __tablename__ = "applications"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     shift_id: int = Field(foreign_key="shifts.id", index=True)
     applicant_id: int = Field(foreign_key="users.id", index=True)
     status: ApplicationStatus = Field(default=ApplicationStatus.PENDING)
-    cover_message: Optional[str] = Field(default=None)
+    cover_message: str | None = Field(default=None)
     applied_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

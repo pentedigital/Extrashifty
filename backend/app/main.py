@@ -1,23 +1,22 @@
 """FastAPI application entry point for ExtraShifty."""
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.core.config import settings
 from app.api.v1.api import api_router
-from app.core.rate_limit import limiter
+from app.core.config import settings
 from app.core.middleware import (
-    SecurityHeadersMiddleware,
-    HTTPSRedirectMiddleware,
     TRUSTED_HOSTS,
+    HTTPSRedirectMiddleware,
+    SecurityHeadersMiddleware,
 )
+from app.core.rate_limit import limiter
 
 
 @asynccontextmanager

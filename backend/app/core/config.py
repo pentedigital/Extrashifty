@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from pydantic import AnyUrl, BeforeValidator, computed_field
+from pydantic import BeforeValidator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

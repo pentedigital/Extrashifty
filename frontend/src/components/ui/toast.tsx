@@ -19,6 +19,7 @@ interface ToastContextValue {
 
 const ToastContext = React.createContext<ToastContextValue | undefined>(undefined)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const context = React.useContext(ToastContext)
   if (!context) {
@@ -28,7 +29,8 @@ export function useToast() {
 }
 
 // Convenience functions
-export function toast(options: Omit<Toast, 'id'>) {
+// eslint-disable-next-line react-refresh/only-export-components
+export function toast(_options: Omit<Toast, 'id'>) {
   // This will be replaced by the actual implementation when provider is mounted
 }
 

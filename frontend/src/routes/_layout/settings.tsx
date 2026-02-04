@@ -41,7 +41,7 @@ function SettingsPage() {
         title: 'Name updated',
         description: 'Your name has been saved successfully.',
       })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Failed to update name',
@@ -62,7 +62,7 @@ function SettingsPage() {
         title: 'Password updated',
         description: 'Your password has been changed successfully.',
       })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Failed to update password',
@@ -198,7 +198,7 @@ function SettingsPage() {
                   await new Promise(resolve => setTimeout(resolve, 1000))
                   logout()
                   navigate({ to: '/' })
-                } catch (error) {
+                } catch {
                   // Error handled silently
                 } finally {
                   setIsDeleting(false)

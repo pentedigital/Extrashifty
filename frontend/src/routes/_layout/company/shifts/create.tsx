@@ -156,7 +156,7 @@ function CreateShiftPage() {
         description: `Your shift "${basicInfo.title}" has been published to the marketplace.`,
       })
       navigate({ to: '/company/shifts' })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Failed to create shift',

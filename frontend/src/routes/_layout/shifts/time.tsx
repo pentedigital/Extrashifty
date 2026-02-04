@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { mockApi } from '@/lib/mockApi'
-import { formatDate, formatTime } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import type { ClockRecord } from '@/types/staff'
 
 export const Route = createFileRoute('/_layout/shifts/time')({
@@ -40,7 +40,7 @@ function TimeTrackingPage() {
         ])
         setClockRecords(records)
         setCurrentShift(shift)
-      } catch (error) {
+      } catch {
         // Error handled silently
       } finally {
         setLoading(false)
@@ -83,7 +83,7 @@ function TimeTrackingPage() {
       setClockRecords((prev) => [record, ...prev])
       setCurrentShift({ clocked_in: false })
       setElapsedTime('00:00:00')
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setClockingOut(false)

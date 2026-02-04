@@ -65,7 +65,7 @@ function InviteStaffPage() {
     }
   }
 
-  const onSubmit = async (data: InviteFormData) => {
+  const onSubmit = async (_data: InviteFormData) => {
     if (emails.length === 0) {
       setEmailError('Please add at least one email address')
       return
@@ -76,7 +76,7 @@ function InviteStaffPage() {
       // TODO: Call API to send invitations
       await new Promise((resolve) => setTimeout(resolve, 1000))
       navigate({ to: '/agency/staff' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

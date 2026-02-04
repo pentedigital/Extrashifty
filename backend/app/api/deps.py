@@ -11,9 +11,9 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.db import engine
+from app.crud import user as user_crud
 from app.models.user import User, UserType
 from app.schemas.token import TokenPayload
-from app.crud import user as user_crud
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 

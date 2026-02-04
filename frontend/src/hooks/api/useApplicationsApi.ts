@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Application, ApplicationStatus } from '@/types/application'
+import type { ApplicationStatus } from '@/types/application'
 import { shiftKeys } from './useShiftsApi'
 
 export const applicationKeys = {

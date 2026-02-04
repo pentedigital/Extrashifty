@@ -68,12 +68,12 @@ function StaffOnboardingPage() {
     )
   }
 
-  const onSubmit = async (data: StaffOnboardingData) => {
+  const onSubmit = async (_data: StaffOnboardingData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to save staff profile
       navigate({ to: '/' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlmodel import Column, Field, JSON, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .application import Application
@@ -28,9 +28,9 @@ class Shift(SQLModel, table=True):
 
     __tablename__ = "shifts"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     title: str = Field(max_length=255)
-    description: Optional[str] = Field(default=None)
+    description: str | None = Field(default=None)
     company_id: int = Field(foreign_key="users.id", index=True)
     shift_type: str = Field(max_length=100)
     date: date
@@ -38,12 +38,12 @@ class Shift(SQLModel, table=True):
     end_time: time
     hourly_rate: Decimal = Field(max_digits=10, decimal_places=2)
     location: str = Field(max_length=255)
-    address: Optional[str] = Field(default=None, max_length=500)
+    address: str | None = Field(default=None, max_length=500)
     city: str = Field(max_length=100)
     spots_total: int = Field(default=1, ge=1)
     spots_filled: int = Field(default=0, ge=0)
     status: ShiftStatus = Field(default=ShiftStatus.DRAFT)
-    requirements: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    requirements: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

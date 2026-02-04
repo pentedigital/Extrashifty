@@ -36,13 +36,13 @@ function ResetPasswordPage() {
     resolver: zodResolver(resetSchema),
   })
 
-  const onSubmit = async (data: ResetFormData) => {
+  const onSubmit = async (_data: ResetFormData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to reset password
       await new Promise((resolve) => setTimeout(resolve, 1000))
       navigate({ to: '/login' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

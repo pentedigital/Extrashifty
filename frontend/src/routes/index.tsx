@@ -3,10 +3,8 @@ import { Button } from '@/components/ui/button'
 import { tokenManager } from '@/lib/api'
 import { LiveActivityTicker, LiveStatCounter, LiveShiftCard } from '@/components/Landing/LiveActivityTicker'
 import {
-  Clock,
   Users,
   TrendingUp,
-  CreditCard,
   Shield,
   CheckCircle,
   BadgeCheck,

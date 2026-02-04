@@ -6,23 +6,23 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.deps import SessionDep, ActiveUserDep
+from app.api.deps import ActiveUserDep, SessionDep
 from app.core.config import settings
+from app.core.rate_limit import (
+    AUTH_RATE_LIMIT,
+    LOGIN_RATE_LIMIT,
+    REGISTER_RATE_LIMIT,
+    limiter,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     verify_password,
     verify_refresh_token,
 )
-from app.core.rate_limit import (
-    limiter,
-    LOGIN_RATE_LIMIT,
-    REGISTER_RATE_LIMIT,
-    AUTH_RATE_LIMIT,
-)
 from app.crud import user as user_crud
 from app.models.user import User
-from app.schemas.token import Token, RefreshTokenRequest
+from app.schemas.token import RefreshTokenRequest, Token
 from app.schemas.user import UserCreate, UserRead
 
 router = APIRouter()

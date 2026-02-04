@@ -111,7 +111,7 @@ export function NotificationBell() {
     try {
       const data = await mockApi.notifications.list()
       setNotifications(data)
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setLoading(false)
@@ -146,7 +146,7 @@ export function NotificationBell() {
           n.id === id ? { ...n, read: true, read_at: new Date().toISOString() } : n
         )
       )
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }
@@ -157,7 +157,7 @@ export function NotificationBell() {
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, read: true, read_at: new Date().toISOString() }))
       )
-    } catch (error) {
+    } catch {
       // Error handled silently
     }
   }

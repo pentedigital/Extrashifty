@@ -49,12 +49,12 @@ function CompanyOnboardingPage() {
     resolver: zodResolver(companyOnboardingSchema),
   })
 
-  const onSubmit = async (data: CompanyOnboardingData) => {
+  const onSubmit = async (_data: CompanyOnboardingData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to save company profile
       navigate({ to: '/' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

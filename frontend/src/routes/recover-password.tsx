@@ -31,13 +31,13 @@ function RecoverPasswordPage() {
     resolver: zodResolver(recoverSchema),
   })
 
-  const onSubmit = async (data: RecoverFormData) => {
+  const onSubmit = async (_data: RecoverFormData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to send recovery email
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setIsSuccess(true)
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

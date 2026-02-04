@@ -90,7 +90,7 @@ const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 4)) // Feb 4, 2026
-  const [view, setView] = useState<'week' | 'day'>('week')
+  const [_view, _setView] = useState<'week' | 'day'>('week')
 
   const getWeekDates = () => {
     const startOfWeek = new Date(currentDate)

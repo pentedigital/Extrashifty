@@ -62,7 +62,7 @@ function ApplicationsPage() {
       })
       setWithdrawDialogOpen(false)
       setSelectedApplication(null)
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Failed to withdraw',

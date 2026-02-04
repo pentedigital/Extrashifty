@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
@@ -65,7 +65,7 @@ function ShiftDetailPage() {
         description: `Your application for "${shift.title}" has been sent. We'll notify you when the company responds.`,
       })
       navigate({ to: '/shifts/applications' })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Failed to submit application',

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Star, Calendar, MapPin, Clock, Euro, Phone, Mail, CheckCircle, Shield } from 'lucide-react'
+import { ArrowLeft, Star, Calendar, Clock, Phone, Mail, CheckCircle, Shield } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
 

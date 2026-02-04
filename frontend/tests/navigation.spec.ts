@@ -83,7 +83,7 @@ test.describe('Navigation', () => {
       await page.goto('/')
 
       // Look for hamburger menu or mobile nav trigger
-      const mobileMenuButton = page.locator('[data-testid="mobile-menu"], button[aria-label*="menu"], .mobile-menu-button')
+      const _mobileMenuButton = page.locator('[data-testid="mobile-menu"], button[aria-label*="menu"], .mobile-menu-button')
       // Mobile menu might exist depending on implementation
       await expect(page.locator('body')).toBeVisible()
     })

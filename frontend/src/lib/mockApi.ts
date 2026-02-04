@@ -108,7 +108,7 @@ export const mockApi = {
       ]
     },
 
-    withdraw: async (amount: number): Promise<{ success: boolean; payout_id: string }> => {
+    withdraw: async (_amount: number): Promise<{ success: boolean; payout_id: string }> => {
       await delay(500)
       return { success: true, payout_id: generateId() }
     },
@@ -233,7 +233,7 @@ export const mockApi = {
       ]
     },
 
-    markAsRead: async (id: string): Promise<{ success: boolean }> => {
+    markAsRead: async (_id: string): Promise<{ success: boolean }> => {
       await delay(200)
       return { success: true }
     },
@@ -358,7 +358,7 @@ export const mockApi = {
 
   // ==================== RATINGS ====================
   ratings: {
-    getForStaff: async (staffId: string): Promise<{ average: number; count: number; reviews: Array<{ id: string; rating: number; comment?: string; company_name: string; created_at: string }> }> => {
+    getForStaff: async (_staffId: string): Promise<{ average: number; count: number; reviews: Array<{ id: string; rating: number; comment?: string; company_name: string; created_at: string }> }> => {
       await delay(400)
       return {
         average: 4.8,
@@ -371,7 +371,7 @@ export const mockApi = {
       }
     },
 
-    getForCompany: async (companyId: string): Promise<{ average: number; count: number; reviews: Array<{ id: string; rating: number; comment?: string; staff_name: string; created_at: string }> }> => {
+    getForCompany: async (_companyId: string): Promise<{ average: number; count: number; reviews: Array<{ id: string; rating: number; comment?: string; staff_name: string; created_at: string }> }> => {
       await delay(400)
       return {
         average: 4.7,
@@ -383,7 +383,7 @@ export const mockApi = {
       }
     },
 
-    submit: async (data: { shift_id: string; rating: number; comment?: string }): Promise<{ success: boolean }> => {
+    submit: async (_data: { shift_id: string; rating: number; comment?: string }): Promise<{ success: boolean }> => {
       await delay(300)
       return { success: true }
     },
@@ -430,7 +430,7 @@ export const mockApi = {
       }
     },
 
-    uploadDocument: async (type: string, file: File): Promise<VerificationDocument> => {
+    uploadDocument: async (type: string, _file: File): Promise<VerificationDocument> => {
       await delay(500)
       return {
         id: generateId(),

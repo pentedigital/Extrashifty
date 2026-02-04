@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, CheckCircle, Clock, BanknoteIcon } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
 export const Route = createFileRoute('/_layout/admin/payouts')({
   component: AdminPayoutsPage,

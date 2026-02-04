@@ -37,13 +37,13 @@ function AddClientPage() {
     },
   })
 
-  const onSubmit = async (data: AddClientFormData) => {
+  const onSubmit = async (_data: AddClientFormData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to add client
       await new Promise((resolve) => setTimeout(resolve, 1000))
       navigate({ to: '/agency/clients' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

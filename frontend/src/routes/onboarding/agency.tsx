@@ -54,12 +54,12 @@ function AgencyOnboardingPage() {
     resolver: zodResolver(agencyOnboardingSchema),
   })
 
-  const onSubmit = async (data: AgencyOnboardingData) => {
+  const onSubmit = async (_data: AgencyOnboardingData) => {
     setIsSubmitting(true)
     try {
       // TODO: Call API to save agency profile
       navigate({ to: '/' })
-    } catch (error) {
+    } catch {
       // Error handled silently
     } finally {
       setIsSubmitting(false)

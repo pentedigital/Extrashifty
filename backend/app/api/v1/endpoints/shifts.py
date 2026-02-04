@@ -4,8 +4,9 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import SessionDep, ActiveUserDep, CompanyUserDep
-from app.crud import shift as shift_crud, application as application_crud
+from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
+from app.crud import application as application_crud
+from app.crud import shift as shift_crud
 from app.models.shift import Shift, ShiftStatus
 from app.models.user import UserType
 from app.schemas.shift import ShiftCreate, ShiftRead, ShiftUpdate

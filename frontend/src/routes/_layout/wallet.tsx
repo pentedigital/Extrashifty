@@ -67,7 +67,7 @@ function WalletPage() {
         setPending(balanceData.pending)
         setCurrency(balanceData.currency)
         setTransactions(transactionsData)
-      } catch (error) {
+      } catch {
         // Error handled silently
       } finally {
         setIsLoading(false)
@@ -98,7 +98,7 @@ function WalletPage() {
         setWithdrawSuccess(false)
         setWithdrawAmount('')
       }, 2000)
-    } catch (error) {
+    } catch {
       setWithdrawError('Withdrawal failed. Please try again.')
     } finally {
       setIsWithdrawing(false)

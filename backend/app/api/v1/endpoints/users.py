@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import SessionDep, ActiveUserDep, AdminUserDep
+from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
 from app.crud import user as user_crud
 from app.models.user import User, UserType
 from app.schemas.user import UserRead, UserUpdate

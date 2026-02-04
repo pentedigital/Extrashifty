@@ -8,13 +8,11 @@ import {
   Plus,
   AlertCircle,
   Check,
-  Clock,
   UserPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatCurrency, formatTime } from '@/lib/utils'
 
