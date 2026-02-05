@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "ExtraShifty"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
+    ENVIRONMENT: str = "development"
+
+    # Sentry
+    SENTRY_DSN: str | None = None
 
     # Security
     SECRET_KEY: str = "changeme-in-production-use-openssl-rand-hex-32"

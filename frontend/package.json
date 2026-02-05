@@ -43,6 +43,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tanstack/react-query-devtools": "^5.90.0",
+    "msw": "^2.1.0",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "@hey-api/openapi-ts": "^0.91.1",
