@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Logo } from '@/components/Logo'
 import { tokenManager } from '@/lib/api'
 import { LiveActivityTicker, LiveStatCounter, LiveShiftCard } from '@/components/Landing/LiveActivityTicker'
@@ -15,6 +16,7 @@ import {
   Calendar,
   Star,
   Quote,
+  Menu,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
@@ -43,14 +45,41 @@ function LandingPage() {
           <Logo linkTo="/" />
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <Sheet>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon" className="focus-visible:ring-2 focus-visible:ring-brand-500">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <div className="flex flex-col gap-4 mt-8">
+                  <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                    About
+                  </Link>
+                  <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                    Pricing
+                  </Link>
+                  <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                    Contact
+                  </Link>
+                  <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                    Sign in
+                  </Link>
+                  <Link to="/signup" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                    Get started
+                  </Link>
+                </div>
+              </SheetContent>
+            </Sheet>
             <div className="hidden md:flex items-center gap-4 mr-4">
-              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
                 About
               </Link>
-              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
                 Pricing
               </Link>
-              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
                 Contact
               </Link>
             </div>
@@ -72,27 +101,25 @@ function LandingPage() {
         {/* Hero Section */}
         <section className="pt-24 md:pt-32 pb-12 md:pb-16 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <p className="text-brand-600 dark:text-brand-400 font-medium mb-4 animate-fade-in-up">
+            <p className="text-sm sm:text-base text-brand-600 dark:text-brand-400 font-medium mb-4 animate-fade-in-up">
               Shift covered.
             </p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up animation-delay-100">
-              One marketplace.<br />Every shift. Filled.
+              <span className="block">One marketplace.</span>
+              <span className="block">Every shift. Filled.</span>
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 animate-fade-in-up animation-delay-200">
-              The hospitality industry moves fast. Your staffing shouldn't slow you down.
-            </p>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto mb-8 md:mb-10 animate-fade-in-up animation-delay-300">
-              Post a shift in 30 seconds. Get matched in 90 seconds. Problem solved before dinner service.
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-in-up animation-delay-200">
+              Post a shift in 30 seconds. Get matched in 90 seconds. Problem solved.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in-up animation-delay-400">
               <Link to="/signup">
-                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
                   Post a shift
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Button>
               </Link>
-              <Link to="/signup">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-md hover:-translate-y-0.5 transition-all">
+              <Link to="/marketplace">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-md hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
                   Browse shifts near me
                 </Button>
               </Link>
@@ -142,7 +169,7 @@ function LandingPage() {
         {/* The Problem Section */}
         <section className="py-16 md:py-20 px-4 sm:px-6 bg-muted">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-8 md:mb-10 text-center">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-8 md:mb-10 text-center">
               The problem is simple.
             </h2>
             <div className="space-y-4 md:space-y-6 text-base sm:text-lg text-muted-foreground">
@@ -177,7 +204,7 @@ function LandingPage() {
         <section className="py-12 md:py-16 px-4 sm:px-6 bg-muted/50">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-8 md:mb-10">
-              <h2 className="text-xl sm:text-2xl font-bold mb-2">Happening Right Now</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-2">Happening Right Now</h2>
               <p className="text-muted-foreground">Real shifts being filled across the platform</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -219,7 +246,7 @@ function LandingPage() {
         </section>
 
         {/* Feature: For Businesses */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-background">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-background">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div>
               <div className="inline-flex items-center gap-2 text-brand-600 dark:text-brand-400 font-medium mb-4">
@@ -255,7 +282,7 @@ function LandingPage() {
         </section>
 
         {/* Feature: For Workers */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-muted">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-muted">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div className="bg-card rounded-2xl h-64 md:h-80 flex items-center justify-center shadow-sm">
               <Star className="h-20 w-20 md:h-24 md:w-24 text-muted-foreground/30" aria-hidden="true" />
@@ -285,7 +312,7 @@ function LandingPage() {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-background">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-background">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-14">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
@@ -319,7 +346,7 @@ function LandingPage() {
         {/* Stats Section */}
         <section className="py-16 md:py-20 px-4 sm:px-6 bg-brand-600 dark:bg-brand-700 text-white">
           <div className="max-w-4xl mx-auto text-center mb-10 md:mb-12">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
               This is hospitality staffing. Reimagined.
             </h2>
           </div>
@@ -337,13 +364,13 @@ function LandingPage() {
         </section>
 
         {/* Trust Section */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-slate-900 dark:bg-slate-950 text-white">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-slate-900 dark:bg-slate-950 text-white">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-14">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
                 Trust isn't optional.
               </h2>
-              <p className="text-lg sm:text-xl text-muted-foreground">
+              <p className="text-lg sm:text-xl text-slate-300">
                 We don't take shortcuts.
               </p>
             </div>
@@ -375,7 +402,7 @@ function LandingPage() {
                 description="Funds held in escrow until work is complete. Both sides protected."
               />
               <div className="flex items-center justify-center p-6 md:p-8">
-                <p className="text-base sm:text-lg text-muted-foreground text-center">
+                <p className="text-base sm:text-lg text-slate-300 text-center">
                   Because trust is everything.<br />
                   <span className="text-white font-medium">And everything is verified.</span>
                 </p>
@@ -385,7 +412,7 @@ function LandingPage() {
         </section>
 
         {/* Feature: For Agencies */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-background">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-background">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-12">
               <p className="text-muted-foreground mb-2">One more thing.</p>
@@ -415,7 +442,7 @@ function LandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-muted">
+        <section className="py-20 md:py-24 px-4 sm:px-6 bg-muted">
           <div className="max-w-3xl mx-auto text-center">
             <p className="text-base sm:text-lg text-muted-foreground mb-4 md:mb-6">
               Mary's late. John's sick. Sarah just quit.
@@ -425,7 +452,7 @@ function LandingPage() {
             </h2>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 md:mb-8">
               <Link to="/signup">
-                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
                   Get your shift covered
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Button>
@@ -446,7 +473,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10 md:mb-12">
             <div className="col-span-2 md:col-span-1">
-              <Logo className="mb-4" />
+              <Logo linkTo="/" className="mb-4" />
               <p className="text-brand-600 dark:text-brand-400 font-medium">
                 Shift covered.
               </p>
@@ -464,8 +491,8 @@ function LandingPage() {
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li><Link to="/about" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">About</Link></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed">Blog (Coming soon)</span></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed">Careers (Coming soon)</span></li>
+                <li><span className="text-muted-foreground/50 cursor-not-allowed" role="link" aria-disabled="true" tabIndex={0}>Blog (Coming soon)</span></li>
+                <li><span className="text-muted-foreground/50 cursor-not-allowed" role="link" aria-disabled="true" tabIndex={0}>Careers (Coming soon)</span></li>
                 <li><Link to="/contact" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">Contact</Link></li>
               </ul>
             </div>
@@ -532,7 +559,7 @@ function TrustCard({
   return (
     <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-5 md:p-6 border border-muted-foreground/20">
       <div className="h-10 w-10 mb-4 rounded-lg bg-brand-500/20 flex items-center justify-center">
-        <Icon className="h-5 w-5 text-brand-400" aria-hidden="true" />
+        <Icon className="h-5 w-5 text-brand-300" aria-hidden="true" />
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
       <p className="text-muted-foreground text-sm">{description}</p>
