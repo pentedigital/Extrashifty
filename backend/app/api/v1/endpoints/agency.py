@@ -7,6 +7,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, raise_conflict, require_found, require_permission
 from sqlmodel import Field as SQLField
 from sqlmodel import Session, SQLModel, select, func
 
@@ -564,11 +565,10 @@ class AgencyShift(SQLModel, table=True):
 
 def require_agency_user(current_user: ActiveUserDep) -> None:
     """Verify that the current user is an agency user."""
-    if current_user.user_type not in (UserType.AGENCY, UserType.ADMIN):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Agency role required for this operation",
-        )
+    require_permission(
+        current_user.user_type in (UserType.AGENCY, UserType.ADMIN),
+        "Agency role required for this operation"
+    )
 
 
 # --- Endpoints ---
@@ -653,10 +653,7 @@ def add_client(
 
     if existing:
         if existing.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Client with this email already exists",
-            )
+            raise_bad_request("Client with this email already exists")
         else:
             # Reactivate existing client
             existing.is_active = True
@@ -840,11 +837,7 @@ def remove_staff(
     )
     staff_member = session.exec(statement).first()
 
-    if not staff_member:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found",
-        )
+    require_found(staff_member, "Staff member")
 
     session.delete(staff_member)
     session.commit()
@@ -1144,17 +1137,10 @@ def add_staff(
 
     # Verify the user exists and is a staff user
     user = session.get(User, request.staff_user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    require_found(user, "User")
 
     if user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not a staff member",
-        )
+        raise_bad_request("User is not a staff member")
 
     # Check if staff member already exists for this agency
     statement = select(AgencyStaffMember).where(
@@ -1164,10 +1150,7 @@ def add_staff(
     existing = session.exec(statement).first()
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Staff member already exists in agency pool",
-        )
+        raise_bad_request("Staff member already exists in agency pool")
 
     # Create new staff member
     staff_member = AgencyStaffMember(
@@ -1237,11 +1220,7 @@ def update_staff(
     )
     staff_member = session.exec(statement).first()
 
-    if not staff_member:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found",
-        )
+    require_found(staff_member, "Staff member")
 
     # Update fields if provided
     if request.status is not None:
@@ -1310,11 +1289,7 @@ def get_staff_availability(
     )
     staff_member = session.exec(statement).first()
 
-    if not staff_member:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found",
-        )
+    require_found(staff_member, "Staff member")
 
     return StaffAvailabilityResponse(
         staff_id=staff_member.id,
@@ -1344,11 +1319,7 @@ def update_staff_availability(
     )
     staff_member = session.exec(statement).first()
 
-    if not staff_member:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found",
-        )
+    require_found(staff_member, "Staff member")
 
     staff_member.is_available = request.is_available
     if request.notes is not None:
@@ -1392,11 +1363,7 @@ def update_client(
     )
     client = session.exec(statement).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    require_found(client, "Client")
 
     # Update fields if provided
     if request.billing_rate_markup is not None:
@@ -1435,11 +1402,7 @@ def remove_client(
     )
     client = session.exec(statement).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    require_found(client, "Client")
 
     client.is_active = False
     client.updated_at = datetime.utcnow()
@@ -1550,11 +1513,7 @@ def create_agency_shift(
     )
     client = session.exec(client_stmt).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found or inactive",
-        )
+    require_found(client, "Client not found or inactive")
 
     # Create the shift (agency posts as company_id = agency user id)
     shift = Shift(
@@ -1633,19 +1592,11 @@ def update_agency_shift(
     )
     agency_shift = session.exec(agency_shift_stmt).first()
 
-    if not agency_shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found or not owned by agency",
-        )
+    require_found(agency_shift, "Shift not found or not owned by agency")
 
     # Get the actual shift
     shift = session.get(Shift, shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     # Update fields if provided
     if request.title is not None:
@@ -1732,19 +1683,11 @@ def delete_agency_shift(
     )
     agency_shift = session.exec(agency_shift_stmt).first()
 
-    if not agency_shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found or not owned by agency",
-        )
+    require_found(agency_shift, "Shift not found or not owned by agency")
 
     # Get the actual shift
     shift = session.get(Shift, shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     shift.status = ShiftStatus.CANCELLED
     session.add(shift)
@@ -1774,11 +1717,7 @@ def assign_staff_to_shift(
     )
     agency_shift = session.exec(agency_shift_stmt).first()
 
-    if not agency_shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found or not owned by agency",
-        )
+    require_found(agency_shift, "Shift not found or not owned by agency")
 
     # Verify staff member belongs to agency
     staff_stmt = select(AgencyStaffMember).where(
@@ -1788,11 +1727,7 @@ def assign_staff_to_shift(
     )
     staff_member = session.exec(staff_stmt).first()
 
-    if not staff_member:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found or inactive",
-        )
+    require_found(staff_member, "Staff member not found or inactive")
 
     # Check if already assigned
     existing_stmt = select(AgencyShiftAssignment).where(
@@ -1803,24 +1738,14 @@ def assign_staff_to_shift(
     existing = session.exec(existing_stmt).first()
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Staff member already assigned to this shift",
-        )
+        raise_bad_request("Staff member already assigned to this shift")
 
     # Get the shift to update spots_filled
     shift = session.get(Shift, shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     if shift.spots_filled >= shift.spots_total:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Shift is fully staffed",
-        )
+        raise_bad_request("Shift is fully staffed")
 
     # Create assignment
     assignment = AgencyShiftAssignment(
@@ -1929,11 +1854,7 @@ def accept_application(
 
     # Get the application
     application = session.get(Application, application_id)
-    if not application:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found",
-        )
+    require_found(application, "Application")
 
     # Verify the shift belongs to this agency
     agency_shift_stmt = select(AgencyShift).where(
@@ -1942,31 +1863,17 @@ def accept_application(
     )
     agency_shift = session.exec(agency_shift_stmt).first()
 
-    if not agency_shift:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to manage this application",
-        )
+    require_permission(agency_shift is not None, "Not authorized to manage this application")
 
     if application.status != ApplicationStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Application is already {application.status.value}",
-        )
+        raise_bad_request(f"Application is already {application.status.value}")
 
     # Get the shift
     shift = session.get(Shift, application.shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     if shift.spots_filled >= shift.spots_total:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Shift is fully staffed",
-        )
+        raise_bad_request("Shift is fully staffed")
 
     # Accept the application
     application.status = ApplicationStatus.ACCEPTED
@@ -2004,11 +1911,7 @@ def reject_application(
 
     # Get the application
     application = session.get(Application, application_id)
-    if not application:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found",
-        )
+    require_found(application, "Application")
 
     # Verify the shift belongs to this agency
     agency_shift_stmt = select(AgencyShift).where(
@@ -2017,17 +1920,10 @@ def reject_application(
     )
     agency_shift = session.exec(agency_shift_stmt).first()
 
-    if not agency_shift:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to manage this application",
-        )
+    require_permission(agency_shift is not None, "Not authorized to manage this application")
 
     if application.status != ApplicationStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Application is already {application.status.value}",
-        )
+        raise_bad_request(f"Application is already {application.status.value}")
 
     # Reject the application
     application.status = ApplicationStatus.REJECTED
@@ -2153,11 +2049,7 @@ def create_invoice(
     )
     client = session.exec(client_stmt).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    require_found(client, "Client")
 
     # Generate invoice number
     invoice_number = generate_invoice_number(current_user.id, session)
@@ -2225,11 +2117,7 @@ def get_invoice(
     )
     invoice = session.exec(statement).first()
 
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     # Fetch client info
     client_stmt = select(AgencyClient).where(AgencyClient.id == invoice.client_id)
@@ -2284,17 +2172,10 @@ def send_invoice(
     )
     invoice = session.exec(statement).first()
 
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     if invoice.status != "draft":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot send invoice with status '{invoice.status}'. Only draft invoices can be sent.",
-        )
+        raise_bad_request(f"Cannot send invoice with status '{invoice.status}'. Only draft invoices can be sent.")
 
     invoice.status = "sent"
     invoice.updated_at = datetime.utcnow()
@@ -2357,17 +2238,10 @@ def mark_invoice_paid(
     )
     invoice = session.exec(statement).first()
 
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     if invoice.status not in ("sent", "overdue"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot mark invoice with status '{invoice.status}' as paid. Only sent or overdue invoices can be marked as paid.",
-        )
+        raise_bad_request(f"Cannot mark invoice with status '{invoice.status}' as paid. Only sent or overdue invoices can be marked as paid.")
 
     invoice.status = "paid"
     invoice.paid_date = date.today()
@@ -2481,11 +2355,7 @@ def list_client_invoices(
     )
     client = session.exec(client_stmt).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    require_found(client, "Client")
 
     statement = select(AgencyClientInvoice).where(
         AgencyClientInvoice.agency_id == current_user.id,
@@ -2729,10 +2599,7 @@ def process_payroll(
     staff_members = session.exec(staff_stmt).all()
 
     if not staff_members:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No active staff members found to process payroll",
-        )
+        raise_bad_request("No active staff members found to process payroll")
 
     # Get agency shifts for the period
     agency_shift_ids_stmt = select(AgencyShift.shift_id).where(
@@ -2902,11 +2769,7 @@ def get_payroll_entry(
     )
     entry = session.exec(statement).first()
 
-    if not entry:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payroll entry not found",
-        )
+    require_found(entry, "Payroll entry")
 
     # Fetch staff member info
     staff_stmt = select(AgencyStaffMember).where(AgencyStaffMember.id == entry.staff_member_id)
@@ -3301,12 +3164,11 @@ def require_full_intermediary_mode(session: SessionDep, user_id: int) -> AgencyP
     """Verify agency is in FULL_INTERMEDIARY mode."""
     profile = get_or_create_agency_profile(session, user_id)
 
-    if profile.mode != AgencyMode.FULL_INTERMEDIARY:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This operation requires Full Intermediary (Mode B) mode. "
-                   "Please switch your agency mode to access this feature.",
-        )
+    require_permission(
+        profile.mode == AgencyMode.FULL_INTERMEDIARY,
+        "This operation requires Full Intermediary (Mode B) mode. "
+        "Please switch your agency mode to access this feature."
+    )
 
     return profile
 
@@ -3335,11 +3197,7 @@ def create_shift_for_client(
     )
     client = session.exec(client_stmt).first()
 
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found or inactive",
-        )
+    require_found(client, "Client not found or inactive")
 
     # Create the shift with agency as the poster
     shift = Shift(

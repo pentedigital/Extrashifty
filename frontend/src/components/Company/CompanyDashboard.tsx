@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
-import { Calendar, Users, Euro, Star, ArrowRight, Plus, AlertCircle, Wallet, Loader2 } from 'lucide-react'
+import { Calendar, Users, Euro, Star, ArrowRight, Plus, AlertCircle, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { useCompanyStats, useCompanyShifts, useCompanyWallet } from '@/hooks/api/useCompanyApi'
 
@@ -53,20 +54,18 @@ export function CompanyDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Manage your shifts and workers.</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Dashboard"
+        description="Manage your shifts and workers."
+        actions={
           <Link to="/company/shifts/create">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Post Shift
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">

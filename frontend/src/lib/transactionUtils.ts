@@ -7,10 +7,10 @@ import {
   Wallet,
   RefreshCw,
 } from 'lucide-react'
-import type { TransactionType } from '@/hooks/api/useWalletApi'
+import type { TransactionType } from '@/types/payment'
 
-// Extended transaction types that include additional types from usePaymentsApi
-export type ExtendedTransactionType = TransactionType | 'refund' | 'reserve' | 'release'
+// Extended transaction types that include UI-specific types not in the backend
+export type ExtendedTransactionType = TransactionType | 'earning' | 'withdrawal' | 'transfer' | 'payment' | 'escrow_hold' | 'escrow_release'
 
 // Icon configuration type
 export interface TransactionIconConfig {

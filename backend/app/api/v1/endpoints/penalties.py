@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.penalty import (
     AppealStatus,
     NegativeBalance,
@@ -566,11 +567,7 @@ async def lift_user_suspension(
         reason=lift_in.reason,
     )
 
-    if not suspension:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active suspension found for this user",
-        )
+    require_found(suspension, "No active suspension found for this user")
 
     return SuspensionResponse(
         id=suspension.id,

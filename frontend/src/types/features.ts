@@ -1,42 +1,38 @@
-// =============================================================================
-// Re-export payment types to avoid duplicates
-// =============================================================================
-
-// Import authoritative payment types from payment.ts
-import type {
-  TransactionType,
-  TransactionStatus,
-  PayoutStatus,
-} from './payment'
-
-// Re-export for backwards compatibility
-export type { TransactionType, TransactionStatus, PayoutStatus }
+// Import payment types for use in extended feature interfaces
+import type { TransactionType, TransactionStatus, PayoutStatus } from './payment'
 
 // =============================================================================
 // Notifications
 // =============================================================================
 
+// NOTE: For TransactionType, TransactionStatus, PayoutStatus - import directly from '@/types/payment'
+
 export type NotificationType = 'shift_update' | 'application_update' | 'message' | 'payment' | 'system'
 export type NotificationChannel = 'email' | 'in_app' | 'sms' | 'push'
 
+/**
+ * Notification interface - matches API response format from useNotificationsApi
+ * Uses `message` and `is_read` to match backend response
+ */
 export interface Notification {
   id: number
   user_id: number
-  type: NotificationType
+  type: NotificationType | string
   title: string
-  body: string
-  data?: Record<string, unknown>
-  read: boolean
-  read_at?: string
+  message: string  // API uses 'message', not 'body'
+  data?: Record<string, unknown> | null
+  is_read: boolean  // API uses 'is_read', not 'read'
   created_at: string
 }
 
 export interface NotificationPreferences {
+  id?: number
+  user_id?: number
   email_enabled: boolean
   push_enabled: boolean
-  sms_enabled: boolean
+  sms_enabled?: boolean
   shift_updates: boolean
-  application_updates: boolean
+  application_updates?: boolean
   payment_updates: boolean
   marketing: boolean
 }

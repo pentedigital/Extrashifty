@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.appeal import Appeal, AppealStatus, AppealType, EmergencyType
 from app.models.penalty import Penalty, Strike, UserSuspension
 from app.models.user import User
@@ -230,21 +231,13 @@ async def get_appeal(
     """
     appeal = await appeal_service.get_appeal(db=session, appeal_id=appeal_id)
 
-    if not appeal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Appeal {appeal_id} not found",
-        )
+    require_found(appeal, f"Appeal {appeal_id}")
 
     # Check access permission
     from app.models.user import UserType
 
     if current_user.user_type != UserType.ADMIN:
-        if appeal.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view your own appeals",
-            )
+        require_permission(appeal.user_id == current_user.id, "You can only view your own appeals")
 
     return _build_appeal_response(appeal, session)
 
@@ -399,17 +392,11 @@ async def review_appeal(
     try:
         # Validate is_frivolous can only be used with denial
         if request.is_frivolous and request.approved:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Frivolous fee can only be charged when denying an appeal",
-            )
+            raise_bad_request("Frivolous fee can only be charged when denying an appeal")
 
         # Validate emergency waiver can only be used with approval
         if request.use_emergency_waiver and not request.approved:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Emergency waiver can only be used when approving an appeal",
-            )
+            raise_bad_request("Emergency waiver can only be used when approving an appeal")
 
         appeal = await appeal_service.review_appeal(
             db=session,

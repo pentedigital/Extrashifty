@@ -1,8 +1,7 @@
 import type { ShiftStatus } from '@/types/shift'
 import type { ApplicationStatus } from '@/types/application'
 import type { InvoiceStatus, PayrollStatus } from '@/types/agency'
-import type { TransactionStatus } from '@/hooks/api/useWalletApi'
-import type { PayoutStatus } from '@/hooks/api/usePaymentsApi'
+import type { TransactionStatus, PayoutStatus } from '@/types/payment'
 
 // Badge configuration type
 export interface BadgeConfig {

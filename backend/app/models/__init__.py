@@ -36,8 +36,8 @@ from .wallet import (
     Wallet,
     WalletType,
 )
+from .base import TimestampMixin
 from .penalty import (
-    AppealStatus as PenaltyAppealStatus,
     NegativeBalance,
     Penalty,
     PenaltyAppeal,
@@ -109,9 +109,10 @@ __all__ = [
     # Penalty
     "Penalty",
     "PenaltyStatus",
-    "PenaltyAppealStatus",
     "PenaltyAppeal",
     "Strike",
     "UserSuspension",
     "NegativeBalance",
+    # Base/Mixins
+    "TimestampMixin",
 ]

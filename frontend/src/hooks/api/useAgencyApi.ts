@@ -254,28 +254,9 @@ export function useAgencyApplications(filters?: Record<string, string>) {
   })
 }
 
-export function useAcceptApplication() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (applicationId: string) => api.agency.acceptApplication(applicationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: agencyKeys.applications() })
-      queryClient.invalidateQueries({ queryKey: agencyKeys.shifts() })
-    },
-  })
-}
-
-export function useRejectApplication() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (applicationId: string) => api.agency.rejectApplication(applicationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: agencyKeys.applications() })
-    },
-  })
-}
+// NOTE: useAcceptApplication and useRejectApplication have been removed to avoid
+// naming conflicts with useCompanyApi. Use useAgencyAcceptApplication and
+// useAgencyRejectApplication instead (defined below).
 
 // Assignments
 export function useAgencyAssignments(filters?: Record<string, string>) {

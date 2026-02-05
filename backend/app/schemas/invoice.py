@@ -2,25 +2,10 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class InvoiceType(str, Enum):
-    """Invoice type for API."""
-
-    COMPANY_RECEIPT = "company_receipt"
-    STAFF_PAY_STUB = "staff_pay_stub"
-    AGENCY_INVOICE = "agency_invoice"
-
-
-class InvoiceStatus(str, Enum):
-    """Invoice status for API."""
-
-    DRAFT = "draft"
-    SENT = "sent"
-    PAID = "paid"
+from ..models.invoice import InvoiceStatus, InvoiceType
 
 
 class InvoiceBase(BaseModel):

@@ -1,5 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type {
+  Transaction,
+  TransactionType,
+  TransactionStatus,
+  Wallet,
+  PaymentMethod,
+  PaymentMethodType,
+} from '@/types/payment'
+
+// Re-export types for backwards compatibility
+export type { Transaction, TransactionType, TransactionStatus, Wallet, PaymentMethod, PaymentMethodType }
 
 export const walletKeys = {
   all: ['wallet'] as const,
@@ -8,44 +19,10 @@ export const walletKeys = {
   transactionList: (params?: {
     skip?: number
     limit?: number
-    type?: 'earning' | 'withdrawal' | 'top_up' | 'payment'
-    status?: 'pending' | 'completed' | 'failed'
+    type?: TransactionType
+    status?: TransactionStatus
   }) => [...walletKeys.transactions(), params] as const,
   paymentMethods: () => [...walletKeys.all, 'payment-methods'] as const,
-}
-
-export type TransactionType = 'earning' | 'withdrawal' | 'top_up' | 'payment'
-export type TransactionStatus = 'pending' | 'completed' | 'failed'
-export type PaymentMethodType = 'card' | 'bank_account'
-
-export interface Wallet {
-  id: number
-  user_id: number
-  balance: number
-  currency: string
-  created_at: string
-  updated_at: string
-}
-
-export interface Transaction {
-  id: number
-  wallet_id: number
-  type: TransactionType
-  amount: number
-  description: string
-  status: TransactionStatus
-  reference_id: string | null
-  created_at: string
-}
-
-export interface PaymentMethod {
-  id: number
-  user_id: number
-  type: PaymentMethodType
-  last_four: string
-  brand: string | null
-  is_default: boolean
-  created_at: string
 }
 
 export function useWalletBalance() {

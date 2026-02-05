@@ -6,6 +6,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..models.payment import PayoutStatus
+
 
 class PaymentMethodType(str, Enum):
     """Payment method types for topup."""
@@ -191,15 +193,6 @@ class CancellationResponse(BaseModel):
     worker_compensation: Decimal
     transactions: list[dict]
     message: str
-
-
-class PayoutStatus(str, Enum):
-    """Payout status."""
-
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 class PayoutRequest(BaseModel):

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.crud import application as application_crud
 from app.crud import shift as shift_crud
 from app.models.application import ApplicationStatus
@@ -43,11 +44,7 @@ def get_my_shifts(
     """
     from datetime import date as date_type
 
-    if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff can view their assigned shifts",
-        )
+    require_permission(current_user.user_type == UserType.STAFF, "Only staff can view their assigned shifts")
 
     # Get shifts where user has accepted applications
     accepted_applications = application_crud.get_by_applicant(
@@ -163,27 +160,18 @@ def get_shift(
 ) -> Shift:
     """Get shift by ID."""
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
     # Staff can only see open shifts or shifts they've applied to
     if current_user.user_type == UserType.STAFF and shift.status != ShiftStatus.OPEN:
         application = application_crud.get_by_shift_and_applicant(
             session, shift_id=shift_id, applicant_id=current_user.id
         )
-        if not application:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view open shifts or shifts you've applied to",
-            )
+        require_permission(application is not None, "You can only view open shifts or shifts you've applied to")
     # Companies can only see their own shifts
-    if current_user.user_type == UserType.COMPANY and shift.company_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    require_permission(
+        current_user.user_type != UserType.COMPANY or shift.company_id == current_user.id,
+        "Not enough permissions"
+    )
     return shift
 
 
@@ -196,17 +184,12 @@ def update_shift(
 ) -> Shift:
     """Update shift (company owner or admin)."""
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
     # Companies can only update their own shifts
-    if current_user.user_type != UserType.ADMIN and shift.company_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    require_permission(
+        current_user.user_type == UserType.ADMIN or shift.company_id == current_user.id,
+        "Not enough permissions"
+    )
     shift = shift_crud.update(session, db_obj=shift, obj_in=shift_in)
     return shift
 
@@ -219,17 +202,12 @@ def delete_shift(
 ) -> None:
     """Delete shift (company owner or admin)."""
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
     # Companies can only delete their own shifts
-    if current_user.user_type != UserType.ADMIN and shift.company_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    require_permission(
+        current_user.user_type == UserType.ADMIN or shift.company_id == current_user.id,
+        "Not enough permissions"
+    )
     shift_crud.remove(session, id=shift_id)
 
 
@@ -240,33 +218,19 @@ def apply_to_shift(
     shift_id: int,
 ) -> dict:
     """Apply to a shift (staff only)."""
-    if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff can apply to shifts",
-        )
+    require_permission(current_user.user_type == UserType.STAFF, "Only staff can apply to shifts")
 
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
     if shift.status != ShiftStatus.OPEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Shift is not open for applications",
-        )
+        raise_bad_request("Shift is not open for applications")
 
     # Check if already applied
     existing = application_crud.get_by_shift_and_applicant(
         session, shift_id=shift_id, applicant_id=current_user.id
     )
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already applied to this shift",
-        )
+        raise_bad_request("You have already applied to this shift")
 
     application = application_crud.create_application(
         session, shift_id=shift_id, applicant_id=current_user.id
@@ -288,42 +252,27 @@ def clock_in(
     """
     from datetime import datetime
 
-    if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff can clock in to shifts",
-        )
+    require_permission(current_user.user_type == UserType.STAFF, "Only staff can clock in to shifts")
 
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     # Verify user is assigned to this shift
     application = application_crud.get_by_shift_and_applicant(
         session, shift_id=shift_id, applicant_id=current_user.id
     )
-    if not application or application.status != ApplicationStatus.ACCEPTED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not assigned to this shift",
-        )
+    require_permission(
+        application is not None and application.status == ApplicationStatus.ACCEPTED,
+        "You are not assigned to this shift"
+    )
 
     # Check if already clocked in
     if shift.clock_in_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Already clocked in at {shift.clock_in_at.isoformat()}",
-        )
+        raise_bad_request(f"Already clocked in at {shift.clock_in_at.isoformat()}")
 
     # Validate shift status
     if shift.status not in [ShiftStatus.FILLED, ShiftStatus.IN_PROGRESS]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot clock in to shift with status: {shift.status.value}",
-        )
+        raise_bad_request(f"Cannot clock in to shift with status: {shift.status.value}")
 
     # Record clock in
     now = datetime.utcnow()
@@ -356,49 +305,31 @@ def clock_out(
     """
     from datetime import datetime
 
-    if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff can clock out from shifts",
-        )
+    require_permission(current_user.user_type == UserType.STAFF, "Only staff can clock out from shifts")
 
     shift = shift_crud.get(session, id=shift_id)
-    if not shift:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shift not found",
-        )
+    require_found(shift, "Shift")
 
     # Verify user is assigned to this shift
     application = application_crud.get_by_shift_and_applicant(
         session, shift_id=shift_id, applicant_id=current_user.id
     )
-    if not application or application.status != ApplicationStatus.ACCEPTED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not assigned to this shift",
-        )
+    require_permission(
+        application is not None and application.status == ApplicationStatus.ACCEPTED,
+        "You are not assigned to this shift"
+    )
 
     # Check if clocked in
     if shift.clock_in_at is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must clock in before clocking out",
-        )
+        raise_bad_request("Must clock in before clocking out")
 
     # Check if already clocked out
     if shift.clock_out_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Already clocked out at {shift.clock_out_at.isoformat()}",
-        )
+        raise_bad_request(f"Already clocked out at {shift.clock_out_at.isoformat()}")
 
     # Validate shift status
     if shift.status != ShiftStatus.IN_PROGRESS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot clock out from shift with status: {shift.status.value}",
-        )
+        raise_bad_request(f"Cannot clock out from shift with status: {shift.status.value}")
 
     # Record clock out and calculate hours worked
     now = datetime.utcnow()

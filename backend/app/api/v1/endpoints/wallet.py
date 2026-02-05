@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.crud.payment import transaction as transaction_crud
 from app.crud.wallet import payment_method as payment_method_crud
 from app.crud.wallet import wallet as wallet_crud
@@ -87,28 +88,17 @@ def withdraw_funds(
     integrate with a payment processor to execute the actual transfer.
     """
     # Only staff can withdraw funds
-    if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only staff can withdraw funds",
-        )
+    require_permission(current_user.user_type == UserType.STAFF, "Only staff can withdraw funds")
 
     wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
 
     # Check sufficient balance
     if wallet.balance < withdraw_in.amount:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Insufficient balance",
-        )
+        raise_bad_request("Insufficient balance")
 
     # Verify payment method belongs to user
     payment_method = payment_method_crud.get(session, id=withdraw_in.payment_method_id)
-    if not payment_method or payment_method.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment method not found",
-        )
+    require_found(payment_method if payment_method and payment_method.user_id == current_user.id else None, "Payment method")
 
     # Create withdrawal transaction
     transaction = transaction_crud.create_transaction(
@@ -144,21 +134,13 @@ def top_up_wallet(
     with a payment processor to charge the payment method.
     """
     # Only companies can top up
-    if current_user.user_type != UserType.COMPANY:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only companies can add funds",
-        )
+    require_permission(current_user.user_type == UserType.COMPANY, "Only companies can add funds")
 
     wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
 
     # Verify payment method belongs to user
     payment_method = payment_method_crud.get(session, id=top_up_in.payment_method_id)
-    if not payment_method or payment_method.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment method not found",
-        )
+    require_found(payment_method if payment_method and payment_method.user_id == current_user.id else None, "Payment method")
 
     # Create top-up transaction
     # In production, this would first charge the payment method via Stripe/etc.
@@ -225,8 +207,4 @@ def remove_payment_method(
         session, payment_method_id=payment_method_id, user_id=current_user.id
     )
 
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment method not found",
-        )
+    require_found(deleted if deleted else None, "Payment method")

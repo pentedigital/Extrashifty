@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..models.payment import PayoutStatus
+
 
 # =========================================================================
 # Enums
@@ -30,16 +32,6 @@ class PaymentIntentStatus(str, Enum):
     REQUIRES_CAPTURE = "requires_capture"
     CANCELED = "canceled"
     SUCCEEDED = "succeeded"
-
-
-class PayoutStatus(str, Enum):
-    """Payout status values."""
-
-    PAID = "paid"
-    PENDING = "pending"
-    IN_TRANSIT = "in_transit"
-    CANCELED = "canceled"
-    FAILED = "failed"
 
 
 class TransferStatus(str, Enum):

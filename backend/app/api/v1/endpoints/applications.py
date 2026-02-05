@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.crud import application as application_crud
 from app.crud import shift as shift_crud
 from app.models.application import Application, ApplicationStatus
@@ -66,11 +67,7 @@ def get_application(
 ) -> Application:
     """Get application by ID."""
     application = application_crud.get(session, id=application_id)
-    if not application:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found",
-        )
+    require_found(application, "Application")
 
     # Check permissions
     if current_user.user_type == UserType.ADMIN:
@@ -78,18 +75,10 @@ def get_application(
     elif current_user.user_type == UserType.COMPANY:
         # Company can view applications to their shifts
         shift = shift_crud.get(session, id=application.shift_id)
-        if not shift or shift.company_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions",
-            )
+        require_permission(shift is not None and shift.company_id == current_user.id, "Not enough permissions")
     else:
         # Staff can only view their own applications
-        if application.applicant_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions",
-            )
+        require_permission(application.applicant_id == current_user.id, "Not enough permissions")
     return application
 
 
@@ -108,11 +97,7 @@ def update_application(
     Admins can update any application.
     """
     application = application_crud.get(session, id=application_id)
-    if not application:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Application not found",
-        )
+    require_found(application, "Application")
 
     if current_user.user_type == UserType.ADMIN:
         # Admin bypass: Admins have full access to update any application.
@@ -122,29 +107,15 @@ def update_application(
     elif current_user.user_type == UserType.COMPANY:
         # Company can only update applications to their shifts
         shift = shift_crud.get(session, id=application.shift_id)
-        if not shift or shift.company_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions",
-            )
+        require_permission(shift is not None and shift.company_id == current_user.id, "Not enough permissions")
         # Companies can accept or reject
         if application_in.status not in (ApplicationStatus.ACCEPTED, ApplicationStatus.REJECTED):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Companies can only accept or reject applications",
-            )
+            raise_bad_request("Companies can only accept or reject applications")
     else:
         # Staff can only withdraw their own applications
-        if application.applicant_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions",
-            )
+        require_permission(application.applicant_id == current_user.id, "Not enough permissions")
         if application_in.status != ApplicationStatus.WITHDRAWN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Staff can only withdraw applications",
-            )
+            raise_bad_request("Staff can only withdraw applications")
 
     application = application_crud.update(session, db_obj=application, obj_in=application_in)
     return application

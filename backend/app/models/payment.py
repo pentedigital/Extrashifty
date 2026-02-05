@@ -53,13 +53,20 @@ class PayoutType(str, Enum):
 
 
 class PayoutStatus(str, Enum):
-    """Payout status enumeration."""
+    """Payout status enumeration.
 
-    PENDING = "pending"
-    IN_TRANSIT = "in_transit"
-    PAID = "paid"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+    Authoritative source for all payout status values across the application.
+    Covers internal statuses, API responses, and Stripe webhook statuses.
+    """
+
+    PENDING = "pending"          # Payout created, not yet processed
+    PROCESSING = "processing"    # Payout is being processed
+    IN_TRANSIT = "in_transit"    # Funds in transit to bank
+    PAID = "paid"                # Successfully paid out
+    COMPLETED = "completed"      # Alias for PAID (API compatibility)
+    FAILED = "failed"            # Payout failed
+    CANCELLED = "cancelled"      # Cancelled by user/system (British spelling)
+    CANCELED = "canceled"        # Cancelled (American spelling, Stripe compatibility)
 
 
 class DisputeStatus(str, Enum):

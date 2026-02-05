@@ -7,7 +7,10 @@
 // Transaction Types (matches backend TransactionType enum)
 // =============================================================================
 
-export type TransactionType =
+/**
+ * Backend transaction types (from backend/app/schemas/payment.py)
+ */
+export type BackendTransactionType =
   | 'topup'           // Adding funds to wallet
   | 'reserve'         // Reserving funds for accepted shift
   | 'release'         // Releasing reserved funds back to available
@@ -17,6 +20,22 @@ export type TransactionType =
   | 'refund'          // Refund to company wallet
   | 'cancellation_fee' // Fee for late cancellation
   | 'penalty'         // Penalty deduction
+
+/**
+ * UI-friendly transaction types for frontend display
+ * These map to backend types but use more user-friendly names
+ */
+export type UITransactionType =
+  | 'earning'         // Staff earnings from shifts
+  | 'withdrawal'      // Withdrawal to bank account (maps to 'payout')
+  | 'top_up'          // Adding funds (maps to 'topup')
+  | 'payment'         // Payment for services
+
+/**
+ * Combined transaction type that supports both backend and UI types
+ * Use this for type-safe handling across the application
+ */
+export type TransactionType = BackendTransactionType | UITransactionType
 
 export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled'
 
@@ -52,12 +71,14 @@ export type CancelledBy = 'company' | 'worker' | 'platform'
 // =============================================================================
 
 export interface WalletBalance {
-  wallet_id: number
+  wallet_id?: number
   available: number
   reserved: number
-  pending_payout: number
+  pending_payout?: number
   total: number
   currency: string
+  low_balance_threshold?: number
+  is_low_balance?: boolean
 }
 
 // =============================================================================

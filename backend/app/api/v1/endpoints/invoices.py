@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.invoice import InvoiceType as ModelInvoiceType
 from app.schemas.invoice import (
     InvoiceCreate,
@@ -85,18 +86,10 @@ def get_invoice(
     invoice_service = InvoiceService(session)
 
     invoice = invoice_service.get_invoice(invoice_id)
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     # Verify ownership
-    if invoice.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this invoice",
-        )
+    require_permission(invoice.user_id == current_user.id, "Not authorized to access this invoice")
 
     return InvoiceResponse(
         id=invoice.id,
@@ -143,18 +136,10 @@ def download_invoice_pdf(
     invoice_service = InvoiceService(session)
 
     invoice = invoice_service.get_invoice(invoice_id)
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     # Verify ownership
-    if invoice.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this invoice",
-        )
+    require_permission(invoice.user_id == current_user.id, "Not authorized to access this invoice")
 
     try:
         # Generate PDF if not already generated
@@ -195,18 +180,10 @@ def resend_invoice_email(
     invoice_service = InvoiceService(session)
 
     invoice = invoice_service.get_invoice(invoice_id)
-    if not invoice:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invoice not found",
-        )
+    require_found(invoice, "Invoice")
 
     # Verify ownership
-    if invoice.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this invoice",
-        )
+    require_permission(invoice.user_id == current_user.id, "Not authorized to access this invoice")
 
     try:
         success = invoice_service.send_invoice_email(invoice_id)

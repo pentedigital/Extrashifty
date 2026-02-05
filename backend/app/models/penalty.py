@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Index, Relationship, SQLModel
 
+from .appeal import AppealStatus
+
 if TYPE_CHECKING:
     from .shift import Shift
     from .user import User
@@ -19,14 +21,6 @@ class PenaltyStatus(str, Enum):
     COLLECTED = "collected"    # Penalty has been deducted
     WAIVED = "waived"          # Penalty waived (first offense or appeal)
     WRITTEN_OFF = "written_off"  # Penalty written off after 6 months inactivity
-
-
-class AppealStatus(str, Enum):
-    """Appeal status enumeration."""
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
 
 
 class Strike(SQLModel, table=True):

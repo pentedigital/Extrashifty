@@ -1,7 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { walletKeys } from './useWalletApi'
+import { walletKeys, useWalletBalance } from './useWalletApi'
 import { companyKeys } from './useCompanyApi'
+import type {
+  WalletBalance,
+  SettlementSplit,
+  SettlementResponse,
+  CancellationResponse,
+  PayoutStatus,
+} from '@/types/payment'
+
+// Re-export types for backwards compatibility
+export type { WalletBalance, SettlementSplit, SettlementResponse, CancellationResponse, PayoutStatus }
 
 export const paymentKeys = {
   all: ['payments'] as const,
@@ -20,15 +30,6 @@ export const paymentKeys = {
 }
 
 // Types
-export interface WalletBalance {
-  available: number
-  reserved: number
-  total: number
-  currency: string
-  low_balance_threshold?: number
-  is_low_balance?: boolean
-}
-
 export interface CompanyWalletBalance {
   id: number
   company_id: number
@@ -40,18 +41,6 @@ export interface CompanyWalletBalance {
   is_low_balance: boolean
   created_at: string
   updated_at: string
-}
-
-export interface Transaction {
-  id: number
-  wallet_id: number
-  type: 'top_up' | 'payment' | 'refund' | 'reserve' | 'release'
-  amount: number
-  description: string
-  status: 'pending' | 'completed' | 'failed'
-  reference_id: string | null
-  shift_id?: number
-  created_at: string
 }
 
 export interface AutoTopupConfig {
@@ -235,48 +224,6 @@ export function useReserveFunds() {
   })
 }
 
-// ============================================
-// Settlement Response Types
-// ============================================
-
-export interface SettlementSplit {
-  gross_amount: number
-  platform_fee: number
-  platform_fee_rate: number
-  worker_amount: number
-  agency_fee?: number
-}
-
-export interface SettlementResponse {
-  shift_id: number
-  settlement_id: number
-  actual_hours: number
-  gross_amount: number
-  split: SettlementSplit
-  transactions: Array<{
-    transaction_id: number
-    type: string
-    amount: string
-    fee?: string
-    net_amount?: string
-  }>
-  message: string
-}
-
-export interface CancellationResponse {
-  shift_id: number
-  cancelled_by: string
-  policy_applied: string
-  refund_amount: number
-  worker_compensation: number
-  transactions: Array<{
-    transaction_id: number
-    type: string
-    amount: string
-  }>
-  message: string
-}
-
 /**
  * Settle payment after shift completion
  * Called when clock-out is approved or after 24hr auto-approve
@@ -380,7 +327,7 @@ export function useCheckFunds(shiftCost: number) {
 // Staff/Agency Earnings and Payout Types
 // ============================================
 
-export type PayoutStatus = 'pending' | 'in_transit' | 'paid' | 'failed'
+// PayoutStatus is imported from @/types/payment
 export type ConnectAccountStatus = 'not_started' | 'pending' | 'active' | 'restricted'
 
 export interface EarningEntry {

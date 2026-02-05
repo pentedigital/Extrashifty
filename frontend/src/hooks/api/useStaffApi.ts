@@ -78,35 +78,9 @@ export function useMyStats() {
   })
 }
 
-/**
- * Hook to clock in for a shift.
- */
-export function useClockIn() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: { shift_id: number; notes?: string }) => api.staff.clockIn(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: staffKeys.clockRecords() })
-      queryClient.invalidateQueries({ queryKey: staffKeys.shifts() })
-    },
-  })
-}
-
-/**
- * Hook to clock out from a shift.
- */
-export function useClockOut() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: { shift_id: number; notes?: string }) => api.staff.clockOut(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: staffKeys.clockRecords() })
-      queryClient.invalidateQueries({ queryKey: staffKeys.shifts() })
-    },
-  })
-}
+// NOTE: useClockIn and useClockOut are defined in useShiftsApi.ts
+// with proper error handling and current-shift-status invalidation.
+// Import them from useShiftsApi.ts instead.
 
 /**
  * Hook to fetch the staff member's application history.
@@ -119,9 +93,13 @@ export function useStaffApplications(filters?: Record<string, string>) {
 }
 
 /**
- * Hook to apply to a shift.
+ * Hook to apply to a shift (staff-specific version).
+ * Uses api.staff.createApplication with numeric shift_id.
+ *
+ * NOTE: For general application creation, prefer useCreateApplication from
+ * useApplicationsApi.ts which uses api.applications.create with string shift_id.
  */
-export function useCreateApplication() {
+export function useStaffCreateApplication() {
   const queryClient = useQueryClient()
 
   return useMutation({

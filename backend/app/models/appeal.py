@@ -32,6 +32,7 @@ class AppealStatus(str, Enum):
     PENDING = "pending"  # Awaiting review
     APPROVED = "approved"  # Appeal granted
     DENIED = "denied"  # Appeal rejected
+    REJECTED = "rejected"  # Alias for DENIED (used in penalty appeals)
     WITHDRAWN = "withdrawn"  # User withdrew the appeal
 
 

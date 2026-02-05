@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.payment import Dispute, DisputeStatus
 from app.models.user import User
 from app.schemas.dispute import (
@@ -163,24 +164,16 @@ async def get_dispute(
         Dispute details.
     """
     dispute = session.get(Dispute, dispute_id)
-    if not dispute:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Dispute {dispute_id} not found",
-        )
+    require_found(dispute, f"Dispute {dispute_id}")
 
     # Check access permission
     from app.models.user import UserType
 
     if current_user.user_type != UserType.ADMIN:
-        if current_user.id not in [
-            dispute.raised_by_user_id,
-            dispute.against_user_id,
-        ]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view disputes you are party to",
-            )
+        require_permission(
+            current_user.id in [dispute.raised_by_user_id, dispute.against_user_id],
+            "You can only view disputes you are party to"
+        )
 
     return _build_dispute_response(dispute, session)
 

@@ -1,12 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { BaseModal } from '@/components/ui/base-modal'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Wallet, ArrowRight } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -36,77 +29,78 @@ export function InsufficientFundsModal({
 }: InsufficientFundsModalProps) {
   const shortfall = requiredAmount - currentBalance
 
+  const footer = (
+    <div className="flex flex-col sm:flex-row gap-2 w-full">
+      <Button
+        variant="outline"
+        onClick={() => onOpenChange(false)}
+        className="sm:flex-1"
+      >
+        Cancel
+      </Button>
+
+      {onTopUp ? (
+        <Button onClick={onTopUp} className="sm:flex-1">
+          <Wallet className="mr-2 h-4 w-4" />
+          Top Up Now
+        </Button>
+      ) : (
+        <Link to="/wallet/top-up" className="sm:flex-1">
+          <Button className="w-full">
+            <Wallet className="mr-2 h-4 w-4" />
+            Top Up Now
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </Link>
+      )}
+    </div>
+  )
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-center sm:text-left">
-          <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 mb-4">
-            <AlertTriangle className="h-6 w-6 text-amber-600" />
-          </div>
-          <DialogTitle>Insufficient Funds</DialogTitle>
-          <DialogDescription>
-            You don't have enough funds to accept this worker
-            {shiftTitle && ` for "${shiftTitle}"`}.
-          </DialogDescription>
-        </DialogHeader>
+    <BaseModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Insufficient Funds"
+      description={`You don't have enough funds to accept this worker${shiftTitle ? ` for "${shiftTitle}"` : ''}.`}
+      footer={footer}
+    >
+      <div className="text-center sm:text-left">
+        <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 mb-4">
+          <AlertTriangle className="h-6 w-6 text-amber-600" />
+        </div>
+      </div>
 
-        <div className="py-4">
-          {/* Balance Breakdown */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-              <span className="text-muted-foreground">Current Balance</span>
-              <span className="font-semibold">{formatCurrency(currentBalance, currency)}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-              <span className="text-muted-foreground">Shift Cost</span>
-              <span className="font-semibold">{formatCurrency(requiredAmount, currency)}</span>
-            </div>
-
-            <div className={cn(
-              'flex items-center justify-between p-3 rounded-lg border-2',
-              'bg-red-50 border-red-200'
-            )}>
-              <span className="text-red-700 font-medium">Shortfall</span>
-              <span className="text-lg font-bold text-red-600">
-                {formatCurrency(shortfall, currency)}
-              </span>
-            </div>
+      <div className="py-4">
+        {/* Balance Breakdown */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+            <span className="text-muted-foreground">Current Balance</span>
+            <span className="font-semibold">{formatCurrency(currentBalance, currency)}</span>
           </div>
 
-          {/* Helpful message */}
-          <p className="text-sm text-muted-foreground mt-4">
-            Top up at least {formatCurrency(shortfall, currency)} to accept this worker.
-            We recommend adding a buffer to cover future shifts.
-          </p>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+            <span className="text-muted-foreground">Shift Cost</span>
+            <span className="font-semibold">{formatCurrency(requiredAmount, currency)}</span>
+          </div>
+
+          <div className={cn(
+            'flex items-center justify-between p-3 rounded-lg border-2',
+            'bg-red-50 border-red-200'
+          )}>
+            <span className="text-red-700 font-medium">Shortfall</span>
+            <span className="text-lg font-bold text-red-600">
+              {formatCurrency(shortfall, currency)}
+            </span>
+          </div>
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="sm:flex-1"
-          >
-            Cancel
-          </Button>
-
-          {onTopUp ? (
-            <Button onClick={onTopUp} className="sm:flex-1">
-              <Wallet className="mr-2 h-4 w-4" />
-              Top Up Now
-            </Button>
-          ) : (
-            <Link to="/wallet/top-up" className="sm:flex-1">
-              <Button className="w-full">
-                <Wallet className="mr-2 h-4 w-4" />
-                Top Up Now
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {/* Helpful message */}
+        <p className="text-sm text-muted-foreground mt-4">
+          Top up at least {formatCurrency(shortfall, currency)} to accept this worker.
+          We recommend adding a buffer to cover future shifts.
+        </p>
+      </div>
+    </BaseModal>
   )
 }
 

@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { Notification, NotificationPreferences } from '@/types/features'
+
+// Re-export types for backwards compatibility
+export type { Notification, NotificationPreferences }
 
 export const notificationKeys = {
   all: ['notifications'] as const,
@@ -7,27 +11,6 @@ export const notificationKeys = {
   list: (params?: { skip?: number; limit?: number; unread_only?: boolean }) =>
     [...notificationKeys.lists(), params] as const,
   preferences: () => [...notificationKeys.all, 'preferences'] as const,
-}
-
-export interface Notification {
-  id: number
-  user_id: number
-  type: string
-  title: string
-  message: string
-  is_read: boolean
-  data: Record<string, unknown> | null
-  created_at: string
-}
-
-export interface NotificationPreferences {
-  id: number
-  user_id: number
-  email_enabled: boolean
-  push_enabled: boolean
-  shift_updates: boolean
-  payment_updates: boolean
-  marketing: boolean
 }
 
 export function useNotifications(params?: { skip?: number; limit?: number; unread_only?: boolean }) {
