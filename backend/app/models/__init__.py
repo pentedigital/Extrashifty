@@ -20,6 +20,7 @@ from .payment import (
     Payout,
     PayoutStatus,
     PayoutType,
+    ProcessedWebhookEvent,
     Transaction,
     TransactionStatus,
     TransactionType,
@@ -86,6 +87,7 @@ __all__ = [
     "PayoutStatus",
     "Dispute",
     "DisputeStatus",
+    "ProcessedWebhookEvent",
     # Invoice
     "Invoice",
     "InvoiceType",

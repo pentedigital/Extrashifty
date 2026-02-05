@@ -277,9 +277,9 @@ function CompanyWalletPage() {
                 <Clock className="h-4 w-4 text-amber-600" />
               </div>
               <div>
-                <p className="font-medium">Funds Reserved</p>
+                <p className="font-medium">Worker Accepted</p>
                 <p className="text-sm text-muted-foreground">
-                  When you accept a worker, shift cost is reserved from your available balance
+                  When you accept a worker, the shift cost is allocated from your available balance
                 </p>
               </div>
             </div>

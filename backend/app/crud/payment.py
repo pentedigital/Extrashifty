@@ -586,6 +586,17 @@ class CRUDDispute:
         """Get dispute by ID."""
         return db.get(Dispute, id)
 
+    def get_by_stripe_dispute_id(
+        self,
+        db: Session,
+        *,
+        stripe_dispute_id: str,
+    ) -> Dispute | None:
+        """Get dispute by Stripe dispute ID."""
+        return db.exec(
+            select(Dispute).where(Dispute.stripe_dispute_id == stripe_dispute_id)
+        ).first()
+
     def get_by_shift(
         self,
         db: Session,
@@ -653,6 +664,7 @@ class CRUDDispute:
         amount_disputed: Decimal,
         reason: str,
         evidence: str | None = None,
+        stripe_dispute_id: str | None = None,
     ) -> Dispute:
         """Create a new dispute."""
         db_obj = Dispute(
@@ -663,6 +675,7 @@ class CRUDDispute:
             reason=reason,
             evidence=evidence,
             status=DisputeStatus.OPEN,
+            stripe_dispute_id=stripe_dispute_id,
         )
         db.add(db_obj)
         db.commit()
@@ -739,6 +752,42 @@ class CRUDDispute:
                 dispute.evidence = f"{dispute.evidence}\n\n---\n\n{additional_evidence}"
             else:
                 dispute.evidence = additional_evidence
+            db.add(dispute)
+            db.commit()
+            db.refresh(dispute)
+        return dispute
+
+    def resolve_by_stripe_outcome(
+        self,
+        db: Session,
+        *,
+        dispute_id: int,
+        stripe_status: str,
+        resolution_notes: str | None = None,
+    ) -> Dispute | None:
+        """
+        Resolve a dispute based on Stripe dispute outcome.
+
+        Args:
+            dispute_id: Internal dispute ID
+            stripe_status: Final Stripe dispute status (won, lost, warning_closed, etc.)
+            resolution_notes: Optional notes about the resolution
+        """
+        dispute = db.get(Dispute, dispute_id)
+        if dispute and dispute.status in [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]:
+            # Map Stripe status to our resolution status
+            # 'won' means the merchant (us) won, so dispute is resolved against raiser (customer)
+            # 'lost' means customer won, so dispute is resolved for raiser
+            if stripe_status == "won":
+                dispute.status = DisputeStatus.RESOLVED_AGAINST_RAISER
+            elif stripe_status == "lost":
+                dispute.status = DisputeStatus.RESOLVED_FOR_RAISER
+            else:
+                # For 'warning_closed' or other statuses, just close the dispute
+                dispute.status = DisputeStatus.CLOSED
+
+            dispute.resolution_notes = resolution_notes or f"Resolved by Stripe with status: {stripe_status}"
+            dispute.resolved_at = datetime.utcnow()
             db.add(dispute)
             db.commit()
             db.refresh(dispute)

@@ -116,7 +116,7 @@ export function AgencyEarningsSummary({
         icon={Clock}
       />
       <StatCard
-        title="Reserved"
+        title="Committed"
         value={formatCurrency(reservedBalance, currency)}
         subtitle={`Mode: ${modeLabel}`}
         icon={TrendingUp}

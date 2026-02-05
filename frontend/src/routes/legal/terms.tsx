@@ -88,7 +88,7 @@ function TermsPage() {
 
           <h2>6. Payments</h2>
           <ul>
-            <li>Businesses pay a 10% platform fee on completed shifts</li>
+            <li>Businesses pay the displayed shift cost when accepting workers</li>
             <li>Workers receive payment within 48 hours of shift completion</li>
             <li>All payments are processed through our secure payment provider</li>
             <li>Refunds and disputes are handled according to our Dispute Resolution process</li>

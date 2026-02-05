@@ -386,7 +386,7 @@ function ShiftApplicantsPage() {
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
                     <Clock className="h-3 w-3 mr-1" />
-                    Funds Reserved
+                    Payment Pending
                   </Badge>
                   <Badge variant="success">Assigned</Badge>
                 </div>
@@ -481,7 +481,7 @@ function ShiftApplicantsPage() {
                 <span className="font-semibold">{formatCurrency(shiftCost, currency)}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                This amount will be reserved from your wallet until the shift is completed.
+                This amount will be deducted from your wallet when the shift is completed.
               </p>
             </div>
 

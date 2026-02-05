@@ -120,12 +120,12 @@ export function BalanceDisplay({
             </p>
           </div>
 
-          {/* Reserved and Total */}
+          {/* Pending and Total */}
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
                 <Lock className="h-3 w-3" />
-                Reserved
+                Pending
               </p>
               <p className="text-xl font-semibold text-amber-600">
                 {formatCurrency(reserved)}

@@ -399,7 +399,7 @@ function LandingPage() {
               <TrustCard
                 icon={Lock}
                 title="Payments protected"
-                description="Funds held in escrow until work is complete. Both sides protected."
+                description="Secure payments with guaranteed worker compensation. Both sides protected."
               />
               <div className="flex items-center justify-center p-6 md:p-8">
                 <p className="text-base sm:text-lg text-slate-300 text-center">

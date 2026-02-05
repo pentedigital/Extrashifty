@@ -175,6 +175,8 @@ class Dispute(SQLModel, table=True):
         Index("ix_disputes_against_user_id", "against_user_id"),
         Index("ix_disputes_status", "status"),
         Index("ix_disputes_created_at", "created_at"),
+        Index("ix_disputes_resolution_deadline", "resolution_deadline"),
+        Index("ix_disputes_stripe_dispute_id", "stripe_dispute_id"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -188,6 +190,15 @@ class Dispute(SQLModel, table=True):
     resolution_notes: str | None = Field(default=None, max_length=2000)
     resolved_at: datetime | None = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    resolution_deadline: datetime | None = Field(
+        default=None,
+        description="Deadline for platform arbitration (3 business days from creation)",
+    )
+    stripe_dispute_id: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Stripe dispute ID for disputes originating from Stripe chargebacks",
+    )
 
     # Relationships
     shift: "Shift" = Relationship()
@@ -197,6 +208,26 @@ class Dispute(SQLModel, table=True):
     against_user: "User" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Dispute.against_user_id]"}
     )
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if the dispute is past its resolution deadline and still unresolved."""
+        if self.resolution_deadline is None:
+            return False
+        if self.status not in [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]:
+            return False
+        return datetime.utcnow() > self.resolution_deadline
+
+    @property
+    def is_approaching_deadline(self) -> bool:
+        """Check if the dispute is within 24 hours of its resolution deadline."""
+        if self.resolution_deadline is None:
+            return False
+        if self.status not in [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]:
+            return False
+        now = datetime.utcnow()
+        hours_until_deadline = (self.resolution_deadline - now).total_seconds() / 3600
+        return 0 < hours_until_deadline <= 24
 
 
 class ScheduledReserve(SQLModel, table=True):
@@ -223,3 +254,23 @@ class ScheduledReserve(SQLModel, table=True):
     # Relationships
     shift: "Shift" = Relationship()
     wallet: "Wallet" = Relationship()
+
+
+class ProcessedWebhookEvent(SQLModel, table=True):
+    """Stores processed webhook event IDs for idempotency checking.
+
+    This table prevents duplicate processing of Stripe webhook events
+    that may be delivered multiple times due to retries.
+    """
+
+    __tablename__ = "processed_webhook_events"
+    __table_args__ = (
+        Index("ix_processed_webhook_events_event_id", "event_id", unique=True),
+        Index("ix_processed_webhook_events_processed_at", "processed_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: str = Field(max_length=255, description="Stripe event ID (e.g., evt_...)")
+    event_type: str = Field(max_length=100, description="Event type (e.g., payment_intent.succeeded)")
+    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    result: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))

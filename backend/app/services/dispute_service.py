@@ -22,6 +22,29 @@ from app.services.escrow_service import escrow_service
 logger = logging.getLogger(__name__)
 
 
+def add_business_days(start_date: datetime, num_days: int) -> datetime:
+    """
+    Add business days to a datetime, skipping weekends (Saturday=5, Sunday=6).
+
+    Args:
+        start_date: Starting datetime
+        num_days: Number of business days to add
+
+    Returns:
+        Datetime after adding the specified business days
+    """
+    current = start_date
+    days_added = 0
+
+    while days_added < num_days:
+        current += timedelta(days=1)
+        # Skip weekends (Monday=0, ..., Saturday=5, Sunday=6)
+        if current.weekday() < 5:
+            days_added += 1
+
+    return current
+
+
 class DisputeService:
     """Service for managing disputes between workers and companies."""
 
@@ -96,6 +119,10 @@ class DisputeService:
         if not company_wallet:
             raise ValueError(f"Company wallet not found for user {shift.company_id}")
 
+        # Calculate resolution deadline (3 business days from now)
+        created_at = datetime.utcnow()
+        resolution_deadline = add_business_days(created_at, self.RESOLUTION_DEADLINE_DAYS)
+
         # Create the dispute
         dispute = Dispute(
             shift_id=shift_id,
@@ -104,6 +131,8 @@ class DisputeService:
             amount_disputed=disputed_amount,
             reason=reason,
             status=DisputeStatus.OPEN,
+            created_at=created_at,
+            resolution_deadline=resolution_deadline,
         )
         db.add(dispute)
         db.flush()  # Get the dispute ID
@@ -370,13 +399,15 @@ class DisputeService:
         Returns:
             List of disputes within 24 hours of deadline
         """
-        deadline_threshold = datetime.utcnow() - timedelta(
-            days=self.RESOLUTION_DEADLINE_DAYS - 1
-        )
+        # Use the new resolution_deadline field if available, otherwise fall back to calculation
+        now = datetime.utcnow()
+        deadline_in_24hrs = now + timedelta(hours=24)
 
         statement = select(Dispute).where(
             Dispute.status.in_([DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]),
-            Dispute.created_at <= deadline_threshold,
+            Dispute.resolution_deadline.isnot(None),
+            Dispute.resolution_deadline > now,
+            Dispute.resolution_deadline <= deadline_in_24hrs,
         )
 
         approaching_deadline = list(db.exec(statement).all())
@@ -388,6 +419,128 @@ class DisputeService:
             )
 
         return approaching_deadline
+
+    async def get_overdue_disputes(self, db: Session) -> list[Dispute]:
+        """
+        Get all disputes that have passed their resolution deadline.
+
+        Returns:
+            List of overdue disputes (still open/under_review but past deadline)
+        """
+        now = datetime.utcnow()
+
+        statement = select(Dispute).where(
+            Dispute.status.in_([DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]),
+            Dispute.resolution_deadline.isnot(None),
+            Dispute.resolution_deadline < now,
+        ).order_by(Dispute.resolution_deadline)
+
+        overdue_disputes = list(db.exec(statement).all())
+
+        if overdue_disputes:
+            logger.warning(
+                f"Found {len(overdue_disputes)} overdue disputes: "
+                f"{[d.id for d in overdue_disputes]}"
+            )
+
+        return overdue_disputes
+
+    async def get_disputes_approaching_deadline(
+        self, db: Session, hours: int = 24
+    ) -> list[Dispute]:
+        """
+        Get disputes that are within the specified hours of their deadline.
+
+        Args:
+            db: Database session
+            hours: Hours before deadline to consider (default 24)
+
+        Returns:
+            List of disputes approaching deadline
+        """
+        now = datetime.utcnow()
+        threshold = now + timedelta(hours=hours)
+
+        statement = select(Dispute).where(
+            Dispute.status.in_([DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]),
+            Dispute.resolution_deadline.isnot(None),
+            Dispute.resolution_deadline > now,
+            Dispute.resolution_deadline <= threshold,
+        ).order_by(Dispute.resolution_deadline)
+
+        return list(db.exec(statement).all())
+
+    async def auto_resolve_overdue_disputes(self, db: Session) -> list[Dispute]:
+        """
+        Auto-resolve all overdue disputes in favor of the worker.
+
+        Per platform policy, if arbitration is not completed within 3 business days,
+        the dispute is automatically resolved in favor of the worker.
+
+        Returns:
+            List of auto-resolved disputes
+        """
+        overdue_disputes = await self.get_overdue_disputes(db)
+
+        if not overdue_disputes:
+            logger.debug("No overdue disputes to auto-resolve")
+            return []
+
+        resolved_disputes = []
+
+        for dispute in overdue_disputes:
+            try:
+                # Get worker ID for the shift
+                worker_id = await self._get_worker_for_shift(db, dispute.shift_id)
+                if not worker_id:
+                    logger.error(
+                        f"Could not find worker for dispute {dispute.id}, shift {dispute.shift_id}"
+                    )
+                    continue
+
+                worker_wallet = await self._get_wallet_for_user(db, worker_id)
+                if not worker_wallet:
+                    logger.error(f"Worker wallet not found for user {worker_id}")
+                    continue
+
+                # Determine if raiser is the worker
+                raiser_is_worker = dispute.raised_by_user_id == worker_id
+
+                # Always resolve in favor of worker - release escrowed funds to worker
+                await escrow_service.release_to_worker(
+                    db=db,
+                    shift_id=dispute.shift_id,
+                    worker_wallet_id=worker_wallet.id,
+                )
+
+                # Set status based on who raised (if worker raised, FOR_RAISER; otherwise AGAINST_RAISER)
+                if raiser_is_worker:
+                    dispute.status = DisputeStatus.RESOLVED_FOR_RAISER
+                else:
+                    dispute.status = DisputeStatus.RESOLVED_AGAINST_RAISER
+
+                dispute.resolution_notes = (
+                    "AUTO-RESOLVED: Platform arbitration deadline (3 business days) exceeded. "
+                    "Per platform policy, dispute automatically resolved in favor of the worker."
+                )
+                dispute.resolved_at = datetime.utcnow()
+
+                db.add(dispute)
+                resolved_disputes.append(dispute)
+
+                logger.info(
+                    f"Auto-resolved overdue dispute {dispute.id} in favor of worker {worker_id}"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to auto-resolve dispute {dispute.id}: {e}")
+                continue
+
+        if resolved_disputes:
+            db.commit()
+            logger.info(f"Auto-resolved {len(resolved_disputes)} overdue disputes")
+
+        return resolved_disputes
 
     def _is_within_dispute_window(self, shift: Shift) -> bool:
         """Check if the shift is within the dispute window."""

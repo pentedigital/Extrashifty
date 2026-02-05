@@ -75,7 +75,7 @@ function PricingPage() {
                   <PricingFeature>Apply to any shift</PricingFeature>
                   <PricingFeature>48-hour payment guarantee</PricingFeature>
                   <PricingFeature>Build your reputation</PricingFeature>
-                  <PricingFeature>No platform fees deducted</PricingFeature>
+                  <PricingFeature>Keep all your earnings</PricingFeature>
                 </ul>
                 <Link to="/signup">
                   <Button className="w-full">
@@ -97,8 +97,8 @@ function PricingPage() {
               </CardHeader>
               <CardContent>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">10%</span>
-                  <span className="text-muted-foreground ml-2">per shift filled</span>
+                  <span className="text-4xl font-bold">Pay per shift</span>
+                  <span className="text-muted-foreground ml-2">no subscription</span>
                 </div>
                 <ul className="space-y-3 mb-6">
                   <PricingFeature>Post unlimited shifts</PricingFeature>
@@ -153,8 +153,8 @@ function PricingPage() {
                 answer="You only pay when a worker accepts your shift and completes the work. There are no upfront costs, no monthly fees, and no commitment."
               />
               <FaqItem
-                question="How does the 10% fee work?"
-                answer="The 10% platform fee is calculated on the total shift cost (hourly rate × hours). For example, a €100 shift would have a €10 platform fee, totaling €110."
+                question="How does pricing work for businesses?"
+                answer="You pay the displayed shift cost when you accept a worker. There are no hidden fees or monthly subscriptions - you only pay when shifts are filled."
               />
               <FaqItem
                 question="When do workers get paid?"
@@ -162,7 +162,7 @@ function PricingPage() {
               />
               <FaqItem
                 question="Are there any hidden fees?"
-                answer="No. What you see is what you pay. 10% for businesses, free for workers. No subscription fees, no cancellation fees, no surprises."
+                answer="No. What you see is what you pay. Businesses pay the displayed shift cost, workers keep all their earnings. No subscription fees, no cancellation fees, no surprises."
               />
             </div>
           </div>

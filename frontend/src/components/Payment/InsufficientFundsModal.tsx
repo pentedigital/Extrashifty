@@ -152,7 +152,7 @@ export function InsufficientFundsWarning({
           <span className="font-medium">Sufficient funds available</span>
         </div>
         <p className="text-sm text-green-600 mt-1">
-          {formatCurrency(requiredAmount)} will be reserved from your wallet
+          {formatCurrency(requiredAmount)} will be used for this shift
         </p>
       </div>
     )

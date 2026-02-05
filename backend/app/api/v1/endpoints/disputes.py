@@ -28,10 +28,13 @@ def _build_dispute_response(dispute: Dispute, db) -> DisputeResponse:
     raiser = db.get(User, dispute.raised_by_user_id)
     against = db.get(User, dispute.against_user_id)
 
-    # Calculate deadline
-    deadline_at = dispute.created_at + timedelta(
-        days=dispute_service.RESOLUTION_DEADLINE_DAYS
-    )
+    # Use stored resolution_deadline if available, otherwise calculate
+    if dispute.resolution_deadline:
+        deadline_at = dispute.resolution_deadline
+    else:
+        deadline_at = dispute.created_at + timedelta(
+            days=dispute_service.RESOLUTION_DEADLINE_DAYS
+        )
     days_until = (deadline_at - datetime.utcnow()).total_seconds() / (24 * 3600)
 
     # Count evidence entries (simple count based on separator)
@@ -54,6 +57,8 @@ def _build_dispute_response(dispute: Dispute, db) -> DisputeResponse:
         created_at=dispute.created_at,
         deadline_at=deadline_at,
         days_until_deadline=max(0, days_until),
+        is_overdue=dispute.is_overdue,
+        is_approaching_deadline=dispute.is_approaching_deadline,
         evidence_count=evidence_count,
         escrow_hold_id=None,  # Would come from escrow service
     )
@@ -387,4 +392,121 @@ async def check_dispute_deadlines(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Deadline check failed: {str(e)}",
+        )
+
+
+@router.get(
+    "/admin/overdue",
+    response_model=DisputeListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_overdue_disputes(
+    session: SessionDep,
+    current_user: AdminUserDep,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> DisputeListResponse:
+    """
+    Get all overdue disputes (admin only).
+
+    Returns disputes that have passed their 3-business-day resolution deadline
+    but have not yet been resolved.
+
+    Returns:
+        List of overdue disputes.
+    """
+    try:
+        disputes = await dispute_service.get_overdue_disputes(db=session)
+
+        # Apply pagination
+        total = len(disputes)
+        paginated = disputes[skip : skip + limit]
+
+        items = [_build_dispute_response(d, session) for d in paginated]
+
+        return DisputeListResponse(items=items, total=total)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch overdue disputes: {str(e)}",
+        )
+
+
+@router.get(
+    "/admin/approaching-deadline",
+    response_model=DisputeListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_disputes_approaching_deadline(
+    session: SessionDep,
+    current_user: AdminUserDep,
+    hours: int = Query(default=24, ge=1, le=72, description="Hours until deadline"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> DisputeListResponse:
+    """
+    Get disputes approaching their resolution deadline (admin only).
+
+    Returns disputes that are within the specified number of hours of their
+    3-business-day resolution deadline.
+
+    Args:
+        hours: Number of hours to consider as "approaching deadline" (default 24)
+
+    Returns:
+        List of disputes approaching deadline.
+    """
+    try:
+        disputes = await dispute_service.get_disputes_approaching_deadline(
+            db=session, hours=hours
+        )
+
+        # Apply pagination
+        total = len(disputes)
+        paginated = disputes[skip : skip + limit]
+
+        items = [_build_dispute_response(d, session) for d in paginated]
+
+        return DisputeListResponse(items=items, total=total)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch disputes approaching deadline: {str(e)}",
+        )
+
+
+@router.post(
+    "/admin/auto-resolve-overdue",
+    status_code=status.HTTP_200_OK,
+)
+async def auto_resolve_overdue_disputes(
+    session: SessionDep,
+    current_user: AdminUserDep,
+) -> dict[str, Any]:
+    """
+    Manually trigger auto-resolution of overdue disputes (admin only).
+
+    This is typically run by the scheduler hourly, but can be
+    triggered manually by admins. Overdue disputes are resolved
+    in favor of the worker per platform policy.
+
+    Returns:
+        Summary of auto-resolved disputes.
+    """
+    try:
+        resolved = await dispute_service.auto_resolve_overdue_disputes(db=session)
+
+        return {
+            "status": "completed",
+            "auto_resolved_count": len(resolved),
+            "dispute_ids": [d.id for d in resolved],
+            "message": f"Auto-resolved {len(resolved)} overdue disputes in favor of workers",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Auto-resolution failed: {str(e)}",
         )

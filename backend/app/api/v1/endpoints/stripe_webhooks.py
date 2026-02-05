@@ -20,6 +20,7 @@ from app.models.payment import (
     DisputeStatus,
     Payout,
     PayoutStatus,
+    ProcessedWebhookEvent,
     Transaction,
     TransactionStatus,
 )
@@ -29,6 +30,39 @@ from app.services.stripe_service import StripeServiceError, stripe_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# =========================================================================
+# Idempotency Helpers
+# =========================================================================
+
+
+def is_event_already_processed(session: Any, event_id: str) -> bool:
+    """Check if a webhook event has already been processed."""
+    existing = session.exec(
+        select(ProcessedWebhookEvent).where(
+            ProcessedWebhookEvent.event_id == event_id
+        )
+    ).first()
+    return existing is not None
+
+
+def mark_event_processed(
+    session: Any,
+    event_id: str,
+    event_type: str,
+    result: dict[str, Any] | None = None,
+) -> ProcessedWebhookEvent:
+    """Mark a webhook event as processed."""
+    db_event = ProcessedWebhookEvent(
+        event_id=event_id,
+        event_type=event_type,
+        result=result,
+    )
+    session.add(db_event)
+    session.commit()
+    session.refresh(db_event)
+    return db_event
 
 
 # =========================================================================
@@ -118,7 +152,7 @@ async def handle_payment_intent_failed(
     event_data: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Handle payment_intent.failed event.
+    Handle payment_intent.payment_failed event.
 
     This event is sent when a PaymentIntent fails to complete.
     Use this to notify users and handle failed payment flows.
@@ -178,7 +212,7 @@ async def handle_payment_intent_failed(
         )
 
     return {
-        "action": "payment_intent.failed",
+        "action": "payment_intent.payment_failed",
         "payment_intent_id": payment_intent_id,
         "error_code": error_code,
         "error_message": error_message,
@@ -513,6 +547,7 @@ async def handle_charge_dispute_created(
                 amount_disputed=amount_decimal,
                 reason=f"Stripe Dispute ({reason}): {dispute_id}",
                 evidence=f"Stripe dispute ID: {dispute_id}\nCharge ID: {charge_id}\nReason: {reason}\nEvidence due by: {due_by}",
+                stripe_dispute_id=dispute_id,
             )
 
             # Move funds to escrow (increase reserved balance)
@@ -603,14 +638,211 @@ async def handle_charge_dispute_created(
     }
 
 
+async def handle_charge_dispute_closed(
+    session: Any,
+    event_data: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Handle charge.dispute.closed event.
+
+    This event is sent when a dispute is closed (won, lost, or withdrawn).
+    Use this to resolve internal disputes and release/transfer escrowed funds.
+
+    Dispute statuses:
+    - won: Merchant won the dispute (funds returned to merchant)
+    - lost: Customer won the dispute (funds go to customer)
+    - warning_closed: Early fraud warning closed without action needed
+    """
+    stripe_dispute = event_data.get("object", {})
+    dispute_id = stripe_dispute.get("id")
+    charge_id = stripe_dispute.get("charge")
+    amount = stripe_dispute.get("amount", 0)
+    currency = stripe_dispute.get("currency", "")
+    reason = stripe_dispute.get("reason", "unknown")
+    dispute_status = stripe_dispute.get("status", "unknown")
+    payment_intent_id = stripe_dispute.get("payment_intent")
+
+    logger.info(
+        f"Dispute closed: {dispute_id} for charge {charge_id}, "
+        f"status: {dispute_status}, "
+        f"amount: {amount} {currency.upper()}, "
+        f"reason: {reason}"
+    )
+
+    amount_decimal = Decimal(str(amount)) / Decimal("100")
+    internal_dispute_resolved = False
+    escrow_released = False
+    funds_transferred = False
+
+    # Find the internal dispute record by Stripe dispute ID
+    db_dispute = dispute_crud.get_by_stripe_dispute_id(session, stripe_dispute_id=dispute_id)
+
+    if db_dispute:
+        # Resolve the internal dispute based on Stripe outcome
+        dispute_crud.resolve_by_stripe_outcome(
+            session,
+            dispute_id=db_dispute.id,
+            stripe_status=dispute_status,
+            resolution_notes=f"Stripe dispute {dispute_id} closed with status: {dispute_status}",
+        )
+        internal_dispute_resolved = True
+
+        # Find the related transaction to get the wallet
+        db_transaction = None
+        if payment_intent_id:
+            db_transaction = session.exec(
+                select(Transaction).where(
+                    Transaction.stripe_payment_intent_id == payment_intent_id
+                )
+            ).first()
+
+        if db_transaction:
+            wallet = session.get(Wallet, db_transaction.wallet_id)
+
+            if wallet:
+                if dispute_status == "won":
+                    # Merchant won - release funds from escrow back to available balance
+                    # The funds were already in the wallet, just remove from reserved
+                    if wallet.reserved_balance >= amount_decimal:
+                        wallet.reserved_balance -= amount_decimal
+                        wallet.updated_at = datetime.utcnow()
+                        session.add(wallet)
+                        session.commit()
+                        escrow_released = True
+
+                        logger.info(
+                            f"Released {amount_decimal} from escrow for wallet {wallet.id} "
+                            f"(dispute won)"
+                        )
+
+                    # Notify user of successful dispute resolution
+                    notification_crud.create_notification(
+                        session,
+                        user_id=wallet.user_id,
+                        type="charge_dispute_won",
+                        title="Dispute Won",
+                        message=f"Good news! The dispute for {amount_decimal:.2f} {currency.upper()} has been resolved in your favor. The funds are now available in your wallet.",
+                        data={
+                            "stripe_dispute_id": dispute_id,
+                            "amount": str(amount_decimal),
+                            "currency": currency,
+                            "internal_dispute_id": db_dispute.id,
+                        },
+                    )
+
+                elif dispute_status == "lost":
+                    # Customer won - deduct funds from wallet
+                    # Remove from both reserved (escrow) and total balance
+                    if wallet.reserved_balance >= amount_decimal:
+                        wallet.reserved_balance -= amount_decimal
+                    wallet.balance -= amount_decimal
+                    wallet.updated_at = datetime.utcnow()
+                    session.add(wallet)
+                    session.commit()
+                    funds_transferred = True
+
+                    logger.warning(
+                        f"Deducted {amount_decimal} from wallet {wallet.id} "
+                        f"due to lost dispute {dispute_id}"
+                    )
+
+                    # Notify user of lost dispute
+                    notification_crud.create_notification(
+                        session,
+                        user_id=wallet.user_id,
+                        type="charge_dispute_lost",
+                        title="Dispute Lost",
+                        message=f"Unfortunately, the dispute for {amount_decimal:.2f} {currency.upper()} was not resolved in your favor. The funds have been deducted from your wallet.",
+                        data={
+                            "stripe_dispute_id": dispute_id,
+                            "amount": str(amount_decimal),
+                            "currency": currency,
+                            "internal_dispute_id": db_dispute.id,
+                        },
+                    )
+
+                else:
+                    # Other status (warning_closed, etc.) - just release escrow
+                    if wallet.reserved_balance >= amount_decimal:
+                        wallet.reserved_balance -= amount_decimal
+                        wallet.updated_at = datetime.utcnow()
+                        session.add(wallet)
+                        session.commit()
+                        escrow_released = True
+
+                    notification_crud.create_notification(
+                        session,
+                        user_id=wallet.user_id,
+                        type="charge_dispute_closed",
+                        title="Dispute Closed",
+                        message=f"The dispute for {amount_decimal:.2f} {currency.upper()} has been closed. Status: {dispute_status}",
+                        data={
+                            "stripe_dispute_id": dispute_id,
+                            "amount": str(amount_decimal),
+                            "currency": currency,
+                            "status": dispute_status,
+                            "internal_dispute_id": db_dispute.id,
+                        },
+                    )
+
+                # Notify worker if there's a related shift
+                shift_id = db_transaction.related_shift_id
+                if shift_id:
+                    from app.models.application import Application, ApplicationStatus
+
+                    accepted_app = session.exec(
+                        select(Application).where(
+                            Application.shift_id == shift_id,
+                            Application.status == ApplicationStatus.ACCEPTED,
+                        )
+                    ).first()
+
+                    if accepted_app:
+                        notification_crud.create_notification(
+                            session,
+                            user_id=accepted_app.applicant_id,
+                            type="charge_dispute_closed",
+                            title="Dispute Resolved",
+                            message=f"The payment dispute for a shift you worked has been resolved. Final status: {dispute_status}",
+                            data={
+                                "stripe_dispute_id": dispute_id,
+                                "shift_id": shift_id,
+                                "status": dispute_status,
+                            },
+                        )
+
+        logger.info(
+            f"Resolved internal dispute {db_dispute.id} for Stripe dispute {dispute_id}"
+        )
+    else:
+        logger.warning(
+            f"No internal dispute found for Stripe dispute {dispute_id}"
+        )
+
+    return {
+        "action": "charge.dispute.closed",
+        "dispute_id": dispute_id,
+        "charge_id": charge_id,
+        "amount": amount,
+        "currency": currency,
+        "status": dispute_status,
+        "reason": reason,
+        "internal_dispute_resolved": internal_dispute_resolved,
+        "internal_dispute_id": db_dispute.id if db_dispute else None,
+        "escrow_released": escrow_released,
+        "funds_transferred": funds_transferred,
+    }
+
+
 # Map of event types to their handlers
 EVENT_HANDLERS = {
     "payment_intent.succeeded": handle_payment_intent_succeeded,
-    "payment_intent.failed": handle_payment_intent_failed,
+    "payment_intent.payment_failed": handle_payment_intent_failed,
     "payout.paid": handle_payout_paid,
     "payout.failed": handle_payout_failed,
     "account.updated": handle_account_updated,
     "charge.dispute.created": handle_charge_dispute_created,
+    "charge.dispute.closed": handle_charge_dispute_closed,
 }
 
 
@@ -631,16 +863,18 @@ async def stripe_webhook(
     This endpoint receives webhook events from Stripe and processes them
     according to their type. All events are logged for auditing.
 
-    The endpoint verifies the webhook signature to ensure the request
-    came from Stripe and hasn't been tampered with.
+    Security features:
+    - Webhook signature verification (rejects invalid signatures with 400)
+    - Idempotency handling (prevents duplicate event processing)
 
     Supported events:
-    - payment_intent.succeeded: Payment completed successfully
-    - payment_intent.failed: Payment failed
+    - payment_intent.succeeded: Payment completed successfully (top-up)
+    - payment_intent.payment_failed: Payment failed (triggers grace period)
     - payout.paid: Payout sent to bank successfully
-    - payout.failed: Payout failed
+    - payout.failed: Payout failed (returns funds to wallet)
     - account.updated: Connect account status changed
-    - charge.dispute.created: Customer disputed a charge
+    - charge.dispute.created: Customer disputed a charge (holds funds in escrow)
+    - charge.dispute.closed: Dispute resolved (releases/transfers escrow funds)
     """
     # Get the raw body for signature verification
     payload = await request.body()
@@ -674,6 +908,21 @@ async def stripe_webhook(
         + (f" for account {account_id}" if account_id else "")
     )
 
+    # Idempotency check: Skip if already processed
+    if is_event_already_processed(session, event_id):
+        logger.info(f"Event {event_id} already processed, skipping (idempotency)")
+        return {
+            "received": True,
+            "event_id": event_id,
+            "event_type": event_type,
+            "processed_at": datetime.utcnow().isoformat(),
+            "result": {
+                "action": event_type,
+                "skipped": True,
+                "reason": "Event already processed (idempotency)",
+            },
+        }
+
     # Process the event
     handler = EVENT_HANDLERS.get(event_type)
     result: dict[str, Any] = {}
@@ -682,6 +931,9 @@ async def stripe_webhook(
         try:
             result = await handler(session, event_data)
             logger.info(f"Successfully processed event: {event_type}")
+
+            # Mark event as processed for idempotency
+            mark_event_processed(session, event_id, event_type, result)
         except Exception as e:
             logger.exception(f"Error processing event {event_type}: {e}")
             # Don't raise - return 200 to prevent Stripe from retrying
@@ -691,6 +943,9 @@ async def stripe_webhook(
                 "error": str(e),
                 "processed": False,
             }
+            # Still mark as processed to prevent infinite retries on permanent errors
+            # For transient errors, you may want different handling
+            mark_event_processed(session, event_id, event_type, result)
     else:
         # Log unhandled events for visibility
         logger.info(f"Unhandled event type: {event_type}")
@@ -699,6 +954,8 @@ async def stripe_webhook(
             "handled": False,
             "message": f"Event type '{event_type}' is not handled",
         }
+        # Mark unhandled events as processed too (they're not errors)
+        mark_event_processed(session, event_id, event_type, result)
 
     # Always return 200 to acknowledge receipt
     # Stripe will retry if we return an error status

@@ -165,7 +165,7 @@ export function TopupSuccessMessage({
 }
 
 /**
- * Funds reserved confirmation for shift acceptance
+ * Worker accepted confirmation for shift acceptance
  */
 export function FundsReservedConfirmation({
   amount,
@@ -203,14 +203,13 @@ export function FundsReservedConfirmation({
 
         <div className="w-full p-3 rounded-lg bg-white border border-green-200 text-left">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-muted-foreground">Funds Reserved</span>
+            <span className="text-muted-foreground">Shift Cost</span>
             <span className="font-bold text-amber-600">
               {formatCurrency(amount)}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            This amount is held until the shift is completed. The worker will be
-            paid after they clock out and their hours are verified.
+            Payment will be processed after the shift is completed and hours are verified.
           </p>
         </div>
 

@@ -204,12 +204,6 @@ function ShiftDetailsPage() {
                 <span className="text-muted-foreground">Total Cost</span>
                 <span className="font-medium">{formatCurrency(totalCost)}</span>
               </div>
-              <div className="pt-2 border-t">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Platform Fee (10%)</span>
-                  <span className="font-medium">{formatCurrency(totalCost * 0.1)}</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
 

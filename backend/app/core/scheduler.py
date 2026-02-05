@@ -225,10 +225,11 @@ async def expire_funds_holds_job() -> None:
 
 async def dispute_deadline_check_job() -> None:
     """
-    Check for disputes approaching the 3-day resolution deadline.
+    Check for disputes approaching the 3-day resolution deadline and auto-resolve overdue disputes.
 
-    Runs daily to alert admins of disputes that need resolution
-    within the next 24 hours.
+    Runs hourly to:
+    1. Alert admins of disputes that need resolution within the next 24 hours
+    2. Auto-resolve overdue disputes in favor of the worker (per platform policy)
     """
     from app.services.dispute_service import dispute_service
     from app.models.user import User, UserType
@@ -236,16 +237,15 @@ async def dispute_deadline_check_job() -> None:
 
     with Session(engine) as session:
         try:
-            # Get disputes approaching deadline
-            approaching = await dispute_service.check_dispute_deadlines(db=session)
-
-            if approaching:
+            # STEP 1: Auto-resolve any overdue disputes
+            auto_resolved = await dispute_service.auto_resolve_overdue_disputes(db=session)
+            if auto_resolved:
                 logger.warning(
-                    f"Found {len(approaching)} disputes approaching deadline: "
-                    f"{[d.id for d in approaching]}"
+                    f"Auto-resolved {len(auto_resolved)} overdue disputes in favor of workers: "
+                    f"{[d.id for d in auto_resolved]}"
                 )
 
-                # Get admin users for notification
+                # Notify admins about auto-resolutions
                 admins = session.exec(
                     select(User).where(
                         User.user_type == UserType.ADMIN,
@@ -253,12 +253,52 @@ async def dispute_deadline_check_job() -> None:
                     )
                 ).all()
 
+                for dispute in auto_resolved:
+                    logger.warning(
+                        f"DISPUTE AUTO-RESOLVED: Dispute #{dispute.id} "
+                        f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
+                        f"was auto-resolved in favor of worker due to exceeded deadline"
+                    )
+
+                    # In production, create notifications for each admin
+                    # for admin in admins:
+                    #     await notification_service.create(
+                    #         user_id=admin.id,
+                    #         type="dispute_auto_resolved",
+                    #         title="Dispute Auto-Resolved",
+                    #         message=f"Dispute #{dispute.id} was auto-resolved in favor of worker",
+                    #     )
+
+            # STEP 2: Get disputes approaching deadline (within 24 hours)
+            approaching = await dispute_service.get_disputes_approaching_deadline(
+                db=session, hours=24
+            )
+
+            if approaching:
+                logger.warning(
+                    f"Found {len(approaching)} disputes approaching deadline: "
+                    f"{[d.id for d in approaching]}"
+                )
+
+                # Get admin users for notification (reuse from above if already fetched)
+                if not auto_resolved:
+                    admins = session.exec(
+                        select(User).where(
+                            User.user_type == UserType.ADMIN,
+                            User.is_active == True,
+                        )
+                    ).all()
+
                 # Log alerts for each dispute
                 for dispute in approaching:
+                    hours_left = (
+                        (dispute.resolution_deadline - datetime.utcnow()).total_seconds() / 3600
+                        if dispute.resolution_deadline else 0
+                    )
                     logger.warning(
                         f"DISPUTE DEADLINE ALERT: Dispute #{dispute.id} "
                         f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
-                        f"needs resolution within 24 hours"
+                        f"needs resolution within {hours_left:.1f} hours"
                     )
 
                     # In production, create notifications for each admin
@@ -267,7 +307,7 @@ async def dispute_deadline_check_job() -> None:
                     #         user_id=admin.id,
                     #         type="dispute_deadline",
                     #         title="Urgent: Dispute Approaching Deadline",
-                    #         message=f"Dispute #{dispute.id} needs resolution",
+                    #         message=f"Dispute #{dispute.id} needs resolution within {hours_left:.1f} hours",
                     #     )
 
             else:
@@ -792,11 +832,12 @@ def create_scheduler() -> Scheduler:
         run_on_startup=False,
     )
 
-    # Dispute deadline check job - runs every 24 hours
+    # Dispute deadline check job - runs every hour
+    # Checks for approaching deadlines and auto-resolves overdue disputes
     scheduler.add_task(
         name="dispute_deadline_check",
         func=dispute_deadline_check_job,
-        interval_seconds=86400,  # 24 hours
+        interval_seconds=3600,  # 1 hour
         run_on_startup=False,
     )
 

@@ -135,12 +135,12 @@ function TermsOfServicePage() {
                   All payments on the ExtraShifty platform are subject to the following terms:
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                  <li>Businesses pay a platform fee on completed shifts as outlined in our pricing</li>
+                  <li>Businesses pay the displayed shift cost when accepting workers</li>
                   <li>Workers receive payment within 48 hours of shift completion and approval</li>
                   <li>All payments are processed through our secure payment provider</li>
                   <li>You are responsible for any applicable taxes on your earnings</li>
                   <li>Refunds and disputes are handled according to our Dispute Resolution process</li>
-                  <li>We may place holds on payments pending investigation of potential violations</li>
+                  <li>Payments may be delayed pending investigation of potential violations</li>
                 </ul>
                 <p className="text-muted-foreground mt-4">
                   Workers using ExtraShifty are independent contractors, not employees of ExtraShifty or the hiring business.

@@ -108,6 +108,8 @@ class DisputeResponse(BaseModel):
     created_at: datetime
     deadline_at: datetime
     days_until_deadline: float
+    is_overdue: bool = False
+    is_approaching_deadline: bool = False
     evidence_count: int
     escrow_hold_id: Optional[int] = None
 
