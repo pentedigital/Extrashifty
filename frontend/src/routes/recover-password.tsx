@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,6 +22,7 @@ export const Route = createFileRoute('/recover-password')({
 })
 
 function RecoverPasswordPage() {
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -83,12 +84,14 @@ function RecoverPasswordPage() {
                   doesn't appear within a few minutes, check your spam folder.
                 </p>
               </div>
-              <Link to="/login">
-                <Button variant="outline" className="w-full">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to sign in
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate({ to: '/login' })}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to sign in
+              </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -111,12 +114,14 @@ function RecoverPasswordPage() {
                 Send reset link
               </Button>
 
-              <Link to="/login">
-                <Button variant="ghost" className="w-full">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to sign in
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => navigate({ to: '/login' })}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to sign in
+              </Button>
             </form>
           )}
         </CardContent>

@@ -15,95 +15,32 @@ export const Route = createFileRoute('/_layout/agency/shifts/')({
   component: AgencyShiftsPage,
 })
 
-const mockShifts = {
-  upcoming: [
-    {
-      id: '1',
-      title: 'Bartender',
-      client: { id: '1', name: 'Hotel ABC' },
-      date: '2026-02-05',
-      startTime: '18:00',
-      endTime: '00:00',
-      hourlyRate: 18,
-      location: 'Temple Bar, Dublin 2',
-      spotsTotal: 2,
-      spotsFilled: 2,
-      status: 'filled',
-      assignedStaff: [
-        { id: '1', name: 'John Doe' },
-        { id: '2', name: 'Maria Santos' },
-      ],
-    },
-    {
-      id: '2',
-      title: 'Server',
-      client: { id: '2', name: 'Café Central' },
-      date: '2026-02-05',
-      startTime: '09:00',
-      endTime: '17:00',
-      hourlyRate: 15,
-      location: 'Grafton Street, Dublin 2',
-      spotsTotal: 3,
-      spotsFilled: 2,
-      status: 'open',
-      assignedStaff: [
-        { id: '3', name: 'Tom Wilson' },
-        { id: '4', name: 'Sarah Chen' },
-      ],
-    },
-    {
-      id: '3',
-      title: 'Kitchen Porter',
-      client: { id: '1', name: 'Hotel ABC' },
-      date: '2026-02-06',
-      startTime: '06:00',
-      endTime: '14:00',
-      hourlyRate: 14,
-      location: 'Hotel ABC, Dublin 1',
-      spotsTotal: 1,
-      spotsFilled: 1,
-      status: 'filled',
-      assignedStaff: [{ id: '5', name: 'Ali Hassan' }],
-    },
-  ],
-  inProgress: [
-    {
-      id: '4',
-      title: 'Line Cook',
-      client: { id: '3', name: 'The Local Pub' },
-      date: '2026-02-04',
-      startTime: '10:00',
-      endTime: '18:00',
-      hourlyRate: 17,
-      location: 'The Local, Dublin 4',
-      spotsTotal: 2,
-      spotsFilled: 2,
-      status: 'in_progress',
-      assignedStaff: [
-        { id: '2', name: 'Maria Santos' },
-        { id: '6', name: 'James Murphy' },
-      ],
-    },
-  ],
-  completed: [
-    {
-      id: '5',
-      title: 'Bartender',
-      client: { id: '3', name: 'The Local Pub' },
-      date: '2026-02-03',
-      startTime: '18:00',
-      endTime: '02:00',
-      hourlyRate: 18,
-      location: 'The Local, Dublin 4',
-      spotsTotal: 2,
-      spotsFilled: 2,
-      status: 'completed',
-      assignedStaff: [
-        { id: '1', name: 'John Doe' },
-        { id: '3', name: 'Tom Wilson' },
-      ],
-    },
-  ],
+// Shift type definition for agency shifts
+type AgencyShift = {
+  id: string
+  title: string
+  client: { id: string; name: string }
+  date: string
+  startTime: string
+  endTime: string
+  hourlyRate: number
+  location: string
+  spotsTotal: number
+  spotsFilled: number
+  status: string
+  assignedStaff: Array<{ id: string; name: string }>
+}
+
+// TODO: Replace with actual API data from useAgencyShifts hook
+// Placeholder empty data structure until API integration is complete
+const mockShifts: {
+  upcoming: AgencyShift[]
+  inProgress: AgencyShift[]
+  completed: AgencyShift[]
+} = {
+  upcoming: [],
+  inProgress: [],
+  completed: [],
 }
 
 function AgencyShiftsPage() {

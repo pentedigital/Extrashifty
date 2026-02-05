@@ -61,6 +61,7 @@ function SignupPage() {
   const navigate = useNavigate()
   const { register: registerUser, error, clearError } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedType, setSelectedType] = useState<UserType | null>(null)
   const [step, setStep] = useState<'type' | 'details'>('type')
@@ -98,7 +99,7 @@ function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Logo size="lg" showText={false} className="mx-auto mb-4" />
+          <Logo size="lg" showText={false} className="mx-auto mb-4" aria-label="ExtraShifty" />
           <CardTitle className="text-2xl">Create your account</CardTitle>
           <CardDescription>
             {step === 'type'
@@ -208,6 +209,7 @@ function SignupPage() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Toggle password visibility"
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -226,13 +228,27 @@ function SignupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirm_password">Confirm password</Label>
-                <Input
-                  id="confirm_password"
-                  type="password"
-                  placeholder="Confirm your password"
-                  autoComplete="new-password"
-                  {...register('confirm_password')}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm_password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm your password"
+                    autoComplete="new-password"
+                    {...register('confirm_password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirm_password && (
                   <p className="text-sm text-destructive">{errors.confirm_password.message}</p>
                 )}

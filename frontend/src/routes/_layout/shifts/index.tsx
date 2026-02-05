@@ -12,47 +12,53 @@ export const Route = createFileRoute('/_layout/shifts/')({
   component: MyShiftsPage,
 })
 
-// Mock data
+// TODO: Replace with actual API data from useMyShifts hook
+// Placeholder empty data structure until API integration is complete
 const mockShifts = {
-  upcoming: [
-    {
-      id: '1',
-      title: 'Bartender',
-      company_name: 'The Brazen Head',
-      date: '2026-02-07',
-      start_time: '18:00',
-      end_time: '00:00',
-      hourly_rate: 18,
-      total_pay: 108,
-      status: 'confirmed',
-    },
-    {
-      id: '2',
-      title: 'Server',
-      company_name: 'Restaurant XYZ',
-      date: '2026-02-08',
-      start_time: '12:00',
-      end_time: '20:00',
-      hourly_rate: 16,
-      total_pay: 128,
-      status: 'confirmed',
-    },
-  ],
-  in_progress: [],
-  completed: [
-    {
-      id: '3',
-      title: 'Line Cook',
-      company_name: 'Hotel Dublin',
-      date: '2026-02-01',
-      start_time: '06:00',
-      end_time: '14:00',
-      hourly_rate: 20,
-      total_pay: 160,
-      status: 'completed',
-    },
-  ],
-  cancelled: [],
+  upcoming: [] as Array<{
+    id: string
+    title: string
+    company_name: string
+    date: string
+    start_time: string
+    end_time: string
+    hourly_rate: number
+    total_pay: number
+    status: string
+  }>,
+  in_progress: [] as Array<{
+    id: string
+    title: string
+    company_name: string
+    date: string
+    start_time: string
+    end_time: string
+    hourly_rate: number
+    total_pay: number
+    status: string
+  }>,
+  completed: [] as Array<{
+    id: string
+    title: string
+    company_name: string
+    date: string
+    start_time: string
+    end_time: string
+    hourly_rate: number
+    total_pay: number
+    status: string
+  }>,
+  cancelled: [] as Array<{
+    id: string
+    title: string
+    company_name: string
+    date: string
+    start_time: string
+    end_time: string
+    hourly_rate: number
+    total_pay: number
+    status: string
+  }>,
 }
 
 function MyShiftsPage() {

@@ -26,81 +26,55 @@ export const Route = createFileRoute('/_layout/agency/shifts/$shiftId/assign')({
   component: AssignStaffPage,
 })
 
-// Mock shift data
-const mockShift = {
-  id: '2',
-  title: 'Server',
-  client: { id: '2', name: 'Cafe Central' },
-  date: '2026-02-05',
-  startTime: '09:00',
-  endTime: '17:00',
-  hourlyRate: 15,
-  location: 'Grafton Street, Dublin 2',
-  spotsTotal: 3,
-  spotsFilled: 2,
-  status: 'open',
-  description:
-    'Looking for experienced servers to handle lunch and dinner service. Must be familiar with POS systems and have excellent customer service skills.',
-  requirements: ['Food handling certificate', 'Min 1 year experience', 'English fluency'],
-  assignedStaff: [
-    { id: '3', name: 'Tom Wilson' },
-    { id: '4', name: 'Sarah Chen' },
-  ],
+// Type definitions for shift assignment
+type AssignmentShift = {
+  id: string
+  title: string
+  client: { id: string; name: string }
+  date: string
+  startTime: string
+  endTime: string
+  hourlyRate: number
+  location: string
+  spotsTotal: number
+  spotsFilled: number
+  status: string
+  description?: string
+  requirements?: string[]
+  assignedStaff: Array<{ id: string; name: string }>
 }
 
-// Mock available agency staff
-const mockAvailableStaff = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@email.com',
-    skills: ['Bartending', 'Server', 'Customer Service'],
-    rating: 4.9,
-    shiftsCompleted: 48,
-    isAvailable: true,
-    verifications: { idVerified: true, backgroundCheck: true },
-  },
-  {
-    id: '5',
-    name: 'Ali Hassan',
-    email: 'ali.hassan@email.com',
-    skills: ['Kitchen Porter', 'Server', 'Cleaning'],
-    rating: 4.7,
-    shiftsCompleted: 23,
-    isAvailable: true,
-    verifications: { idVerified: true, backgroundCheck: true },
-  },
-  {
-    id: '6',
-    name: 'James Murphy',
-    email: 'james.murphy@email.com',
-    skills: ['Line Cook', 'Server', 'Food Prep'],
-    rating: 4.8,
-    shiftsCompleted: 35,
-    isAvailable: true,
-    verifications: { idVerified: true, backgroundCheck: false },
-  },
-  {
-    id: '7',
-    name: 'Emma OBrien',
-    email: 'emma.obrien@email.com',
-    skills: ['Server', 'Hostess', 'Barista'],
-    rating: 4.6,
-    shiftsCompleted: 19,
-    isAvailable: false,
-    verifications: { idVerified: true, backgroundCheck: true },
-  },
-  {
-    id: '8',
-    name: 'Liam Kelly',
-    email: 'liam.kelly@email.com',
-    skills: ['Server', 'Bartending', 'Wine Service'],
-    rating: 4.9,
-    shiftsCompleted: 67,
-    isAvailable: true,
-    verifications: { idVerified: true, backgroundCheck: true },
-  },
-]
+type AvailableStaff = {
+  id: string
+  name: string
+  email: string
+  skills: string[]
+  rating: number
+  shiftsCompleted: number
+  isAvailable: boolean
+  verifications: { idVerified: boolean; backgroundCheck: boolean }
+}
+
+// TODO: Replace with actual API data from useAgencyShift and useAvailableStaff hooks
+// Placeholder empty data until API integration is complete
+const mockShift: AssignmentShift = {
+  id: '',
+  title: '',
+  client: { id: '', name: '' },
+  date: '',
+  startTime: '',
+  endTime: '',
+  hourlyRate: 0,
+  location: '',
+  spotsTotal: 0,
+  spotsFilled: 0,
+  status: '',
+  description: '',
+  requirements: [],
+  assignedStaff: [],
+}
+
+const mockAvailableStaff: AvailableStaff[] = []
 
 function AssignStaffPage() {
   const { shiftId } = Route.useParams()

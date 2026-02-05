@@ -10,87 +10,28 @@ export const Route = createFileRoute('/_layout/agency/schedule/')({
   component: SchedulePage,
 })
 
-// Mock data
-const mockSchedule = {
-  '2026-02-04': [
-    {
-      id: '1',
-      time: '06:00',
-      end_time: '14:00',
-      title: 'Kitchen Porter',
-      client: 'Hotel ABC',
-      workers: ['John D.'],
-      spots_total: 1,
-      spots_filled: 1,
-      status: 'confirmed',
-    },
-    {
-      id: '2',
-      time: '09:00',
-      end_time: '17:00',
-      title: 'Server',
-      client: 'Café Central',
-      workers: ['Maria S.', 'Tom W.'],
-      spots_total: 3,
-      spots_filled: 2,
-      status: 'partial',
-    },
-    {
-      id: '3',
-      time: '18:00',
-      end_time: '00:00',
-      title: 'Bartender',
-      client: 'The Local',
-      workers: ['Sarah C.', 'Ali H.'],
-      spots_total: 2,
-      spots_filled: 2,
-      status: 'confirmed',
-    },
-  ],
-  '2026-02-05': [
-    {
-      id: '4',
-      time: '07:00',
-      end_time: '15:00',
-      title: 'Line Cook',
-      client: 'Hotel ABC',
-      workers: ['Maria S.'],
-      spots_total: 1,
-      spots_filled: 1,
-      status: 'confirmed',
-    },
-    {
-      id: '5',
-      time: '11:00',
-      end_time: '19:00',
-      title: 'Server',
-      client: 'Restaurant XYZ',
-      workers: [],
-      spots_total: 2,
-      spots_filled: 0,
-      status: 'unfilled',
-    },
-  ],
-  '2026-02-06': [
-    {
-      id: '6',
-      time: '18:00',
-      end_time: '02:00',
-      title: 'Bartender',
-      client: 'The Local',
-      workers: ['John D.'],
-      spots_total: 1,
-      spots_filled: 1,
-      status: 'confirmed',
-    },
-  ],
+// Schedule entry type definition
+type ScheduleEntry = {
+  id: string
+  time: string
+  end_time: string
+  title: string
+  client: string
+  workers: string[]
+  spots_total: number
+  spots_filled: number
+  status: string
 }
+
+// TODO: Replace with actual API data from useAgencySchedule hook
+// Placeholder empty data structure until API integration is complete
+const mockSchedule: Record<string, ScheduleEntry[]> = {}
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 4)) // Feb 4, 2026
-  const [_view, _setView] = useState<'week' | 'day'>('week')
+  // View state removed - currently only week view is implemented
 
   const getWeekDates = () => {
     const startOfWeek = new Date(currentDate)

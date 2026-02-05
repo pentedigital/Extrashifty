@@ -60,7 +60,7 @@ function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Logo size="lg" showText={false} className="mx-auto mb-4" />
+          <Logo size="lg" showText={false} className="mx-auto mb-4" aria-label="ExtraShifty" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
             Sign in to your ExtraShifty account
@@ -110,6 +110,7 @@ function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Toggle password visibility"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />

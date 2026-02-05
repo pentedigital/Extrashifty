@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,6 +42,10 @@ const statusOptions = [
   { value: 'open', label: 'Open' },
   { value: 'cancelled', label: 'Cancelled' },
 ]
+
+// Zod schemas for validation
+const shiftTypeSchema = z.enum(['bar', 'server', 'kitchen', 'chef', 'host', 'general'])
+const statusSchema = z.enum(['draft', 'open', 'cancelled'])
 
 function EditShiftPage() {
   const { shiftId } = Route.useParams()
@@ -97,13 +102,35 @@ function EditShiftPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validate shift_type and status using Zod
+    const shiftTypeResult = shiftTypeSchema.safeParse(formData.shift_type)
+    const statusResult = statusSchema.safeParse(formData.status)
+
+    if (!shiftTypeResult.success) {
+      addToast({
+        type: 'error',
+        title: 'Invalid shift type',
+        description: 'Please select a valid shift type.',
+      })
+      return
+    }
+
+    if (!statusResult.success) {
+      addToast({
+        type: 'error',
+        title: 'Invalid status',
+        description: 'Please select a valid status.',
+      })
+      return
+    }
+
     try {
       await updateShift.mutateAsync({
         id: shiftId,
         data: {
           title: formData.title,
           description: formData.description,
-          shift_type: formData.shift_type as 'bar' | 'server' | 'kitchen' | 'chef' | 'host' | 'general',
+          shift_type: shiftTypeResult.data,
           date: formData.date,
           start_time: formData.start_time,
           end_time: formData.end_time,
@@ -112,7 +139,7 @@ function EditShiftPage() {
           address: formData.address,
           city: formData.city,
           spots_total: parseInt(formData.spots_total),
-          status: formData.status as 'draft' | 'open' | 'cancelled',
+          status: statusResult.data,
         },
       })
 

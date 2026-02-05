@@ -265,8 +265,10 @@ function ProcessPayrollPage() {
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => toggleStaffSelection(staff.id)}
+                      aria-label={`Select ${staffName} for payroll processing`}
+                      id={`staff-checkbox-${staff.id}`}
                     />
-                    <Avatar>
+                    <Avatar aria-label={`Avatar for ${staffName}`}>
                       <AvatarFallback>{getStaffInitials(staffName)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -297,8 +299,10 @@ function ProcessPayrollPage() {
                   <Checkbox
                     checked={preview.selected}
                     onCheckedChange={() => togglePreviewSelection(preview.id)}
+                    aria-label={`Select ${preview.name} for payroll processing`}
+                    id={`preview-checkbox-${preview.id}`}
                   />
-                  <Avatar>
+                  <Avatar aria-label={`Avatar for ${preview.name}`}>
                     <AvatarFallback>{getStaffInitials(preview.name)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">

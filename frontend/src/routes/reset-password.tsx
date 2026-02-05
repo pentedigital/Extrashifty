@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -35,6 +35,7 @@ function ResetPasswordPage() {
   const { token } = useSearch({ from: '/reset-password' })
   const { addToast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
@@ -109,6 +110,7 @@ function ResetPasswordPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Toggle password visibility"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -127,13 +129,27 @@ function ResetPasswordPage() {
 
             <div className="space-y-2">
               <Label htmlFor="confirm_password">Confirm Password</Label>
-              <Input
-                id="confirm_password"
-                type="password"
-                placeholder="Confirm new password"
-                autoComplete="new-password"
-                {...register('confirm_password')}
-              />
+              <div className="relative">
+                <Input
+                  id="confirm_password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm new password"
+                  autoComplete="new-password"
+                  {...register('confirm_password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Toggle password visibility"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {errors.confirm_password && (
                 <p className="text-sm text-destructive">{errors.confirm_password.message}</p>
               )}
@@ -144,11 +160,13 @@ function ResetPasswordPage() {
               Reset password
             </Button>
 
-            <Link to="/login">
-              <Button variant="ghost" className="w-full">
-                Back to sign in
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => navigate({ to: '/login' })}
+            >
+              Back to sign in
+            </Button>
           </form>
         </CardContent>
       </Card>

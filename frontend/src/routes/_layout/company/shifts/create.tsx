@@ -403,7 +403,7 @@ function CreateShiftPage() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Select skills that are required for this shift
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Required skills selection">
                   {skillOptions.map((skill) => {
                     const isSelected = selectedSkills.includes(skill)
                     return (
@@ -411,6 +411,8 @@ function CreateShiftPage() {
                         key={skill}
                         type="button"
                         onClick={() => toggleSkill(skill)}
+                        aria-label={isSelected ? `Remove ${skill} skill` : `Add ${skill} skill`}
+                        aria-pressed={isSelected}
                         className={cn(
                           'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors',
                           isSelected
@@ -419,7 +421,7 @@ function CreateShiftPage() {
                         )}
                       >
                         {skill}
-                        {isSelected && <X className="h-3 w-3" />}
+                        {isSelected && <X className="h-3 w-3" aria-hidden="true" />}
                       </button>
                     )
                   })}

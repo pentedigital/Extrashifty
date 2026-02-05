@@ -6,9 +6,10 @@ interface LogoProps {
   showText?: boolean
   linkTo?: string
   className?: string
+  'aria-label'?: string
 }
 
-export function Logo({ size = 'default', showText = true, linkTo, className }: LogoProps) {
+export function Logo({ size = 'default', showText = true, linkTo, className, 'aria-label': ariaLabel }: LogoProps) {
   const sizeClasses = {
     sm: 'h-6 w-6 text-xs',
     default: 'h-8 w-8 text-sm',
@@ -22,11 +23,11 @@ export function Logo({ size = 'default', showText = true, linkTo, className }: L
   }
 
   const content = (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex items-center gap-2', className)} aria-label={ariaLabel} role={ariaLabel ? 'img' : undefined}>
       <div className={cn(
         'flex items-center justify-center rounded-lg bg-brand-600 font-bold text-white',
         sizeClasses[size]
-      )}>
+      )} aria-hidden={ariaLabel ? 'true' : undefined}>
         E
       </div>
       {showText && (

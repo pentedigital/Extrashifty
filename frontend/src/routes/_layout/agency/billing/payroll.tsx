@@ -195,6 +195,7 @@ function PayrollPage() {
                 checked={selectedIds.length === entries.length && entries.length > 0}
                 onChange={() => selectAll(entries)}
                 className="h-4 w-4 rounded border-gray-300"
+                aria-label={`Select all ${entries.length} payroll entries`}
               />
               <span className="text-sm">
                 Select all ({entries.length})
@@ -230,9 +231,11 @@ function PayrollPage() {
                     checked={selectedIds.includes(entry.id)}
                     onChange={() => toggleSelect(entry.id)}
                     className="h-4 w-4 rounded border-gray-300"
+                    aria-label={`Select payroll entry for ${getStaffName(entry)}`}
+                    id={`payroll-checkbox-${entry.id}`}
                   />
                 )}
-                <Avatar>
+                <Avatar aria-label={`Avatar for ${getStaffName(entry)}`}>
                   <AvatarFallback>{getStaffInitials(entry)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">

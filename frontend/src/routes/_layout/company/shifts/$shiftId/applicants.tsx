@@ -104,16 +104,23 @@ function ShiftApplicantsPage() {
   }
 
   // Handle confirm acceptance
+  // Note: This operation involves two sequential API calls (reserveFunds + updateStatus).
+  // If updateStatus fails after reserveFunds succeeds, the funds remain reserved.
+  // The backend should handle this gracefully by releasing funds if the application
+  // status update fails, or ideally these should be combined into a single atomic API call.
   const handleConfirmAccept = async () => {
     if (!selectedApplication || !shift) return
 
     setIsProcessing(true)
+    let fundsReserved = false
+
     try {
       // First, reserve the funds
       await reserveFunds.mutateAsync({
         shift_id: parseInt(shiftId),
         amount: shiftCost,
       })
+      fundsReserved = true
 
       // Then, update the application status
       await updateStatus.mutateAsync({
@@ -129,11 +136,21 @@ function ShiftApplicantsPage() {
         setShowConfirmModal(false)
         setShowInsufficientFundsModal(true)
       } else {
-        addToast({
-          type: 'error',
-          title: 'Failed to accept applicant',
-          description: 'Please try again or contact support.',
-        })
+        // If funds were reserved but status update failed, notify user
+        // The backend should handle cleanup, but we inform the user of the partial failure
+        if (fundsReserved) {
+          addToast({
+            type: 'error',
+            title: 'Partial failure',
+            description: 'Funds were reserved but application status update failed. Please contact support to resolve this issue.',
+          })
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to accept applicant',
+            description: 'Please try again or contact support.',
+          })
+        }
       }
     } finally {
       setIsProcessing(false)
@@ -213,7 +230,7 @@ function ShiftApplicantsPage() {
       <div key={application.id} className="p-4 rounded-lg border">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <Avatar size="lg">
+            <Avatar size="lg" aria-label={`Avatar for ${applicant?.full_name || 'Unknown Applicant'}`}>
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div>
@@ -371,7 +388,7 @@ function ShiftApplicantsPage() {
             {groupedApplicants.accepted.map((application) => (
               <div key={application.id} className="flex items-center justify-between p-3 rounded-lg border bg-green-50 dark:bg-green-950/20">
                 <div className="flex items-center gap-3">
-                  <Avatar>
+                  <Avatar aria-label={`Avatar for ${application.applicant?.full_name || 'Unknown'}`}>
                     <AvatarFallback>
                       {application.applicant?.full_name
                         ? application.applicant.full_name.split(' ').map((n) => n[0]).join('')
@@ -409,7 +426,7 @@ function ShiftApplicantsPage() {
             {groupedApplicants.rejected.map((application) => (
               <div key={application.id} className="flex items-center justify-between p-3 rounded-lg border opacity-60">
                 <div className="flex items-center gap-3">
-                  <Avatar>
+                  <Avatar aria-label={`Avatar for ${application.applicant?.full_name || 'Unknown'}`}>
                     <AvatarFallback>
                       {application.applicant?.full_name
                         ? application.applicant.full_name.split(' ').map((n) => n[0]).join('')
@@ -438,7 +455,7 @@ function ShiftApplicantsPage() {
             {groupedApplicants.withdrawn.map((application) => (
               <div key={application.id} className="flex items-center justify-between p-3 rounded-lg border opacity-60">
                 <div className="flex items-center gap-3">
-                  <Avatar>
+                  <Avatar aria-label={`Avatar for ${application.applicant?.full_name || 'Unknown'}`}>
                     <AvatarFallback>
                       {application.applicant?.full_name
                         ? application.applicant.full_name.split(' ').map((n) => n[0]).join('')
