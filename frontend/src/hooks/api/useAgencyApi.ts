@@ -419,3 +419,176 @@ export function useAgencyStats() {
     queryFn: () => api.agency.getStats(),
   })
 }
+
+// Single shift hook for agency
+export function useAgencyShift(shiftId: string) {
+  return useQuery({
+    queryKey: [...agencyKeys.shifts(), shiftId] as const,
+    queryFn: async () => {
+      const shifts = await api.agency.getShifts()
+      // Find the specific shift from the list
+      const shift = (shifts as unknown as Array<{ id: string | number }>)?.find(
+        (s) => String(s.id) === shiftId
+      )
+      if (!shift) {
+        throw new Error('Shift not found')
+      }
+      return shift
+    },
+    enabled: !!shiftId,
+  })
+}
+
+// Single staff member hook for agency
+export function useAgencyStaffMember(memberId: string) {
+  return useQuery({
+    queryKey: [...agencyKeys.staff(), memberId] as const,
+    queryFn: async () => {
+      const response = await api.agency.getStaff()
+      const member = response.items?.find(
+        (s: { id?: string | number }) => String(s.id) === memberId
+      )
+      if (!member) {
+        throw new Error('Staff member not found')
+      }
+      return member
+    },
+    enabled: !!memberId,
+  })
+}
+
+// Available staff for shift assignment
+export function useAvailableStaff(shiftId?: string) {
+  return useQuery({
+    queryKey: [...agencyKeys.staff(), 'available', shiftId] as const,
+    queryFn: async () => {
+      // Get all staff and filter to available ones
+      const response = await api.agency.getStaff({ is_available: 'true' })
+      return response.items || []
+    },
+    enabled: true,
+  })
+}
+
+// Schedule hook for agency
+export function useAgencySchedule(params?: { start_date?: string; end_date?: string }) {
+  return useQuery({
+    queryKey: [...agencyKeys.all, 'schedule', params] as const,
+    queryFn: async () => {
+      // Get shifts within the date range and transform to schedule format
+      const filterParams: Record<string, string> = {}
+      if (params?.start_date) filterParams.date_from = params.start_date
+      if (params?.end_date) filterParams.date_to = params.end_date
+
+      const shifts = await api.agency.getShifts(filterParams)
+
+      // Transform shifts into a schedule format (grouped by date)
+      const schedule: Record<string, Array<{
+        id: string
+        time: string
+        end_time: string
+        title: string
+        client: string
+        workers: string[]
+        spots_total: number
+        spots_filled: number
+        status: string
+      }>> = {}
+
+      // Group shifts by date
+      if (Array.isArray(shifts)) {
+        for (const shift of shifts as unknown as Array<{
+          id: string | number
+          date: string
+          start_time: string
+          end_time: string
+          title: string
+          client?: { name?: string }
+          assigned_staff?: Array<{ name?: string }>
+          spots_total?: number
+          spots_filled?: number
+          status: string
+        }>) {
+          const dateKey = shift.date
+          if (!schedule[dateKey]) {
+            schedule[dateKey] = []
+          }
+
+          const spotsFilled = shift.spots_filled ?? shift.assigned_staff?.length ?? 0
+          const spotsTotal = shift.spots_total ?? 1
+
+          let status = 'unfilled'
+          if (spotsFilled >= spotsTotal) {
+            status = 'confirmed'
+          } else if (spotsFilled > 0) {
+            status = 'partial'
+          }
+
+          schedule[dateKey].push({
+            id: String(shift.id),
+            time: shift.start_time,
+            end_time: shift.end_time,
+            title: shift.title,
+            client: shift.client?.name ?? '',
+            workers: shift.assigned_staff?.map((s) => s.name ?? 'Unknown') ?? [],
+            spots_total: spotsTotal,
+            spots_filled: spotsFilled,
+            status,
+          })
+        }
+      }
+
+      return schedule
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  })
+}
+
+// Client shifts hook
+export function useClientShifts(clientId: string, filters?: Record<string, string>) {
+  return useQuery({
+    queryKey: [...agencyKeys.clients(), clientId, 'shifts', filters] as const,
+    queryFn: async () => {
+      const allShifts = await api.agency.getShifts(filters)
+      // Filter shifts for this specific client
+      const clientShifts = (allShifts as unknown as Array<{
+        client_id?: string | number
+        client?: { id?: string | number }
+      }>)?.filter(
+        (s) => String(s.client_id) === clientId || String(s.client?.id) === clientId
+      )
+      return clientShifts || []
+    },
+    enabled: !!clientId,
+  })
+}
+
+// Renamed application hooks for clarity
+export function useAgencyAcceptApplication() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (applicationId: string) => api.agency.acceptApplication(applicationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agencyKeys.applications() })
+      queryClient.invalidateQueries({ queryKey: agencyKeys.shifts() })
+    },
+    onError: (error) => {
+      console.error('Failed to accept application:', error)
+    },
+  })
+}
+
+export function useAgencyRejectApplication() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (applicationId: string) => api.agency.rejectApplication(applicationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agencyKeys.applications() })
+    },
+    onError: (error) => {
+      console.error('Failed to reject application:', error)
+    },
+  })
+}

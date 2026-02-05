@@ -6,8 +6,8 @@ export type NotificationType = 'shift_update' | 'application_update' | 'message'
 export type NotificationChannel = 'email' | 'in_app' | 'sms' | 'push'
 
 export interface Notification {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   type: NotificationType
   title: string
   body: string
@@ -34,9 +34,9 @@ export interface NotificationPreferences {
 export type MessageStatus = 'sent' | 'delivered' | 'read'
 
 export interface Message {
-  id: string
-  conversation_id: string
-  sender_id: string
+  id: number
+  conversation_id: number
+  sender_id: number
   content: string
   status: MessageStatus
   created_at: string
@@ -44,9 +44,9 @@ export interface Message {
 }
 
 export interface Conversation {
-  id: string
-  participants: string[]
-  shift_id?: string
+  id: number
+  participants: number[]
+  shift_id?: number
   last_message?: Message
   unread_count: number
   created_at: string
@@ -61,11 +61,11 @@ export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 
 export type AuditEntity = 'user' | 'shift' | 'application' | 'payment' | 'company' | 'agency'
 
 export interface AuditLog {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   action: AuditAction
   entity: AuditEntity
-  entity_id: string
+  entity_id: number
   changes?: Record<string, { old: unknown; new: unknown }>
   ip_address?: string
   user_agent?: string
@@ -99,8 +99,8 @@ export type TransactionStatus = 'pending' | 'processing' | 'completed' | 'failed
 export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed'
 
 export interface Transaction {
-  id: string
-  wallet_id: string
+  id: number
+  wallet_id: number
   type: TransactionType
   amount: number
   currency: string
@@ -113,8 +113,8 @@ export interface Transaction {
 }
 
 export interface Payout {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   amount: number
   currency: string
   status: PayoutStatus
@@ -130,10 +130,10 @@ export interface Payout {
 export type EscrowStatus = 'held' | 'released' | 'refunded' | 'disputed'
 
 export interface EscrowAccount {
-  id: string
-  shift_id: string
-  company_id: string
-  staff_id?: string
+  id: number
+  shift_id: number
+  company_id: number
+  staff_id?: number
   amount: number
   currency: string
   status: EscrowStatus
@@ -149,8 +149,8 @@ export type DocumentType = 'id_card' | 'passport' | 'drivers_license' | 'right_t
 export type DocumentStatus = 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired'
 
 export interface VerificationDocument {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   type: DocumentType
   status: DocumentStatus
   file_url?: string

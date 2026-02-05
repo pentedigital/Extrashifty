@@ -8,30 +8,11 @@ import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getApplicationStatusBadge } from '@/lib/badgeUtils'
 import { useMyShifts, useMyStats, useStaffProfile } from '@/hooks/api/useStaffApi'
 import { useMyApplications } from '@/hooks/api/useApplicationsApi'
 import { useStaffReviews } from '@/hooks/api/useReviewsApi'
 import { useAuth } from '@/hooks/useAuth'
-
-// Helper to get badge variant for application status
-function getApplicationBadgeVariant(status: string): 'default' | 'success' | 'warning' | 'destructive' {
-  switch (status) {
-    case 'accepted':
-      return 'success'
-    case 'pending':
-      return 'warning'
-    case 'rejected':
-    case 'withdrawn':
-      return 'destructive'
-    default:
-      return 'default'
-  }
-}
-
-// Helper to format application status label
-function formatApplicationStatus(status: string): string {
-  return status.charAt(0).toUpperCase() + status.slice(1)
-}
 
 export function StaffDashboard() {
   const { user } = useAuth()
@@ -209,9 +190,10 @@ export function StaffDashboard() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{app.shift?.title ?? 'Shift'}</p>
-                        <Badge variant={getApplicationBadgeVariant(app.status)}>
-                          {formatApplicationStatus(app.status)}
-                        </Badge>
+                        {(() => {
+                          const badgeConfig = getApplicationStatusBadge(app.status)
+                          return <Badge variant={badgeConfig.variant}>{badgeConfig.label}</Badge>
+                        })()}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {app.shift?.company?.full_name ?? app.shift?.location ?? app.shift?.city ?? 'Unknown venue'}

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
-  useWalletBalance,
+  useCompanyWalletBalance,
   useTransactionHistory,
   useAutoTopupConfig,
 } from '@/hooks/api/usePaymentsApi'
@@ -34,7 +34,7 @@ export const Route = createFileRoute('/_layout/company/wallet/')({
 
 function CompanyWalletPage() {
   // API hooks
-  const { data: walletData, isLoading: isLoadingBalance, error: balanceError } = useWalletBalance()
+  const { data: walletData, isLoading: isLoadingBalance, error: balanceError } = useCompanyWalletBalance()
   const { data: transactionsData, isLoading: isLoadingTransactions } = useTransactionHistory({ limit: 10 })
   const { data: autoTopupData } = useAutoTopupConfig()
 

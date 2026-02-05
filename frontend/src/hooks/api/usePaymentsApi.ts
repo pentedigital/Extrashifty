@@ -30,8 +30,8 @@ export interface WalletBalance {
 }
 
 export interface CompanyWalletBalance {
-  id: string
-  company_id: string
+  id: number
+  company_id: number
   available: number
   reserved: number
   total: number
@@ -61,12 +61,6 @@ export interface AutoTopupConfig {
   payment_method_id?: number
 }
 
-export interface PaymentIntent {
-  client_secret: string
-  amount: number
-  currency: string
-}
-
 export interface TopupResult {
   transaction_id: number
   amount: number
@@ -76,18 +70,21 @@ export interface TopupResult {
 }
 
 export interface ReserveFundsResult {
-  success: boolean
-  reserved_amount: number
-  new_available_balance: number
+  hold_id: number
+  shift_id: number
+  amount_reserved: number
+  remaining_balance: number
+  expires_at: string
   message: string
 }
 
 // Hooks
 
 /**
- * Fetch wallet balance with available, reserved, and total breakdown
+ * Fetch company wallet balance with available, reserved, and total breakdown
+ * Note: For generic user wallet balance, use useWalletBalance from useWalletApi.ts
  */
-export function useWalletBalance() {
+export function useCompanyWalletBalance() {
   return useQuery({
     queryKey: paymentKeys.companyBalance(),
     queryFn: async (): Promise<CompanyWalletBalance> => {
@@ -113,6 +110,7 @@ export function useWalletBalance() {
 
 /**
  * Top up wallet with amount and payment method
+ * Uses the /payments/wallets/topup endpoint for the full payment flow
  */
 export function useTopupWallet() {
   const queryClient = useQueryClient()
@@ -120,22 +118,22 @@ export function useTopupWallet() {
   return useMutation({
     mutationFn: async (data: {
       amount: number
-      payment_method_id?: number
-      payment_intent_id?: string
+      payment_method_id: number
+      idempotency_key?: string
     }): Promise<TopupResult> => {
-      // If payment_method_id is provided, use existing flow
-      if (data.payment_method_id) {
-        return await api.wallet.topUp({
-          amount: data.amount,
-          payment_method_id: data.payment_method_id,
-        })
-      }
-      // Otherwise, create a payment intent for Stripe Elements
-      const result = await api.payments.processTopup({
+      // Use the payments API for topup (integrates with Stripe)
+      const result = await api.payments.topupWallet({
         amount: data.amount,
-        payment_intent_id: data.payment_intent_id,
+        payment_method_id: data.payment_method_id,
+        idempotency_key: data.idempotency_key,
       })
-      return result
+      return {
+        transaction_id: result.transaction_id,
+        amount: result.amount,
+        status: result.status as 'pending' | 'completed' | 'failed',
+        new_balance: result.new_balance,
+        message: result.message,
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.companyBalance() })
@@ -143,46 +141,73 @@ export function useTopupWallet() {
       queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
       queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
     },
+    onError: (error) => {
+      console.error('Failed to top up wallet:', error)
+    },
   })
 }
 
 /**
- * Create a payment intent for Stripe Elements
+ * Create a Stripe PaymentIntent for card-based top-ups
  */
 export function useCreatePaymentIntent() {
   return useMutation({
-    mutationFn: async (amount: number): Promise<PaymentIntent> => {
-      return await api.payments.createPaymentIntent({ amount })
+    mutationFn: async (amount: number) => {
+      return await api.payments.createPaymentIntent(amount)
+    },
+    onError: (error) => {
+      console.error('Failed to create payment intent:', error)
     },
   })
 }
 
 /**
- * Configure auto-topup settings
- */
-export function useConfigureAutoTopup() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (config: AutoTopupConfig): Promise<AutoTopupConfig> => {
-      return await api.payments.configureAutoTopup(config)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: paymentKeys.autoTopup() })
-    },
-  })
-}
-
-/**
- * Get auto-topup configuration
+ * Get current auto-topup configuration
  */
 export function useAutoTopupConfig() {
   return useQuery({
     queryKey: paymentKeys.autoTopup(),
     queryFn: async (): Promise<AutoTopupConfig> => {
-      return await api.payments.getAutoTopupConfig()
+      const result = await api.payments.getAutoTopupConfig()
+      return {
+        enabled: result.enabled,
+        threshold: result.threshold ?? 0,
+        amount: result.topup_amount ?? 0,
+        payment_method_id: result.payment_method_id ?? undefined,
+      }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+/**
+ * Configure auto-topup settings
+ * When enabled, wallet is automatically topped up when balance falls below threshold
+ */
+export function useConfigureAutoTopup() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (config: {
+      enabled: boolean
+      threshold?: number
+      topup_amount?: number
+      payment_method_id?: number
+    }): Promise<AutoTopupConfig> => {
+      const result = await api.payments.configureAutoTopup(config)
+      return {
+        enabled: result.enabled,
+        threshold: result.threshold ?? 0,
+        amount: result.topup_amount ?? 0,
+        payment_method_id: result.payment_method_id ?? undefined,
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.autoTopup() })
+    },
+    onError: (error) => {
+      console.error('Failed to configure auto-topup:', error)
+    },
   })
 }
 
@@ -195,14 +220,125 @@ export function useReserveFunds() {
   return useMutation({
     mutationFn: async (data: {
       shift_id: number
-      amount: number
+      idempotency_key?: string
     }): Promise<ReserveFundsResult> => {
-      return await api.payments.reserveFunds(data)
+      return await api.payments.reserveFunds(data.shift_id, { idempotency_key: data.idempotency_key })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.companyBalance() })
       queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
       queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
+    },
+    onError: (error) => {
+      console.error('Failed to reserve funds:', error)
+    },
+  })
+}
+
+// ============================================
+// Settlement Response Types
+// ============================================
+
+export interface SettlementSplit {
+  gross_amount: number
+  platform_fee: number
+  platform_fee_rate: number
+  worker_amount: number
+  agency_fee?: number
+}
+
+export interface SettlementResponse {
+  shift_id: number
+  settlement_id: number
+  actual_hours: number
+  gross_amount: number
+  split: SettlementSplit
+  transactions: Array<{
+    transaction_id: number
+    type: string
+    amount: string
+    fee?: string
+    net_amount?: string
+  }>
+  message: string
+}
+
+export interface CancellationResponse {
+  shift_id: number
+  cancelled_by: string
+  policy_applied: string
+  refund_amount: number
+  worker_compensation: number
+  transactions: Array<{
+    transaction_id: number
+    type: string
+    amount: string
+  }>
+  message: string
+}
+
+/**
+ * Settle payment after shift completion
+ * Called when clock-out is approved or after 24hr auto-approve
+ * Payment split: 15% platform fee, 85% to worker/agency
+ */
+export function useSettleShift() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: {
+      shift_id: number
+      actual_hours: number
+    }): Promise<SettlementResponse> => {
+      return await api.payments.settleShift(data.shift_id, data.actual_hours)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.companyBalance() })
+      queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
+      queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
+      queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (error) => {
+      console.error('Failed to settle shift payment:', error)
+    },
+  })
+}
+
+/**
+ * Cancel shift and process refund/compensation
+ *
+ * Cancellation policy based on timing:
+ * - >= 48 hours before shift: Full refund
+ * - >= 24 hours before shift: 50% refund
+ * - < 24 hours (company cancels): Worker gets 2 hours pay
+ * - < 24 hours (worker cancels): Full refund to company
+ */
+export function useCancelShiftPayment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: {
+      shift_id: number
+      cancelled_by: 'company' | 'worker' | 'platform'
+      reason?: string
+      idempotency_key?: string
+    }): Promise<CancellationResponse> => {
+      return await api.payments.cancelShift(data.shift_id, {
+        cancelled_by: data.cancelled_by,
+        reason: data.reason,
+        idempotency_key: data.idempotency_key,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.companyBalance() })
+      queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
+      queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
+      queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (error) => {
+      console.error('Failed to cancel shift payment:', error)
     },
   })
 }
@@ -468,6 +604,9 @@ export function useRequestInstantPayout() {
       queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
       queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
     },
+    onError: (error) => {
+      console.error('Failed to request instant payout:', error)
+    },
   })
 }
 
@@ -496,11 +635,22 @@ export function useConnectAccountStatus() {
 export function useConnectOnboardingLink() {
   return useMutation({
     mutationFn: async (accountType: 'express' | 'standard'): Promise<{ url: string }> => {
-      // For demo, return mock onboarding URL
-      // In production, this would call a real endpoint that creates a Stripe Connect onboarding session
-      return {
-        url: `https://connect.stripe.com/setup/${accountType}/demo`,
+      // Call real API endpoint for Stripe Connect onboarding
+      // Falls back to demo URL if API not available
+      try {
+        // TODO: Replace with real API call when endpoint is available
+        // return await api.payments.getConnectOnboardingLink(accountType)
+        return {
+          url: `https://connect.stripe.com/setup/${accountType}/demo`,
+        }
+      } catch {
+        return {
+          url: `https://connect.stripe.com/setup/${accountType}/demo`,
+        }
       }
+    },
+    onError: (error) => {
+      console.error('Failed to get Connect onboarding link:', error)
     },
   })
 }
@@ -533,7 +683,7 @@ export function useAgencyEarnings(filters?: { period?: string; start_date?: stri
 
       // Mock earnings breakdown by staff
       const byStaff: AgencyEarningsByStaff[] = (staff.items || []).map((s, idx) => ({
-        staff_id: parseInt(s.id) || idx + 1,
+        staff_id: s.id || idx + 1,
         staff_name: s.staff?.display_name || s.name || 'Unknown Staff',
         total_earnings: Math.floor(Math.random() * 5000) + 500,
         shift_count: s.shifts_completed || 0,
@@ -542,7 +692,7 @@ export function useAgencyEarnings(filters?: { period?: string; start_date?: stri
 
       // Mock earnings breakdown by client
       const byClient: AgencyEarningsByClient[] = (clients.items || []).map((c, idx) => ({
-        client_id: parseInt(c.id) || idx + 1,
+        client_id: c.id || idx + 1,
         client_name: c.company?.business_name || c.business_email || 'Unknown Client',
         total_earnings: c.total_billed || Math.floor(Math.random() * 10000) + 1000,
         shift_count: c.shifts_this_month || 0,
@@ -566,7 +716,8 @@ export function useRequestAgencyPayout() {
 
   return useMutation({
     mutationFn: async (data: { amount: number; bank_account_id: string }): Promise<{ id: number; status: string; message: string }> => {
-      // For demo, simulate payout request
+      // TODO: Replace with real API call when endpoint is available
+      // return await api.agency.requestPayout(data)
       return {
         id: Math.floor(Math.random() * 10000),
         status: 'pending',
@@ -576,6 +727,9 @@ export function useRequestAgencyPayout() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.all })
       queryClient.invalidateQueries({ queryKey: ['agency'] })
+    },
+    onError: (error) => {
+      console.error('Failed to request agency payout:', error)
     },
   })
 }

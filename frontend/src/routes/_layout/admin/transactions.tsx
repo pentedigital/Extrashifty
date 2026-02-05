@@ -1,36 +1,80 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, ArrowUpRight, ArrowDownLeft, Eye } from 'lucide-react'
+import { Search, ArrowUpRight, ArrowDownLeft, Eye, Loader2 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useAdminTransactions } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/transactions')({
   component: AdminTransactionsPage,
 })
 
-const mockTransactions = [
-  { id: '1', type: 'payment', description: 'Shift payment - Bartender @ Brazen Head', amount: 108, from: 'The Brazen Head', to: 'John Doe', date: '2026-02-04', status: 'completed' },
-  { id: '2', type: 'fee', description: 'Platform fee (10%)', amount: 10.80, from: 'The Brazen Head', to: 'ExtraShifty', date: '2026-02-04', status: 'completed' },
-  { id: '3', type: 'payment', description: 'Shift payment - Server @ Restaurant XYZ', amount: 128, from: 'Restaurant XYZ', to: 'Sarah M.', date: '2026-02-03', status: 'completed' },
-  { id: '4', type: 'payout', description: 'Weekly payout to worker', amount: 450, from: 'ExtraShifty', to: 'John Doe', date: '2026-02-03', status: 'pending' },
-  { id: '5', type: 'refund', description: 'Cancelled shift refund', amount: 54, from: 'ExtraShifty', to: 'Café Central', date: '2026-02-02', status: 'completed' },
-]
-
 function AdminTransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
 
-  const filteredTransactions = mockTransactions.filter(tx => {
-    const matchesSearch = tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  // Fetch transactions from API
+  const { data: transactionsData, isLoading, error } = useAdminTransactions({
+    search: searchQuery || undefined,
+    type: activeTab !== 'all' ? activeTab : undefined,
+  })
+
+  // Process transactions for display
+  const transactions = useMemo(() => {
+    if (!transactionsData?.items) return []
+    return transactionsData.items.map(tx => ({
+      id: String(tx.id),
+      type: tx.type || 'payment',
+      description: tx.description || 'Transaction',
+      amount: tx.amount || 0,
+      from: tx.user_email || 'Unknown',
+      to: 'ExtraShifty', // Would need additional data
+      date: tx.created_at || '',
+      status: tx.status || 'pending',
+    }))
+  }, [transactionsData])
+
+  // Filter transactions client-side
+  const filteredTransactions = transactions.filter(tx => {
+    const matchesSearch = searchQuery === '' ||
+      tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.to.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesTab = activeTab === 'all' || tx.type === activeTab
     return matchesSearch && matchesTab
   })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Transactions</h1>
+          <p className="text-muted-foreground">Monitor all platform transactions</p>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load transactions"
+          description="There was an error loading transactions. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getTypeBadge = (type: string) => {
     switch (type) {

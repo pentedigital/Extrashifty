@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Building2, Plus, Search, FileText, Calendar, AlertCircle, Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Star } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { useAgencyClients } from '@/hooks/api/useAgencyApi'
+import { useAgencyClients, useUpdateClient } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/clients/')({
   component: ClientsPage,
@@ -35,10 +35,11 @@ function ClientsPage() {
   const [activeTab, setActiveTab] = useState('active')
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+  const navigate = useNavigate()
 
-  // Fetch clients from API - for now we fetch all and filter client-side
-  // In production, you'd pass the status filter to the backend
+  // Fetch clients from API
   const { data: clientsData, isLoading, error } = useAgencyClients()
+  const updateClientMutation = useUpdateClient()
 
   // Transform API data to display format
   const transformClientData = (items: NonNullable<typeof clientsData>['items'] | undefined): ClientDisplay[] => {
@@ -63,12 +64,29 @@ function ClientsPage() {
   const pendingClients = useMemo(() => allClients.filter(c => c.status === 'pending'), [allClients])
   const inactiveClients = useMemo(() => allClients.filter(c => c.status === 'inactive'), [allClients])
 
-  const handleReviewClient = (businessName: string) => {
-    addToast({
-      type: 'info',
-      title: 'Review client',
-      description: `Opening review process for ${businessName}.`,
-    })
+  const handleReviewClient = (clientId: string, businessName: string) => {
+    // Approve the pending client and navigate to their profile
+    updateClientMutation.mutate(
+      { id: clientId, data: { is_active: true } },
+      {
+        onSuccess: () => {
+          addToast({
+            type: 'success',
+            title: 'Client approved',
+            description: `${businessName} has been approved and is now active.`,
+          })
+          // Navigate to client details page
+          navigate({ to: `/agency/clients/${clientId}` })
+        },
+        onError: () => {
+          addToast({
+            type: 'error',
+            title: 'Failed to approve client',
+            description: 'Please try again later.',
+          })
+        },
+      }
+    )
   }
 
   const getStatusBadge = (status: string, hasUnfilled?: boolean) => {
@@ -214,8 +232,12 @@ function ClientsPage() {
                   {client.status === 'pending' && (
                     <Button
                       size="sm"
-                      onClick={() => handleReviewClient(client.business_name)}
+                      onClick={() => handleReviewClient(client.id, client.business_name)}
+                      disabled={updateClientMutation.isPending}
                     >
+                      {updateClientMutation.isPending ? (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      ) : null}
                       Review
                     </Button>
                   )}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,95 +7,28 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ArrowLeft, Plus, Search, Calendar, MapPin, Clock, Euro, Users } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Calendar, MapPin, Clock, Euro, Users, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useClientShifts, useAgencyClients } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/clients/$clientId/shifts')({
   component: ClientShiftsPage,
 })
 
-const mockClient = {
-  id: '1',
-  name: 'Hotel ABC',
-}
-
-const mockShifts = {
-  upcoming: [
-    {
-      id: '1',
-      title: 'Bartender',
-      date: '2026-02-05',
-      startTime: '18:00',
-      endTime: '00:00',
-      hourlyRate: 18,
-      location: 'Main Bar',
-      spotsTotal: 2,
-      spotsFilled: 2,
-      status: 'filled',
-      assignedStaff: [
-        { id: '1', name: 'John Doe' },
-        { id: '2', name: 'Maria Santos' },
-      ],
-    },
-    {
-      id: '2',
-      title: 'Kitchen Porter',
-      date: '2026-02-06',
-      startTime: '06:00',
-      endTime: '14:00',
-      hourlyRate: 14,
-      location: 'Main Kitchen',
-      spotsTotal: 2,
-      spotsFilled: 1,
-      status: 'open',
-      assignedStaff: [{ id: '5', name: 'Ali Hassan' }],
-    },
-    {
-      id: '3',
-      title: 'Server',
-      date: '2026-02-07',
-      startTime: '12:00',
-      endTime: '20:00',
-      hourlyRate: 15,
-      location: 'Restaurant',
-      spotsTotal: 3,
-      spotsFilled: 0,
-      status: 'open',
-      assignedStaff: [],
-    },
-  ],
-  completed: [
-    {
-      id: '4',
-      title: 'Bartender',
-      date: '2026-02-03',
-      startTime: '18:00',
-      endTime: '02:00',
-      hourlyRate: 18,
-      location: 'Main Bar',
-      spotsTotal: 2,
-      spotsFilled: 2,
-      status: 'completed',
-      assignedStaff: [
-        { id: '1', name: 'John Doe' },
-        { id: '3', name: 'Tom Wilson' },
-      ],
-    },
-    {
-      id: '5',
-      title: 'Kitchen Porter',
-      date: '2026-02-02',
-      startTime: '06:00',
-      endTime: '14:00',
-      hourlyRate: 14,
-      location: 'Main Kitchen',
-      spotsTotal: 1,
-      spotsFilled: 1,
-      status: 'completed',
-      assignedStaff: [{ id: '5', name: 'Ali Hassan' }],
-    },
-  ],
+// Type for client shift display
+interface ClientShiftDisplay {
+  id: string
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+  hourlyRate: number
+  location: string
+  spotsTotal: number
+  spotsFilled: number
+  status: string
+  assignedStaff: Array<{ id: string; name: string }>
 }
 
 function ClientShiftsPage() {
@@ -103,6 +36,79 @@ function ClientShiftsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+
+  // Fetch client data and shifts
+  const { data: clientsData } = useAgencyClients()
+  const { data: shiftsData, isLoading, error } = useClientShifts(clientId || '')
+
+  // Find the client from the clients list
+  const client = useMemo(() => {
+    if (!clientsData?.items) return { id: clientId || '', name: 'Unknown Client' }
+    const found = clientsData.items.find((c: { id?: string | number }) => String(c.id) === clientId)
+    if (found) {
+      return {
+        id: String(found.id),
+        name: found.company?.business_name || found.business_email || 'Unknown Client',
+      }
+    }
+    return { id: clientId || '', name: 'Unknown Client' }
+  }, [clientsData, clientId])
+
+  // Process shifts into categorized lists
+  const categorizedShifts = useMemo(() => {
+    const result: {
+      upcoming: ClientShiftDisplay[]
+      completed: ClientShiftDisplay[]
+    } = {
+      upcoming: [],
+      completed: [],
+    }
+
+    if (!shiftsData || !Array.isArray(shiftsData)) return result
+
+    for (const shift of shiftsData as Array<{
+      id?: string | number
+      title?: string
+      date?: string
+      start_time?: string
+      end_time?: string
+      hourly_rate?: number
+      location?: string
+      spots_total?: number
+      spots_filled?: number
+      status?: string
+      assigned_staff?: Array<{ id?: string | number; name?: string; staff?: { display_name?: string } }>
+    }>) {
+      const spotsFilled = shift.spots_filled ?? shift.assigned_staff?.length ?? 0
+      const spotsTotal = shift.spots_total ?? 1
+
+      const processedShift: ClientShiftDisplay = {
+        id: String(shift.id),
+        title: shift.title || 'Untitled Shift',
+        date: shift.date || '',
+        startTime: shift.start_time || '',
+        endTime: shift.end_time || '',
+        hourlyRate: shift.hourly_rate || 0,
+        location: shift.location || '',
+        spotsTotal,
+        spotsFilled,
+        status: (shift.status || '').toLowerCase() === 'completed' ? 'completed' :
+                spotsFilled >= spotsTotal ? 'filled' : 'open',
+        assignedStaff: (shift.assigned_staff || []).map((s) => ({
+          id: String(s.id || ''),
+          name: s.name || s.staff?.display_name || 'Unknown',
+        })),
+      }
+
+      if (processedShift.status === 'completed') {
+        result.completed.push(processedShift)
+      } else {
+        result.upcoming.push(processedShift)
+      }
+    }
+
+    return result
+  }, [shiftsData])
 
   const handleAssignStaff = (shiftTitle: string, spotsNeeded: number) => {
     addToast({
@@ -130,6 +136,37 @@ function ClientShiftsPage() {
     )
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to={`/agency/clients/${clientId}`}>
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Error loading shifts</h1>
+        </div>
+        <EmptyState
+          icon={Calendar}
+          title="Unable to load shifts"
+          description="There was an error loading shifts for this client."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
+
   const getStatusBadge = (status: string, spotsFilled: number, spotsTotal: number) => {
     switch (status) {
       case 'filled':
@@ -143,7 +180,7 @@ function ClientShiftsPage() {
     }
   }
 
-  const filteredShifts = (shifts: typeof mockShifts.upcoming) => {
+  const filteredShifts = (shifts: ClientShiftDisplay[]) => {
     if (!searchQuery) return shifts
     const query = searchQuery.toLowerCase()
     return shifts.filter(
@@ -153,7 +190,7 @@ function ClientShiftsPage() {
     )
   }
 
-  const renderShiftList = (shifts: typeof mockShifts.upcoming) => {
+  const renderShiftList = (shifts: ClientShiftDisplay[]) => {
     const filtered = filteredShifts(shifts)
 
     if (filtered.length === 0) {
@@ -277,7 +314,7 @@ function ClientShiftsPage() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{mockClient?.name ?? 'Client'} - Shifts</h1>
+          <h1 className="text-2xl font-bold">{client.name} - Shifts</h1>
           <p className="text-muted-foreground">Manage shifts for this client</p>
         </div>
         <Link to="/agency/shifts/create">
@@ -304,18 +341,18 @@ function ClientShiftsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="upcoming">
-            Upcoming ({mockShifts.upcoming.length})
+            Upcoming ({categorizedShifts.upcoming.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({mockShifts.completed.length})
+            Completed ({categorizedShifts.completed.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-6">
-          {renderShiftList(mockShifts.upcoming)}
+          {renderShiftList(categorizedShifts.upcoming)}
         </TabsContent>
         <TabsContent value="completed" className="mt-6">
-          {renderShiftList(mockShifts.completed)}
+          {renderShiftList(categorizedShifts.completed)}
         </TabsContent>
       </Tabs>
     </div>

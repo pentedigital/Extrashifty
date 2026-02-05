@@ -186,6 +186,8 @@ async def download_tax_document(
     Returns the PDF file for the specified document ID.
     Users can only download their own documents.
     """
+    import os
+
     # Only staff and agency have tax documents
     if current_user.user_type not in (UserType.STAFF, UserType.AGENCY):
         raise HTTPException(
@@ -209,20 +211,37 @@ async def download_tax_document(
     if not document.file_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document file not available",
+            detail="Document file has not been generated yet",
         )
 
-    # In production, would stream file from secure storage
-    # For now, return a placeholder response
-    # return FileResponse(
-    #     path=document.file_url,
-    #     filename=document.file_name,
-    #     media_type="application/pdf",
-    # )
+    # Check if file exists on disk (for local file storage)
+    if document.file_url.startswith("/") or document.file_url.startswith("./"):
+        # Local file path
+        if os.path.exists(document.file_url):
+            return FileResponse(
+                path=document.file_url,
+                filename=document.file_name,
+                media_type="application/pdf",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document file not found on server",
+            )
 
+    # For cloud storage URLs (S3, etc.), redirect or proxy
+    if document.file_url.startswith("http"):
+        # In production, you would either:
+        # 1. Generate a pre-signed URL and redirect
+        # 2. Stream the file through the server
+        # For now, return the URL as a temporary redirect
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=document.file_url)
+
+    # File storage not configured
     raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Document download not yet implemented - file storage pending",
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Document storage not configured. Please contact support.",
     )
 
 

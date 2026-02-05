@@ -1,29 +1,51 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Search, MoreVertical, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Search, MoreVertical, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
+import { useAdminCompanies, useAdminVerifyCompany } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/companies')({
   component: AdminCompaniesPage,
 })
 
-const mockCompanies = [
-  { id: '1', name: 'The Brazen Head', type: 'Bar / Pub', status: 'verified', email: 'info@brazenhead.ie', shiftsPosted: 156, totalSpent: 24500, rating: 4.8 },
-  { id: '2', name: 'Restaurant XYZ', type: 'Restaurant', status: 'pending', email: 'contact@xyz.ie', shiftsPosted: 0, totalSpent: 0, rating: 0 },
-  { id: '3', name: 'Hotel Dublin', type: 'Hotel', status: 'verified', email: 'hr@hoteldublin.ie', shiftsPosted: 89, totalSpent: 18200, rating: 4.6 },
-  { id: '4', name: 'Café Central', type: 'Café', status: 'verified', email: 'manager@cafecentral.ie', shiftsPosted: 45, totalSpent: 8900, rating: 4.9 },
-  { id: '5', name: 'The Local', type: 'Bar / Pub', status: 'suspended', email: 'info@thelocal.ie', shiftsPosted: 23, totalSpent: 4200, rating: 3.2 },
-]
-
 function AdminCompaniesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+
+  // Fetch companies from API
+  const { data: companiesData, isLoading, error } = useAdminCompanies({
+    search: searchQuery || undefined,
+  })
+  const verifyCompanyMutation = useAdminVerifyCompany()
+
+  // Process companies for display
+  const companies = useMemo(() => {
+    if (!companiesData?.items) return []
+    return companiesData.items.map(company => ({
+      id: String(company.id),
+      name: company.business_name || 'Unknown',
+      type: 'Company',
+      status: company.is_verified ? 'verified' : 'pending',
+      email: company.business_email || '',
+      shiftsPosted: company.total_shifts || 0,
+      totalSpent: company.total_spent || 0,
+      rating: 0,
+    }))
+  }, [companiesData])
+
+  // Filter companies client-side
+  const filteredCompanies = companies.filter(company =>
+    searchQuery === '' ||
+    company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    company.email.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const handleViewCompany = (name: string) => {
     addToast({
@@ -33,12 +55,21 @@ function AdminCompaniesPage() {
     })
   }
 
-  const handleApproveCompany = (name: string) => {
-    addToast({
-      type: 'success',
-      title: 'Company approved',
-      description: `${name} has been verified and approved.`,
-    })
+  const handleApproveCompany = async (companyId: string, name: string) => {
+    try {
+      await verifyCompanyMutation.mutateAsync(parseInt(companyId))
+      addToast({
+        type: 'success',
+        title: 'Company approved',
+        description: `${name} has been verified and approved.`,
+      })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to approve company',
+        description: 'Please try again.',
+      })
+    }
   }
 
   const handleRejectCompany = (name: string) => {
@@ -65,10 +96,32 @@ function AdminCompaniesPage() {
     })
   }
 
-  const filteredCompanies = mockCompanies.filter(company =>
-    company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Companies</h1>
+          <p className="text-muted-foreground">Manage registered businesses</p>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load companies"
+          description="There was an error loading companies. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -141,7 +194,7 @@ function AdminCompaniesPage() {
                           size="icon"
                           title="Approve"
                           className="text-green-600"
-                          onClick={() => handleApproveCompany(company.name)}
+                          onClick={() => handleApproveCompany(company.id, company.name)}
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>

@@ -1,53 +1,102 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import { Plus, Star, Users, Search, X } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Plus, Star, Users, Search, X, AlertCircle, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import {
+  usePreferredAgencies,
+  useBrowseAgencies,
+  useAddPreferredAgency,
+  useRemovePreferredAgency,
+} from '@/hooks/api/useCompanyApi'
 
 export const Route = createFileRoute('/_layout/company/agencies')({
   component: CompanyAgenciesPage,
 })
 
-const mockPreferredAgencies = [
-  { id: '1', name: 'Dublin Staffing Solutions', rating: 4.8, staffCount: 45, shiftsWithUs: 24, status: 'active' },
-  { id: '2', name: 'Cork Hospitality Services', rating: 4.6, staffCount: 28, shiftsWithUs: 12, status: 'active' },
-]
-
-const mockAvailableAgencies = [
-  { id: '3', name: 'Premier Staff Ireland', rating: 4.7, staffCount: 89, description: 'Full-service hospitality staffing' },
-  { id: '4', name: 'Galway Temps', rating: 4.5, staffCount: 32, description: 'West Ireland coverage' },
-  { id: '5', name: 'Quick Staff Dublin', rating: 4.4, staffCount: 56, description: 'Same-day staffing solutions' },
-]
-
 function CompanyAgenciesPage() {
   const { addToast } = useToast()
-  const [preferred, setPreferred] = useState(mockPreferredAgencies)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredAvailable = mockAvailableAgencies.filter(agency =>
-    agency.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    !preferred.find(p => p.id === agency.id)
+  // Fetch data from API
+  const { data: preferredData, isLoading: preferredLoading, error: preferredError } = usePreferredAgencies()
+  const { data: browseData, isLoading: browseLoading } = useBrowseAgencies({ search: searchQuery || undefined })
+
+  // Mutations
+  const addAgencyMutation = useAddPreferredAgency()
+  const removeAgencyMutation = useRemovePreferredAgency()
+
+  // Transform API data
+  const preferred = useMemo(() => {
+    if (!preferredData?.items) return []
+    return preferredData.items.map((a) => ({
+      id: String(a.agency_id),
+      name: a.agency_name,
+      rating: a.rating,
+      staffCount: a.staff_count,
+      shiftsWithUs: a.shifts_together,
+      status: a.status,
+    }))
+  }, [preferredData])
+
+  const availableAgencies = useMemo(() => {
+    if (!browseData?.items) return []
+    const preferredIds = new Set(preferred.map((p) => p.id))
+    return browseData.items
+      .filter((a) => !preferredIds.has(String(a.id)))
+      .map((a) => ({
+        id: String(a.id),
+        name: a.name,
+        rating: a.rating,
+        staffCount: a.staff_count,
+        description: a.description ?? '',
+      }))
+  }, [browseData, preferred])
+
+  const filteredAvailable = availableAgencies.filter((agency) =>
+    agency.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleAddAgency = (agency: typeof mockAvailableAgencies[0]) => {
-    setPreferred(prev => [...prev, { ...agency, shiftsWithUs: 0, status: 'active' }])
-    addToast({
-      type: 'success',
-      title: 'Agency added',
-      description: `${agency.name} has been added to your preferred agencies.`,
+  const handleAddAgency = (agency: typeof availableAgencies[0]) => {
+    addAgencyMutation.mutate(Number(agency.id), {
+      onSuccess: () => {
+        addToast({
+          type: 'success',
+          title: 'Agency added',
+          description: `${agency.name} has been added to your preferred agencies.`,
+        })
+      },
+      onError: () => {
+        addToast({
+          type: 'error',
+          title: 'Failed to add agency',
+          description: 'Please try again later.',
+        })
+      },
     })
   }
 
-  const handleRemoveAgency = (agencyId: string) => {
-    setPreferred(prev => prev.filter(a => a.id !== agencyId))
-    addToast({
-      type: 'info',
-      title: 'Agency removed',
-      description: 'The agency has been removed from your preferred list.',
+  const handleRemoveAgency = (agencyId: string, agencyName: string) => {
+    removeAgencyMutation.mutate(Number(agencyId), {
+      onSuccess: () => {
+        addToast({
+          type: 'info',
+          title: 'Agency removed',
+          description: `${agencyName} has been removed from your preferred list.`,
+        })
+      },
+      onError: () => {
+        addToast({
+          type: 'error',
+          title: 'Failed to remove agency',
+          description: 'Please try again later.',
+        })
+      },
     })
   }
 
@@ -61,11 +110,21 @@ function CompanyAgenciesPage() {
       {/* Current Preferred Agencies */}
       <Card>
         <CardHeader>
-          <CardTitle>Your Preferred Agencies ({preferred.length})</CardTitle>
+          <CardTitle>Your Preferred Agencies ({preferredLoading ? '-' : preferred.length})</CardTitle>
           <CardDescription>These agencies can apply to your shifts with priority</CardDescription>
         </CardHeader>
         <CardContent>
-          {preferred.length > 0 ? (
+          {preferredLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : preferredError ? (
+            <div className="text-center py-8 text-destructive">
+              <AlertCircle className="mx-auto h-12 w-12 mb-3" />
+              <p>Failed to load preferred agencies</p>
+            </div>
+          ) : preferred.length > 0 ? (
             <div className="space-y-3">
               {preferred.map((agency) => (
                 <div key={agency.id} className="flex items-center justify-between p-4 rounded-lg border">
@@ -95,9 +154,14 @@ function CompanyAgenciesPage() {
                     variant="ghost"
                     size="sm"
                     className="text-red-600"
-                    onClick={() => handleRemoveAgency(agency.id)}
+                    onClick={() => handleRemoveAgency(agency.id, agency.name)}
+                    disabled={removeAgencyMutation.isPending}
                   >
-                    <X className="mr-1 h-4 w-4" />
+                    {removeAgencyMutation.isPending ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="mr-1 h-4 w-4" />
+                    )}
                     Remove
                   </Button>
                 </div>
@@ -130,40 +194,56 @@ function CompanyAgenciesPage() {
             />
           </div>
 
-          <div className="space-y-3">
-            {filteredAvailable.map((agency) => (
-              <div key={agency.id} className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarFallback>{agency.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{agency.name}</p>
-                    <p className="text-sm text-muted-foreground">{agency.description}</p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                        {agency.rating}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {agency.staffCount} staff
-                      </span>
+          {browseLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredAvailable.map((agency) => (
+                <div key={agency.id} className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <Avatar>
+                      <AvatarFallback>{agency.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{agency.name}</p>
+                      <p className="text-sm text-muted-foreground">{agency.description}</p>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                          {agency.rating}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {agency.staffCount} staff
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddAgency(agency)}
+                    disabled={addAgencyMutation.isPending}
+                  >
+                    {addAgencyMutation.isPending ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-1 h-4 w-4" />
+                    )}
+                    Add
+                  </Button>
                 </div>
-                <Button size="sm" onClick={() => handleAddAgency(agency)}>
-                  <Plus className="mr-1 h-4 w-4" />
-                  Add
-                </Button>
-              </div>
-            ))}
-            {filteredAvailable.length === 0 && (
-              <p className="text-center py-4 text-muted-foreground">
-                {searchQuery ? 'No agencies match your search' : 'All available agencies have been added'}
-              </p>
-            )}
-          </div>
+              ))}
+              {filteredAvailable.length === 0 && (
+                <p className="text-center py-4 text-muted-foreground">
+                  {searchQuery ? 'No agencies match your search' : 'All available agencies have been added'}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

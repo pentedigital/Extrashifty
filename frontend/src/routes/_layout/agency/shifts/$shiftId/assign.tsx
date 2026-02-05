@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState, useMemo } from 'react'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,9 +18,11 @@ import {
   Search,
   Star,
   CheckCircle,
+  Loader2,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useAgencyShift, useAvailableStaff, useAssignStaffToShift } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/shifts/$shiftId/assign')({
   component: AssignStaffPage,
@@ -44,7 +46,7 @@ type AssignmentShift = {
   assignedStaff: Array<{ id: string; name: string }>
 }
 
-type AvailableStaff = {
+type AvailableStaffDisplay = {
   id: string
   name: string
   email: string
@@ -55,33 +57,109 @@ type AvailableStaff = {
   verifications: { idVerified: boolean; backgroundCheck: boolean }
 }
 
-// TODO: Replace with actual API data from useAgencyShift and useAvailableStaff hooks
-// Placeholder empty data until API integration is complete
-const mockShift: AssignmentShift = {
-  id: '',
-  title: '',
-  client: { id: '', name: '' },
-  date: '',
-  startTime: '',
-  endTime: '',
-  hourlyRate: 0,
-  location: '',
-  spotsTotal: 0,
-  spotsFilled: 0,
-  status: '',
-  description: '',
-  requirements: [],
-  assignedStaff: [],
-}
-
-const mockAvailableStaff: AvailableStaff[] = []
-
 function AssignStaffPage() {
   const { shiftId } = Route.useParams()
   const { addToast } = useToast()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStaff, setSelectedStaff] = useState<string[]>([])
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
+
+  // Fetch shift and available staff data
+  const { data: shiftData, isLoading: isLoadingShift, error: shiftError } = useAgencyShift(shiftId || '')
+  const { data: staffData, isLoading: isLoadingStaff } = useAvailableStaff(shiftId)
+  const assignStaffMutation = useAssignStaffToShift()
+
+  // Process shift data for display
+  const shift: AssignmentShift = useMemo(() => {
+    if (!shiftData) {
+      return {
+        id: '',
+        title: '',
+        client: { id: '', name: '' },
+        date: '',
+        startTime: '',
+        endTime: '',
+        hourlyRate: 0,
+        location: '',
+        spotsTotal: 0,
+        spotsFilled: 0,
+        status: '',
+        description: '',
+        requirements: [],
+        assignedStaff: [],
+      }
+    }
+
+    const data = shiftData as {
+      id?: string | number
+      title?: string
+      client_id?: string | number
+      client?: { id?: string | number; name?: string; business_name?: string }
+      date?: string
+      start_time?: string
+      end_time?: string
+      hourly_rate?: number
+      location?: string
+      spots_total?: number
+      spots_filled?: number
+      status?: string
+      description?: string
+      requirements?: string[]
+      assigned_staff?: Array<{ id?: string | number; name?: string; staff?: { display_name?: string } }>
+    }
+
+    return {
+      id: String(data.id),
+      title: data.title || '',
+      client: {
+        id: String(data.client_id || data.client?.id || ''),
+        name: data.client?.business_name || data.client?.name || '',
+      },
+      date: data.date || '',
+      startTime: data.start_time || '',
+      endTime: data.end_time || '',
+      hourlyRate: data.hourly_rate || 0,
+      location: data.location || '',
+      spotsTotal: data.spots_total || 1,
+      spotsFilled: data.spots_filled || data.assigned_staff?.length || 0,
+      status: data.status || '',
+      description: data.description || '',
+      requirements: data.requirements || [],
+      assignedStaff: (data.assigned_staff || []).map((s) => ({
+        id: String(s.id || ''),
+        name: s.name || s.staff?.display_name || 'Unknown',
+      })),
+    }
+  }, [shiftData])
+
+  // Process available staff for display
+  const availableStaffList: AvailableStaffDisplay[] = useMemo(() => {
+    if (!staffData || !Array.isArray(staffData)) return []
+
+    return staffData.map((s: {
+      id?: string | number
+      name?: string
+      staff?: { display_name?: string; email?: string; is_verified?: boolean; background_checked?: boolean }
+      email?: string
+      skills?: string[]
+      average_rating?: number
+      shifts_completed?: number
+      is_available?: boolean
+    }) => ({
+      id: String(s.id || ''),
+      name: s.name || s.staff?.display_name || 'Unknown',
+      email: s.email || s.staff?.email || '',
+      skills: s.skills || [],
+      rating: s.average_rating || 0,
+      shiftsCompleted: s.shifts_completed || 0,
+      isAvailable: s.is_available ?? true,
+      verifications: {
+        idVerified: s.staff?.is_verified ?? false,
+        backgroundCheck: s.staff?.background_checked ?? false,
+      },
+    }))
+  }, [staffData])
 
   // Guard against missing shiftId
   if (!shiftId) {
@@ -93,11 +171,36 @@ function AssignStaffPage() {
     )
   }
 
-  const shift = mockShift
+  const isLoading = isLoadingShift || isLoadingStaff
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (shiftError || !shiftData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to="/agency/shifts">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Shift not found</h1>
+        </div>
+        <p className="text-muted-foreground">The requested shift could not be found.</p>
+      </div>
+    )
+  }
+
   const spotsRemaining = shift.spotsTotal - shift.spotsFilled
 
   // Filter staff based on search and availability
-  const filteredStaff = mockAvailableStaff.filter((staff) => {
+  const filteredStaff = availableStaffList.filter((staff) => {
     // Filter by availability if enabled
     if (showOnlyAvailable && !staff.isAvailable) {
       return false
@@ -139,7 +242,7 @@ function AssignStaffPage() {
     })
   }
 
-  const handleAssignStaff = () => {
+  const handleAssignStaff = async () => {
     if (selectedStaff.length === 0) {
       addToast({
         type: 'warning',
@@ -150,18 +253,36 @@ function AssignStaffPage() {
     }
 
     const staffNames = selectedStaff
-      .map((id) => mockAvailableStaff.find((s) => s.id === id)?.name)
+      .map((id) => availableStaffList.find((s) => s.id === id)?.name)
       .filter(Boolean)
       .join(', ')
 
-    addToast({
-      type: 'success',
-      title: 'Staff assigned',
-      description: `Successfully assigned ${staffNames} to ${shift.title} at ${shift.client.name}.`,
-    })
+    try {
+      // Assign each selected staff member
+      for (const staffMemberId of selectedStaff) {
+        await assignStaffMutation.mutateAsync({
+          shiftId: shiftId,
+          staffMemberId: parseInt(staffMemberId),
+        })
+      }
 
-    // In real implementation, this would make an API call
-    setSelectedStaff([])
+      addToast({
+        type: 'success',
+        title: 'Staff assigned',
+        description: `Successfully assigned ${staffNames} to ${shift.title} at ${shift.client.name}.`,
+      })
+
+      setSelectedStaff([])
+
+      // Navigate back to shifts page
+      navigate({ to: '/agency/shifts' })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to assign staff',
+        description: 'Please try again.',
+      })
+    }
   }
 
   const handleSelectAll = () => {

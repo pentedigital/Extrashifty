@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import type { Shift } from '@/types/shift'
 
 interface ShiftCardProps {
@@ -20,15 +21,6 @@ const shiftTypeLabels: Record<string, string> = {
   general: 'General',
 }
 
-const statusVariants: Record<string, 'default' | 'success' | 'warning' | 'secondary' | 'destructive' | 'outline'> = {
-  open: 'success',
-  filled: 'secondary',
-  in_progress: 'warning',
-  completed: 'secondary',
-  cancelled: 'destructive',
-  draft: 'outline',
-}
-
 export function ShiftCard({ shift, showApplyButton = true }: ShiftCardProps) {
   const durationHours = shift.duration_hours || 6
   const totalPay = shift.total_pay || shift.hourly_rate * durationHours
@@ -42,9 +34,10 @@ export function ShiftCard({ shift, showApplyButton = true }: ShiftCardProps) {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold">{shift.title}</h3>
-                <Badge variant={statusVariants[shift.status] || 'default'}>
-                  {shift.status === 'open' ? 'Open' : shift.status.replace('_', ' ')}
-                </Badge>
+                {(() => {
+                  const badgeConfig = getShiftStatusBadge(shift.status, shift.spots_total, shift.spots_filled)
+                  return <Badge variant={badgeConfig.variant}>{badgeConfig.label}</Badge>
+                })()}
               </div>
               {shift.company && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">

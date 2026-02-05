@@ -1,8 +1,8 @@
 export type CompanyType = 'restaurant' | 'bar' | 'hotel' | 'catering' | 'events' | 'cafe' | 'other'
 
 export interface CompanyProfile {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   company_name: string
   company_type: CompanyType
   logo_url?: string
@@ -23,7 +23,7 @@ export interface CompanyProfile {
 }
 
 export interface CompanyPublic {
-  id: string
+  id: number
   company_name: string
   company_type: CompanyType
   // Aliases for compatibility
@@ -57,8 +57,8 @@ export interface CompanyOnboardingData {
 
 // Multi-venue support
 export interface Venue {
-  id: string
-  company_id: string
+  id: number
+  company_id: number
   name: string
   address: string
   city: string
@@ -79,8 +79,8 @@ export interface VenueFormData {
 
 // Company wallet for payments
 export interface CompanyWallet {
-  id: string
-  company_id: string
+  id: number
+  company_id: number
   balance: number
   currency: string
   escrow_balance: number
@@ -91,10 +91,10 @@ export interface CompanyWallet {
 
 // Rating types for two-way ratings
 export interface CompanyRating {
-  id: string
-  company_id: string
-  staff_id: string
-  shift_id: string
+  id: number
+  company_id: number
+  staff_id: number
+  shift_id: number
   rating: number
   comment?: string
   created_at: string

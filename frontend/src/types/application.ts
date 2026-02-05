@@ -16,8 +16,8 @@ export interface Application {
   shift?: Shift
   applicant?: User
   // Legacy fields for compatibility
-  staff_id?: string
-  agency_id?: string
+  staff_id?: number
+  agency_id?: number
   staff?: StaffPublic
   agency?: AgencyPublic
 }

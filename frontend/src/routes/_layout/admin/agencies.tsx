@@ -1,28 +1,48 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Search, MoreVertical, Eye, Users, Building2 } from 'lucide-react'
+import { Search, MoreVertical, Eye, Users, Building2, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { useAdminAgencies } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/agencies')({
   component: AdminAgenciesPage,
 })
 
-const mockAgencies = [
-  { id: '1', name: 'Dublin Staffing Solutions', status: 'verified', email: 'info@dublinstaffing.ie', staffCount: 45, clientCount: 12, mode: 'Full Intermediary' },
-  { id: '2', name: 'Cork Hospitality Services', status: 'verified', email: 'contact@corkhs.ie', staffCount: 28, clientCount: 8, mode: 'Staff Provider' },
-  { id: '3', name: 'Galway Temps', status: 'pending', email: 'admin@galwaytemps.ie', staffCount: 0, clientCount: 0, mode: 'Staff Provider' },
-  { id: '4', name: 'Premier Staff Ireland', status: 'verified', email: 'hr@premierstaff.ie', staffCount: 89, clientCount: 24, mode: 'Full Intermediary' },
-  { id: '5', name: 'Quick Staff Dublin', status: 'suspended', email: 'support@quickstaff.ie', staffCount: 15, clientCount: 3, mode: 'Staff Provider' },
-]
-
 function AdminAgenciesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+
+  // Fetch agencies from API
+  const { data: agenciesData, isLoading, error } = useAdminAgencies({
+    search: searchQuery || undefined,
+  })
+
+  // Process agencies for display
+  const agencies = useMemo(() => {
+    if (!agenciesData?.items) return []
+    return agenciesData.items.map(agency => ({
+      id: String(agency.id),
+      name: agency.agency_name || 'Unknown',
+      status: agency.is_verified ? 'verified' : 'pending',
+      email: agency.business_email || '',
+      staffCount: agency.total_staff || 0,
+      clientCount: 0, // Would need additional data
+      mode: 'Staff Provider',
+    }))
+  }, [agenciesData])
+
+  // Filter agencies client-side
+  const filteredAgencies = agencies.filter(agency =>
+    searchQuery === '' ||
+    agency.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    agency.email.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const handleViewAgency = (name: string) => {
     addToast({
@@ -48,10 +68,32 @@ function AdminAgenciesPage() {
     })
   }
 
-  const filteredAgencies = mockAgencies.filter(agency =>
-    agency.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agency.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Agencies</h1>
+          <p className="text-muted-foreground">Manage staffing agencies</p>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load agencies"
+          description="There was an error loading agencies. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {

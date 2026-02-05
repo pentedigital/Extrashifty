@@ -759,12 +759,16 @@ def list_staff(
     skip: int = 0,
     limit: int = 100,
     status_filter: Optional[str] = None,
-) -> List[dict]:
+) -> List[StaffMemberResponse]:
     """
     List all staff members for the current agency.
 
     Optionally filter by status (active, inactive, pending).
     """
+    from app.models.user import User
+    from app.models.profile import StaffProfile
+    from app.models.review import Review, ReviewType
+
     require_agency_user(current_user)
 
     statement = select(AgencyStaffMember).where(
@@ -777,26 +781,44 @@ def list_staff(
     statement = statement.offset(skip).limit(limit)
     staff_members = session.exec(statement).all()
 
-    # Return staff members with placeholder user data
-    # In production, this would join with user table to get full profile
-    return [
-        StaffMemberResponse(
-            id=member.id,
-            agency_id=member.agency_id,
-            staff_user_id=member.staff_user_id,
-            status=member.status,
-            is_available=member.is_available,
-            shifts_completed=member.shifts_completed,
-            total_hours=member.total_hours,
-            notes=member.notes,
-            joined_at=member.joined_at,
-            name=f"Staff Member {member.staff_user_id}",  # Would come from user lookup
-            email=None,
-            skills=[],
-            rating=0.0,
+    # Build response with real user data
+    result = []
+    for member in staff_members:
+        # Get user details
+        user = session.get(User, member.staff_user_id)
+
+        # Get staff profile for skills
+        profile = session.exec(
+            select(StaffProfile).where(StaffProfile.user_id == member.staff_user_id)
+        ).first()
+
+        # Calculate average rating
+        avg_rating_query = (
+            select(func.coalesce(func.avg(Review.rating), 0))
+            .where(Review.reviewee_id == member.staff_user_id)
+            .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
         )
-        for member in staff_members
-    ]
+        avg_rating = float(session.exec(avg_rating_query).one() or 0)
+
+        result.append(
+            StaffMemberResponse(
+                id=member.id,
+                agency_id=member.agency_id,
+                staff_user_id=member.staff_user_id,
+                status=member.status,
+                is_available=member.is_available,
+                shifts_completed=member.shifts_completed,
+                total_hours=member.total_hours,
+                notes=member.notes,
+                joined_at=member.joined_at,
+                name=user.full_name if user else f"Staff Member {member.staff_user_id}",
+                email=user.email if user else None,
+                skills=profile.skills or [] if profile else [],
+                rating=round(avg_rating, 2),
+            )
+        )
+
+    return result
 
 
 @router.delete("/staff/{staff_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -842,6 +864,8 @@ def get_stats(
 
     Returns counts and metrics for the agency dashboard.
     """
+    from datetime import timedelta
+
     require_agency_user(current_user)
 
     # Count total staff
@@ -873,12 +897,58 @@ def get_stats(
     )
     pending_clients = session.exec(pending_clients_stmt).one() or 0
 
-    # Active shifts would come from shifts table in production
-    # For now, return placeholder data
+    # Count active shifts (open, filled, or in_progress)
+    agency_shift_ids_stmt = select(AgencyShift.shift_id).where(
+        AgencyShift.agency_id == current_user.id
+    )
+    agency_shift_ids = session.exec(agency_shift_ids_stmt).all()
+
     active_shifts = 0
+    if agency_shift_ids:
+        active_shifts_stmt = select(func.count()).select_from(Shift).where(
+            Shift.id.in_(agency_shift_ids),
+            Shift.status.in_([ShiftStatus.OPEN, ShiftStatus.FILLED, ShiftStatus.IN_PROGRESS]),
+        )
+        active_shifts = session.exec(active_shifts_stmt).one() or 0
+
+    # Calculate revenue this week from completed shifts
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # Monday of current week
+
     revenue_this_week = 0.0
-    pending_invoices = 0
-    pending_payroll = 0
+    if agency_shift_ids:
+        revenue_query = (
+            select(Shift)
+            .where(Shift.id.in_(agency_shift_ids))
+            .where(Shift.status == ShiftStatus.COMPLETED)
+            .where(Shift.date >= week_start)
+            .where(Shift.date <= today)
+        )
+        completed_shifts = session.exec(revenue_query).all()
+
+        for shift in completed_shifts:
+            if shift.actual_hours_worked:
+                revenue_this_week += float(shift.actual_hours_worked * shift.hourly_rate)
+            else:
+                # Use scheduled hours
+                start_dt = datetime.combine(shift.date, shift.start_time)
+                end_dt = datetime.combine(shift.date, shift.end_time)
+                hours = (end_dt - start_dt).seconds / 3600
+                revenue_this_week += hours * float(shift.hourly_rate)
+
+    # Count pending invoices (draft or sent status)
+    pending_invoices_stmt = select(func.count()).select_from(AgencyClientInvoice).where(
+        AgencyClientInvoice.agency_id == current_user.id,
+        AgencyClientInvoice.status.in_(["draft", "sent"]),
+    )
+    pending_invoices = session.exec(pending_invoices_stmt).one() or 0
+
+    # Count pending payroll entries
+    pending_payroll_stmt = select(func.count()).select_from(PayrollEntry).where(
+        PayrollEntry.agency_id == current_user.id,
+        PayrollEntry.status == "pending",
+    )
+    pending_payroll = session.exec(pending_payroll_stmt).one() or 0
 
     return AgencyStatsResponse(
         total_staff=total_staff,
@@ -886,7 +956,7 @@ def get_stats(
         total_clients=total_clients,
         pending_clients=pending_clients,
         active_shifts=active_shifts,
-        revenue_this_week=revenue_this_week,
+        revenue_this_week=round(revenue_this_week, 2),
         pending_invoices=pending_invoices,
         pending_payroll=pending_payroll,
     )
@@ -982,19 +1052,73 @@ def update_agency_profile(
 
 @router.get("/wallet", response_model=AgencyWallet)
 def get_agency_wallet(
+    session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyWallet:
     """Get current agency's wallet information."""
+    from app.models.wallet import Wallet
+    from app.models.payment import Transaction, TransactionType, TransactionStatus, Payout, PayoutStatus
+
     require_agency_user(current_user)
 
+    # Get wallet for agency
+    wallet = session.exec(
+        select(Wallet).where(Wallet.user_id == current_user.id)
+    ).first()
+
+    if not wallet:
+        return AgencyWallet(
+            balance=0.0,
+            pending_payments=0.0,
+            pending_receivables=0.0,
+            currency="EUR",
+            total_revenue=0.0,
+            total_payroll=0.0,
+            last_payout_date=None,
+        )
+
+    # Calculate total revenue from completed transactions
+    total_revenue_query = (
+        select(func.coalesce(func.sum(Transaction.net_amount), 0))
+        .where(Transaction.wallet_id == wallet.id)
+        .where(Transaction.transaction_type == TransactionType.SETTLEMENT)
+        .where(Transaction.status == TransactionStatus.COMPLETED)
+    )
+    total_revenue = float(session.exec(total_revenue_query).one() or 0)
+
+    # Calculate total payroll paid
+    total_payroll_query = (
+        select(func.coalesce(func.sum(PayrollEntry.net_amount), 0))
+        .where(PayrollEntry.agency_id == current_user.id)
+        .where(PayrollEntry.status == "paid")
+    )
+    total_payroll = float(session.exec(total_payroll_query).one() or 0)
+
+    # Calculate pending receivables (invoices sent but not paid)
+    pending_receivables_query = (
+        select(func.coalesce(func.sum(AgencyClientInvoice.amount), 0))
+        .where(AgencyClientInvoice.agency_id == current_user.id)
+        .where(AgencyClientInvoice.status == "sent")
+    )
+    pending_receivables = float(session.exec(pending_receivables_query).one() or 0)
+
+    # Get last payout date
+    last_payout = session.exec(
+        select(Payout)
+        .where(Payout.wallet_id == wallet.id)
+        .where(Payout.status == PayoutStatus.PAID)
+        .order_by(Payout.paid_at.desc())
+        .limit(1)
+    ).first()
+
     return AgencyWallet(
-        balance=0.0,
-        pending_payments=0.0,
-        pending_receivables=0.0,
-        currency="EUR",
-        total_revenue=0.0,
-        total_payroll=0.0,
-        last_payout_date=None,
+        balance=float(wallet.balance),
+        pending_payments=float(wallet.reserved_balance),
+        pending_receivables=round(pending_receivables, 2),
+        currency=wallet.currency,
+        total_revenue=round(total_revenue, 2),
+        total_payroll=round(total_payroll, 2),
+        last_payout_date=last_payout.paid_at if last_payout else None,
     )
 
 
@@ -1012,7 +1136,25 @@ def add_staff(
 
     Creates a new agency-staff relationship with the specified user.
     """
+    from app.models.user import User
+    from app.models.profile import StaffProfile
+    from app.models.review import Review, ReviewType
+
     require_agency_user(current_user)
+
+    # Verify the user exists and is a staff user
+    user = session.get(User, request.staff_user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.user_type != UserType.STAFF:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a staff member",
+        )
 
     # Check if staff member already exists for this agency
     statement = select(AgencyStaffMember).where(
@@ -1041,6 +1183,19 @@ def add_staff(
 
     logger.info(f"Agency {current_user.id} added staff member {request.staff_user_id}")
 
+    # Get profile for skills
+    profile = session.exec(
+        select(StaffProfile).where(StaffProfile.user_id == request.staff_user_id)
+    ).first()
+
+    # Get average rating
+    avg_rating_query = (
+        select(func.coalesce(func.avg(Review.rating), 0))
+        .where(Review.reviewee_id == request.staff_user_id)
+        .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
+    )
+    avg_rating = float(session.exec(avg_rating_query).one() or 0)
+
     return StaffMemberResponse(
         id=staff_member.id,
         agency_id=staff_member.agency_id,
@@ -1051,10 +1206,10 @@ def add_staff(
         total_hours=staff_member.total_hours,
         notes=staff_member.notes,
         joined_at=staff_member.joined_at,
-        name=f"Staff Member {staff_member.staff_user_id}",
-        email=None,
-        skills=[],
-        rating=0.0,
+        name=user.full_name,
+        email=user.email,
+        skills=profile.skills or [] if profile else [],
+        rating=round(avg_rating, 2),
     )
 
 
@@ -1070,6 +1225,10 @@ def update_staff(
 
     Allows updating status, availability, and notes for a staff member.
     """
+    from app.models.user import User
+    from app.models.profile import StaffProfile
+    from app.models.review import Review, ReviewType
+
     require_agency_user(current_user)
 
     statement = select(AgencyStaffMember).where(
@@ -1099,6 +1258,22 @@ def update_staff(
 
     logger.info(f"Agency {current_user.id} updated staff member {staff_id}")
 
+    # Get user details
+    user = session.get(User, staff_member.staff_user_id)
+
+    # Get profile for skills
+    profile = session.exec(
+        select(StaffProfile).where(StaffProfile.user_id == staff_member.staff_user_id)
+    ).first()
+
+    # Get average rating
+    avg_rating_query = (
+        select(func.coalesce(func.avg(Review.rating), 0))
+        .where(Review.reviewee_id == staff_member.staff_user_id)
+        .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
+    )
+    avg_rating = float(session.exec(avg_rating_query).one() or 0)
+
     return StaffMemberResponse(
         id=staff_member.id,
         agency_id=staff_member.agency_id,
@@ -1109,10 +1284,10 @@ def update_staff(
         total_hours=staff_member.total_hours,
         notes=staff_member.notes,
         joined_at=staff_member.joined_at,
-        name=f"Staff Member {staff_member.staff_user_id}",
-        email=None,
-        skills=[],
-        rating=0.0,
+        name=user.full_name if user else f"Staff Member {staff_member.staff_user_id}",
+        email=user.email if user else None,
+        skills=profile.skills or [] if profile else [],
+        rating=round(avg_rating, 2),
     )
 
 
@@ -1717,18 +1892,26 @@ def list_agency_applications(
     app_stmt = app_stmt.offset(skip).limit(limit)
     applications = session.exec(app_stmt).all()
 
-    return [
-        ApplicationResponse(
-            id=app.id,
-            shift_id=app.shift_id,
-            applicant_id=app.applicant_id,
-            status=app.status.value if hasattr(app.status, 'value') else app.status,
-            cover_message=app.cover_message,
-            applied_at=app.applied_at,
-            applicant_name=f"Applicant {app.applicant_id}",  # Would come from user lookup
+    # Build response with real applicant names
+    from app.models.user import User
+
+    result = []
+    for app in applications:
+        # Get applicant user details
+        applicant = session.get(User, app.applicant_id)
+        result.append(
+            ApplicationResponse(
+                id=app.id,
+                shift_id=app.shift_id,
+                applicant_id=app.applicant_id,
+                status=app.status.value if hasattr(app.status, 'value') else app.status,
+                cover_message=app.cover_message,
+                applied_at=app.applied_at,
+                applicant_name=applicant.full_name if applicant else f"Applicant {app.applicant_id}",
+            )
         )
-        for app in applications
-    ]
+
+    return result
 
 
 @router.post("/applications/{application_id}/accept", response_model=ApplicationActionResponse)
@@ -2525,9 +2708,13 @@ def process_payroll(
     Process payroll for a given period.
 
     Creates payroll entries for all active staff members (or specified staff members)
-    for the given period. In a real implementation, this would calculate hours and amounts
-    based on completed shifts.
+    for the given period. Calculates hours and amounts based on completed shifts.
     """
+    from decimal import Decimal
+    from app.models.user import User
+    from app.models.profile import StaffProfile
+    from app.models.review import Review, ReviewType
+
     require_agency_user(current_user)
 
     # Get staff members to process
@@ -2547,6 +2734,12 @@ def process_payroll(
             detail="No active staff members found to process payroll",
         )
 
+    # Get agency shifts for the period
+    agency_shift_ids_stmt = select(AgencyShift.shift_id).where(
+        AgencyShift.agency_id == current_user.id
+    )
+    agency_shift_ids = session.exec(agency_shift_ids_stmt).all()
+
     created_entries = []
     for staff in staff_members:
         # Check if payroll entry already exists for this period
@@ -2562,35 +2755,91 @@ def process_payroll(
             # Skip if already processed
             continue
 
-        # In a real implementation, calculate hours and amounts from shifts
-        # For now, use placeholder values based on staff record
-        hours_worked = staff.total_hours  # Would be calculated from shifts in period
-        hourly_rate = 15.0  # Would come from staff contract/settings
-        gross_amount = hours_worked * hourly_rate
-        deductions = gross_amount * 0.2  # 20% tax/deductions placeholder
+        # Calculate hours and amounts from completed shifts in the period
+        # Get assignments for this staff member in the period
+        assignments_stmt = select(AgencyShiftAssignment).where(
+            AgencyShiftAssignment.agency_id == current_user.id,
+            AgencyShiftAssignment.staff_member_id == staff.id,
+        )
+        assignments = session.exec(assignments_stmt).all()
+        assigned_shift_ids = [a.shift_id for a in assignments]
+
+        # Get completed shifts in the period
+        hours_worked = Decimal("0.00")
+        gross_amount = Decimal("0.00")
+
+        if assigned_shift_ids and agency_shift_ids:
+            shifts_in_period = session.exec(
+                select(Shift)
+                .where(Shift.id.in_(assigned_shift_ids))
+                .where(Shift.id.in_(agency_shift_ids))
+                .where(Shift.status == ShiftStatus.COMPLETED)
+                .where(Shift.date >= request.period_start)
+                .where(Shift.date <= request.period_end)
+            ).all()
+
+            for shift in shifts_in_period:
+                # Calculate hours
+                if shift.actual_hours_worked:
+                    shift_hours = shift.actual_hours_worked
+                else:
+                    start_dt = datetime.combine(shift.date, shift.start_time)
+                    end_dt = datetime.combine(shift.date, shift.end_time)
+                    shift_hours = Decimal(str((end_dt - start_dt).seconds / 3600))
+
+                hours_worked += shift_hours
+                gross_amount += shift_hours * shift.hourly_rate
+
+        # Apply standard deductions (configurable in production)
+        deduction_rate = Decimal("0.20")  # 20% for taxes/insurance
+        deductions = gross_amount * deduction_rate
         net_amount = gross_amount - deductions
 
-        entry = PayrollEntry(
-            agency_id=current_user.id,
-            staff_member_id=staff.id,
-            period_start=request.period_start,
-            period_end=request.period_end,
-            status="pending",
-            hours_worked=hours_worked,
-            gross_amount=gross_amount,
-            deductions=deductions,
-            net_amount=net_amount,
-            currency="EUR",
-        )
-        session.add(entry)
-        created_entries.append((entry, staff))
+        # Only create entry if there's work to pay for
+        if hours_worked > 0:
+            entry = PayrollEntry(
+                agency_id=current_user.id,
+                staff_member_id=staff.id,
+                period_start=request.period_start,
+                period_end=request.period_end,
+                status="pending",
+                hours_worked=float(hours_worked),
+                gross_amount=float(gross_amount),
+                deductions=float(deductions),
+                net_amount=float(net_amount),
+                currency="EUR",
+            )
+            session.add(entry)
+
+            # Update staff member total hours
+            staff.total_hours += float(hours_worked)
+            staff.shifts_completed += len(shifts_in_period) if 'shifts_in_period' in dir() else 0
+            staff.updated_at = datetime.utcnow()
+            session.add(staff)
+
+            created_entries.append((entry, staff))
 
     session.commit()
 
-    # Build response
+    # Build response with real user data
     payroll_responses = []
     for entry, staff in created_entries:
         session.refresh(entry)
+
+        # Get user details
+        user = session.get(User, staff.staff_user_id)
+        profile = session.exec(
+            select(StaffProfile).where(StaffProfile.user_id == staff.staff_user_id)
+        ).first()
+
+        # Get average rating
+        avg_rating_query = (
+            select(func.coalesce(func.avg(Review.rating), 0))
+            .where(Review.reviewee_id == staff.staff_user_id)
+            .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
+        )
+        avg_rating = float(session.exec(avg_rating_query).one() or 0)
+
         staff_response = StaffMemberResponse(
             id=staff.id,
             agency_id=staff.agency_id,
@@ -2601,10 +2850,10 @@ def process_payroll(
             total_hours=staff.total_hours,
             notes=staff.notes,
             joined_at=staff.joined_at,
-            name=f"Staff Member {staff.staff_user_id}",
-            email=None,
-            skills=[],
-            rating=0.0,
+            name=user.full_name if user else f"Staff Member {staff.staff_user_id}",
+            email=user.email if user else None,
+            skills=profile.skills or [] if profile else [],
+            rating=round(avg_rating, 2),
         )
         payroll_responses.append(
             PayrollEntryResponse(

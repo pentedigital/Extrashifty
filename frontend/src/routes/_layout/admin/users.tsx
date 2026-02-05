@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,31 +6,74 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, MoreVertical, Shield, Ban, Mail } from 'lucide-react'
+import { Search, MoreVertical, Shield, Ban, Mail, Loader2 } from 'lucide-react'
+import { useAdminUsers } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/users')({
   component: AdminUsersPage,
 })
 
-const mockUsers = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', type: 'staff', status: 'active', verified: true, joined: '2025-01-15', shifts: 24 },
-  { id: '2', name: 'Sarah Manager', email: 'sarah@brazenhead.ie', type: 'company', status: 'active', verified: true, joined: '2025-02-01', shifts: 0 },
-  { id: '3', name: 'Mike Wilson', email: 'mike@example.com', type: 'staff', status: 'suspended', verified: true, joined: '2024-11-20', shifts: 12 },
-  { id: '4', name: 'Dublin Staffing', email: 'info@dublinstaffing.ie', type: 'agency', status: 'active', verified: true, joined: '2024-10-05', shifts: 0 },
-  { id: '5', name: 'Emma Brown', email: 'emma@example.com', type: 'staff', status: 'active', verified: false, joined: '2026-01-28', shifts: 0 },
-  { id: '6', name: 'Restaurant XYZ', email: 'contact@xyz.ie', type: 'company', status: 'pending', verified: false, joined: '2026-02-02', shifts: 0 },
-]
-
 function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
 
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  // Fetch users from API
+  const { data: usersData, isLoading, error } = useAdminUsers({
+    search: searchQuery || undefined,
+    user_type: activeTab !== 'all' ? activeTab : undefined,
+  })
+
+  // Process users for display
+  const users = useMemo(() => {
+    if (!usersData?.items) return []
+    return usersData.items.map(user => ({
+      id: String(user.id),
+      name: user.full_name || 'Unknown',
+      email: user.email || '',
+      type: user.user_type || 'staff',
+      status: user.is_active ? 'active' : 'suspended',
+      verified: user.is_verified || false,
+      joined: user.created_at || '',
+      shifts: 0, // Would need additional API call for this
+    }))
+  }, [usersData])
+
+  // Filter users client-side for search (in case API doesn't support it)
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = searchQuery === '' ||
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesTab = activeTab === 'all' || user.type === activeTab
     return matchesSearch && matchesTab
   })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Users</h1>
+          <p className="text-muted-foreground">Manage platform users</p>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load users"
+          description="There was an error loading users. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {

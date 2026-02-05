@@ -190,15 +190,18 @@ def get_my_stats(
     Get dashboard stats for the current user.
 
     For staff users: returns upcoming shifts count, pending applications,
-    total earned (placeholder), average rating, and wallet balance.
+    total earned, average rating, and wallet balance.
     """
     from datetime import date as date_type
+    from decimal import Decimal
 
     from sqlmodel import func, select
 
     from app.crud import application as application_crud
     from app.models.application import Application, ApplicationStatus
-    from app.models.shift import Shift
+    from app.models.review import Review, ReviewType
+    from app.models.shift import Shift, ShiftStatus
+    from app.models.wallet import Wallet
 
     if current_user.user_type != UserType.STAFF:
         raise HTTPException(
@@ -233,18 +236,64 @@ def get_my_stats(
         )
         upcoming_shifts = session.exec(statement).one() or 0
 
-    # TODO: Calculate actual earnings from completed shifts
-    # For now, return placeholder values
-    total_earned = 0.0
-    average_rating = 0.0
-    wallet_balance = 0.0
+    # Calculate total earned from completed shifts
+    total_earned_query = (
+        select(
+            func.coalesce(
+                func.sum(Shift.actual_hours_worked * Shift.hourly_rate),
+                0
+            )
+        )
+        .select_from(Shift)
+        .join(Application, Application.shift_id == Shift.id)
+        .where(Application.applicant_id == current_user.id)
+        .where(Application.status == ApplicationStatus.ACCEPTED)
+        .where(Shift.status == ShiftStatus.COMPLETED)
+        .where(Shift.actual_hours_worked.isnot(None))
+    )
+    total_earned_with_hours = float(session.exec(total_earned_query).one() or 0)
+
+    # For shifts without actual_hours_worked, calculate from scheduled times
+    scheduled_earnings_query = (
+        select(Shift)
+        .join(Application, Application.shift_id == Shift.id)
+        .where(Application.applicant_id == current_user.id)
+        .where(Application.status == ApplicationStatus.ACCEPTED)
+        .where(Shift.status == ShiftStatus.COMPLETED)
+        .where(Shift.actual_hours_worked.is_(None))
+    )
+    scheduled_shifts = session.exec(scheduled_earnings_query).all()
+
+    scheduled_earnings = Decimal("0.00")
+    for shift in scheduled_shifts:
+        from datetime import datetime
+        start_dt = datetime.combine(shift.date, shift.start_time)
+        end_dt = datetime.combine(shift.date, shift.end_time)
+        hours = Decimal(str((end_dt - start_dt).seconds / 3600))
+        scheduled_earnings += hours * shift.hourly_rate
+
+    total_earned = total_earned_with_hours + float(scheduled_earnings)
+
+    # Calculate average rating from reviews
+    avg_rating_query = (
+        select(func.coalesce(func.avg(Review.rating), 0))
+        .where(Review.reviewee_id == current_user.id)
+        .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
+    )
+    average_rating = float(session.exec(avg_rating_query).one() or 0)
+
+    # Get wallet balance
+    wallet = session.exec(
+        select(Wallet).where(Wallet.user_id == current_user.id)
+    ).first()
+    wallet_balance = float(wallet.balance) if wallet else 0.0
 
     return StaffStatsResponse(
         upcoming_shifts=upcoming_shifts,
         pending_applications=pending_applications,
-        total_earned=total_earned,
-        average_rating=average_rating,
-        wallet_balance=wallet_balance,
+        total_earned=round(total_earned, 2),
+        average_rating=round(average_rating, 2),
+        wallet_balance=round(wallet_balance, 2),
     )
 
 

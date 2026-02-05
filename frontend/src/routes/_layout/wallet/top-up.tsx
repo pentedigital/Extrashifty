@@ -22,7 +22,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
 import {
-  useWalletBalance,
+  useCompanyWalletBalance,
   useTopupWallet,
   useCreatePaymentIntent,
   useAutoTopupConfig,
@@ -55,7 +55,7 @@ function TopUpPage() {
   const stripeAvailable = useStripeAvailable()
 
   // API hooks
-  const { data: walletData, isLoading: isLoadingBalance } = useWalletBalance()
+  const { data: walletData, isLoading: isLoadingBalance } = useCompanyWalletBalance()
   const { data: paymentMethodsData, isLoading: isLoadingMethods } = usePaymentMethods()
   const { data: autoTopupData, isLoading: isLoadingAutoTopup } = useAutoTopupConfig()
   const createPaymentIntent = useCreatePaymentIntent()

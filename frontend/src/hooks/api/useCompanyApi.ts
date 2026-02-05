@@ -13,6 +13,9 @@ export const companyKeys = {
   venues: () => [...companyKeys.all, 'venues'] as const,
   spending: (filters?: Record<string, string>) => [...companyKeys.all, 'spending', filters] as const,
   reviews: (filters?: Record<string, string>) => [...companyKeys.all, 'reviews', filters] as const,
+  stats: () => [...companyKeys.all, 'stats'] as const,
+  preferredAgencies: () => [...companyKeys.all, 'preferred-agencies'] as const,
+  browseAgencies: (params?: { search?: string }) => [...companyKeys.all, 'browse-agencies', params] as const,
 }
 
 // ============================================================================
@@ -33,6 +36,9 @@ export function useUpdateCompanyProfile() {
     mutationFn: (data: Partial<CompanyProfile>) => api.company.updateProfile(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.profile() })
+    },
+    onError: (error) => {
+      console.error('Failed to update company profile:', error)
     },
   })
 }
@@ -67,6 +73,9 @@ export function useCreateVenue() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
     },
+    onError: (error) => {
+      console.error('Failed to create venue:', error)
+    },
   })
 }
 
@@ -79,6 +88,9 @@ export function useUpdateVenue() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
     },
+    onError: (error) => {
+      console.error('Failed to update venue:', error)
+    },
   })
 }
 
@@ -89,6 +101,9 @@ export function useDeleteVenue() {
     mutationFn: (id: string) => api.company.deleteVenue(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
+    },
+    onError: (error) => {
+      console.error('Failed to delete venue:', error)
     },
   })
 }
@@ -112,6 +127,9 @@ export function useCreateCompanyShift() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.shifts() })
     },
+    onError: (error) => {
+      console.error('Failed to create shift:', error)
+    },
   })
 }
 
@@ -125,6 +143,9 @@ export function useUpdateShift() {
       queryClient.invalidateQueries({ queryKey: companyKeys.shifts() })
       queryClient.invalidateQueries({ queryKey: companyKeys.shift(variables.id) })
     },
+    onError: (error) => {
+      console.error('Failed to update shift:', error)
+    },
   })
 }
 
@@ -135,6 +156,9 @@ export function useDeleteShift() {
     mutationFn: (id: string) => api.company.deleteShift(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.shifts() })
+    },
+    onError: (error) => {
+      console.error('Failed to delete shift:', error)
     },
   })
 }
@@ -159,6 +183,9 @@ export function useAcceptApplication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.all })
     },
+    onError: (error) => {
+      console.error('Failed to accept application:', error)
+    },
   })
 }
 
@@ -169,6 +196,9 @@ export function useRejectApplication() {
     mutationFn: (applicationId: string) => api.company.rejectApplication(applicationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.all })
+    },
+    onError: (error) => {
+      console.error('Failed to reject application:', error)
     },
   })
 }
@@ -203,6 +233,66 @@ export function useCreateReview() {
       api.company.createReview(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: companyKeys.reviews() })
+    },
+    onError: (error) => {
+      console.error('Failed to create review:', error)
+    },
+  })
+}
+
+// ============================================================================
+// Stats Hooks
+// ============================================================================
+
+export function useCompanyStats() {
+  return useQuery({
+    queryKey: companyKeys.stats(),
+    queryFn: () => api.company.getStats(),
+  })
+}
+
+// ============================================================================
+// Preferred Agencies Hooks
+// ============================================================================
+
+export function usePreferredAgencies() {
+  return useQuery({
+    queryKey: companyKeys.preferredAgencies(),
+    queryFn: () => api.company.getPreferredAgencies(),
+  })
+}
+
+export function useBrowseAgencies(params?: { search?: string; skip?: number; limit?: number }) {
+  return useQuery({
+    queryKey: companyKeys.browseAgencies(params),
+    queryFn: () => api.company.browseAgencies(params),
+  })
+}
+
+export function useAddPreferredAgency() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (agencyId: number) => api.company.addPreferredAgency(agencyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.preferredAgencies() })
+    },
+    onError: (error) => {
+      console.error('Failed to add preferred agency:', error)
+    },
+  })
+}
+
+export function useRemovePreferredAgency() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (agencyId: number) => api.company.removePreferredAgency(agencyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: companyKeys.preferredAgencies() })
+    },
+    onError: (error) => {
+      console.error('Failed to remove preferred agency:', error)
     },
   })
 }

@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,56 +27,36 @@ import {
   Receipt,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
-import { mockApi } from '@/lib/mockApi'
+import { useWalletBalance, useWalletTransactions, useWithdraw } from '@/hooks/api/useWalletApi'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { Transaction } from '@/types/features'
 
 export const Route = createFileRoute('/_layout/wallet')({
   component: WalletPage,
 })
 
 function WalletPage() {
-  const [balance, setBalance] = useState<number>(0)
-  const [pending, setPending] = useState<number>(0)
-  const [currency, setCurrency] = useState<string>('EUR')
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
-  const [isWithdrawing, setIsWithdrawing] = useState(false)
   const [withdrawError, setWithdrawError] = useState('')
   const [withdrawSuccess, setWithdrawSuccess] = useState(false)
   const { addToast } = useToast()
+  const navigate = useNavigate()
+
+  // Use real API hooks
+  const { data: balanceData, isLoading: isBalanceLoading } = useWalletBalance()
+  const { data: transactionsData, isLoading: isTransactionsLoading } = useWalletTransactions({ limit: 10 })
+  const withdrawMutation = useWithdraw()
+
+  const balance = balanceData?.balance ?? 0
+  const pending = 0 // Pending calculated from transactions if needed
+  const currency = balanceData?.currency ?? 'EUR'
+  const transactions = transactionsData ?? []
+  const isLoading = isBalanceLoading || isTransactionsLoading
 
   const handleViewHistory = () => {
-    addToast({
-      type: 'info',
-      title: 'Transaction history',
-      description: 'Full transaction history will be available soon.',
-    })
+    navigate({ to: '/wallet/history' })
   }
-
-  useEffect(() => {
-    async function fetchWalletData() {
-      setIsLoading(true)
-      try {
-        const [balanceData, transactionsData] = await Promise.all([
-          mockApi.wallet.getBalance(),
-          mockApi.wallet.getTransactions(),
-        ])
-        setBalance(balanceData.balance)
-        setPending(balanceData.pending)
-        setCurrency(balanceData.currency)
-        setTransactions(transactionsData)
-      } catch {
-        // Error handled silently
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchWalletData()
-  }, [])
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount)
@@ -89,22 +69,28 @@ function WalletPage() {
       return
     }
 
-    setIsWithdrawing(true)
     setWithdrawError('')
-    try {
-      await mockApi.wallet.withdraw(amount)
-      setWithdrawSuccess(true)
-      setBalance((prev) => prev - amount)
-      setTimeout(() => {
-        setIsWithdrawOpen(false)
-        setWithdrawSuccess(false)
-        setWithdrawAmount('')
-      }, 2000)
-    } catch {
-      setWithdrawError('Withdrawal failed. Please try again.')
-    } finally {
-      setIsWithdrawing(false)
-    }
+    withdrawMutation.mutate(
+      { amount, payment_method_id: 1 }, // Default payment method
+      {
+        onSuccess: () => {
+          setWithdrawSuccess(true)
+          addToast({
+            title: 'Withdrawal initiated',
+            description: 'Your funds will arrive in 1-2 business days.',
+            variant: 'success',
+          })
+          setTimeout(() => {
+            setIsWithdrawOpen(false)
+            setWithdrawSuccess(false)
+            setWithdrawAmount('')
+          }, 2000)
+        },
+        onError: () => {
+          setWithdrawError('Withdrawal failed. Please try again.')
+        },
+      }
+    )
   }
 
   const getTransactionIcon = (type: Transaction['type']) => {
@@ -341,8 +327,8 @@ function WalletPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleWithdraw} disabled={isWithdrawing}>
-                  {isWithdrawing ? (
+                <Button onClick={handleWithdraw} disabled={withdrawMutation.isPending}>
+                  {withdrawMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Processing...

@@ -7,13 +7,16 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.models.application import Application, ApplicationStatus
+from app.models.profile import CompanyProfile as CompanyProfileModel
+from app.models.profile import Venue as VenueModel
 from app.models.review import Review, ReviewType
 from app.models.shift import Shift, ShiftStatus
 from app.models.user import UserType
+from app.models.wallet import Wallet
 
 router = APIRouter()
 
@@ -283,21 +286,52 @@ def get_company_profile(
     """Get current company's profile."""
     require_company_user(current_user)
 
+    # Get company profile
+    profile = session.exec(
+        select(CompanyProfileModel).where(CompanyProfileModel.user_id == current_user.id)
+    ).first()
+
+    # Calculate total shifts posted
+    total_shifts_query = (
+        select(func.count())
+        .select_from(Shift)
+        .where(Shift.company_id == current_user.id)
+    )
+    total_shifts_posted = session.exec(total_shifts_query).one() or 0
+
+    # Calculate total unique staff hired (accepted applications)
+    total_staff_query = (
+        select(func.count(func.distinct(Application.applicant_id)))
+        .select_from(Application)
+        .join(Shift, Application.shift_id == Shift.id)
+        .where(Shift.company_id == current_user.id)
+        .where(Application.status == ApplicationStatus.ACCEPTED)
+    )
+    total_staff_hired = session.exec(total_staff_query).one() or 0
+
+    # Calculate average rating from reviews received
+    avg_rating_query = (
+        select(func.coalesce(func.avg(Review.rating), 0))
+        .where(Review.reviewee_id == current_user.id)
+        .where(Review.review_type == ReviewType.STAFF_TO_COMPANY)
+    )
+    average_rating = float(session.exec(avg_rating_query).one() or 0)
+
     return CompanyProfile(
         id=current_user.id,
         email=current_user.email,
         business_name=current_user.full_name,
-        business_type=None,
-        logo_url=None,
-        description=None,
-        address=None,
-        city=None,
-        phone=None,
-        website=None,
+        business_type=profile.business_type if profile else None,
+        logo_url=profile.logo_url if profile else None,
+        description=profile.description if profile else None,
+        address=profile.address if profile else None,
+        city=profile.city if profile else None,
+        phone=profile.phone if profile else None,
+        website=profile.website if profile else None,
         is_verified=current_user.is_verified,
-        average_rating=0.0,
-        total_shifts_posted=0,
-        total_staff_hired=0,
+        average_rating=round(average_rating, 2),
+        total_shifts_posted=total_shifts_posted,
+        total_staff_hired=total_staff_hired,
         created_at=current_user.created_at,
     )
 
@@ -311,29 +345,81 @@ def update_company_profile(
     """Update current company's profile."""
     require_company_user(current_user)
 
+    # Update user's business name if provided
     if profile_update.business_name is not None:
         current_user.full_name = profile_update.business_name
+        current_user.updated_at = datetime.utcnow()
+        session.add(current_user)
 
-    current_user.updated_at = datetime.utcnow()
-    session.add(current_user)
+    # Get or create company profile
+    profile = session.exec(
+        select(CompanyProfileModel).where(CompanyProfileModel.user_id == current_user.id)
+    ).first()
+
+    if not profile:
+        profile = CompanyProfileModel(user_id=current_user.id)
+
+    # Update profile fields
+    if profile_update.business_type is not None:
+        profile.business_type = profile_update.business_type
+    if profile_update.logo_url is not None:
+        profile.logo_url = profile_update.logo_url
+    if profile_update.description is not None:
+        profile.description = profile_update.description
+    if profile_update.address is not None:
+        profile.address = profile_update.address
+    if profile_update.city is not None:
+        profile.city = profile_update.city
+    if profile_update.phone is not None:
+        profile.phone = profile_update.phone
+    if profile_update.website is not None:
+        profile.website = profile_update.website
+
+    profile.updated_at = datetime.utcnow()
+    session.add(profile)
     session.commit()
     session.refresh(current_user)
+    session.refresh(profile)
+
+    # Calculate stats for response
+    total_shifts_query = (
+        select(func.count())
+        .select_from(Shift)
+        .where(Shift.company_id == current_user.id)
+    )
+    total_shifts_posted = session.exec(total_shifts_query).one() or 0
+
+    total_staff_query = (
+        select(func.count(func.distinct(Application.applicant_id)))
+        .select_from(Application)
+        .join(Shift, Application.shift_id == Shift.id)
+        .where(Shift.company_id == current_user.id)
+        .where(Application.status == ApplicationStatus.ACCEPTED)
+    )
+    total_staff_hired = session.exec(total_staff_query).one() or 0
+
+    avg_rating_query = (
+        select(func.coalesce(func.avg(Review.rating), 0))
+        .where(Review.reviewee_id == current_user.id)
+        .where(Review.review_type == ReviewType.STAFF_TO_COMPANY)
+    )
+    average_rating = float(session.exec(avg_rating_query).one() or 0)
 
     return CompanyProfile(
         id=current_user.id,
         email=current_user.email,
         business_name=current_user.full_name,
-        business_type=None,
-        logo_url=None,
-        description=None,
-        address=None,
-        city=None,
-        phone=None,
-        website=None,
+        business_type=profile.business_type,
+        logo_url=profile.logo_url,
+        description=profile.description,
+        address=profile.address,
+        city=profile.city,
+        phone=profile.phone,
+        website=profile.website,
         is_verified=current_user.is_verified,
-        average_rating=0.0,
-        total_shifts_posted=0,
-        total_staff_hired=0,
+        average_rating=round(average_rating, 2),
+        total_shifts_posted=total_shifts_posted,
+        total_staff_hired=total_staff_hired,
         created_at=current_user.created_at,
     )
 
@@ -345,17 +431,57 @@ def update_company_profile(
 
 @router.get("/wallet", response_model=CompanyWallet)
 def get_company_wallet(
+    session: SessionDep,
     current_user: ActiveUserDep,
 ) -> Any:
     """Get current company's wallet information."""
     require_company_user(current_user)
 
+    # Get wallet for user
+    wallet = session.exec(
+        select(Wallet).where(Wallet.user_id == current_user.id)
+    ).first()
+
+    if not wallet:
+        # Return empty wallet if not created yet
+        return CompanyWallet(
+            balance=0.0,
+            pending_payments=0.0,
+            currency="EUR",
+            total_spent=0.0,
+            last_payment_date=None,
+        )
+
+    # Calculate total spent from completed transactions
+    from app.models.payment import Transaction, TransactionStatus, TransactionType
+
+    total_spent_query = (
+        select(func.coalesce(func.sum(Transaction.amount), 0))
+        .where(Transaction.wallet_id == wallet.id)
+        .where(Transaction.transaction_type.in_([
+            TransactionType.SETTLEMENT,
+            TransactionType.COMMISSION,
+        ]))
+        .where(Transaction.status == TransactionStatus.COMPLETED)
+    )
+    total_spent = float(session.exec(total_spent_query).one() or 0)
+
+    # Get last payment date
+    last_payment = session.exec(
+        select(Transaction)
+        .where(Transaction.wallet_id == wallet.id)
+        .where(Transaction.transaction_type == TransactionType.SETTLEMENT)
+        .where(Transaction.status == TransactionStatus.COMPLETED)
+        .order_by(Transaction.completed_at.desc())
+        .limit(1)
+    ).first()
+
     return CompanyWallet(
-        balance=0.0,
-        pending_payments=0.0,
-        currency="EUR",
-        total_spent=0.0,
-        last_payment_date=None,
+        balance=float(wallet.balance),
+        pending_payments=float(wallet.reserved_balance),
+        currency=wallet.currency,
+        total_spent=round(total_spent, 2),
+        last_payment_date=last_payment.completed_at if last_payment else None,
     )
 
 
@@ -366,6 +492,7 @@ def get_company_wallet(
 
 @router.get("/venues", response_model=VenuesResponse)
 def get_venues(
+    session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
     limit: int = 50,
@@ -373,10 +500,41 @@ def get_venues(
     """Get company's venues."""
     require_company_user(current_user)
 
-    return VenuesResponse(items=[], total=0)
+    # Query venues for this company
+    query = (
+        select(VenueModel)
+        .where(VenueModel.company_id == current_user.id)
+        .where(VenueModel.is_active == True)
+        .order_by(VenueModel.is_primary.desc(), VenueModel.name)
+    )
+
+    # Get total count
+    count_query = (
+        select(func.count())
+        .select_from(VenueModel)
+        .where(VenueModel.company_id == current_user.id)
+        .where(VenueModel.is_active == True)
+    )
+    total = session.exec(count_query).one() or 0
+
+    # Get paginated venues
+    venues = session.exec(query.offset(skip).limit(limit)).all()
+
+    items = [
+        Venue(
+            id=v.id,
+            name=v.name,
+            address=v.address,
+            city=v.city,
+            is_primary=v.is_primary,
+        )
+        for v in venues
+    ]
+
+    return VenuesResponse(items=items, total=total)
 
 
-@router.post("/venues", response_model=Venue)
+@router.post("/venues", response_model=Venue, status_code=status.HTTP_201_CREATED)
 def create_venue(
     session: SessionDep,
     current_user: ActiveUserDep,
@@ -385,13 +543,35 @@ def create_venue(
     """Create a new venue for the company."""
     require_company_user(current_user)
 
-    # Placeholder - would create venue in database
-    return Venue(
-        id=1,
+    # If this venue is marked as primary, unset other primary venues
+    if venue.is_primary:
+        existing_primary = session.exec(
+            select(VenueModel)
+            .where(VenueModel.company_id == current_user.id)
+            .where(VenueModel.is_primary == True)
+        ).all()
+        for v in existing_primary:
+            v.is_primary = False
+            session.add(v)
+
+    # Create the venue
+    new_venue = VenueModel(
+        company_id=current_user.id,
         name=venue.name,
         address=venue.address,
         city=venue.city,
         is_primary=venue.is_primary,
+    )
+    session.add(new_venue)
+    session.commit()
+    session.refresh(new_venue)
+
+    return Venue(
+        id=new_venue.id,
+        name=new_venue.name,
+        address=new_venue.address,
+        city=new_venue.city,
+        is_primary=new_venue.is_primary,
     )
 
 
@@ -405,10 +585,52 @@ def update_venue(
     """Update a venue."""
     require_company_user(current_user)
 
-    # Placeholder - would update venue in database
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Venue not found",
+    # Find the venue
+    venue = session.exec(
+        select(VenueModel)
+        .where(VenueModel.id == venue_id)
+        .where(VenueModel.company_id == current_user.id)
+        .where(VenueModel.is_active == True)
+    ).first()
+
+    if not venue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venue not found",
+        )
+
+    # Update fields
+    if venue_update.name is not None:
+        venue.name = venue_update.name
+    if venue_update.address is not None:
+        venue.address = venue_update.address
+    if venue_update.city is not None:
+        venue.city = venue_update.city
+    if venue_update.is_primary is not None:
+        # If setting as primary, unset other primary venues
+        if venue_update.is_primary:
+            existing_primary = session.exec(
+                select(VenueModel)
+                .where(VenueModel.company_id == current_user.id)
+                .where(VenueModel.is_primary == True)
+                .where(VenueModel.id != venue_id)
+            ).all()
+            for v in existing_primary:
+                v.is_primary = False
+                session.add(v)
+        venue.is_primary = venue_update.is_primary
+
+    venue.updated_at = datetime.utcnow()
+    session.add(venue)
+    session.commit()
+    session.refresh(venue)
+
+    return Venue(
+        id=venue.id,
+        name=venue.name,
+        address=venue.address,
+        city=venue.city,
+        is_primary=venue.is_primary,
     )
 
 
@@ -418,15 +640,28 @@ def delete_venue(
     current_user: ActiveUserDep,
     venue_id: int,
 ) -> None:
-    """Delete a venue."""
+    """Delete a venue (soft delete)."""
     require_company_user(current_user)
 
-    # Placeholder - would delete venue in database
-    # For now, just return 404 as we don't have venues table yet
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Venue not found",
-    )
+    # Find the venue
+    venue = session.exec(
+        select(VenueModel)
+        .where(VenueModel.id == venue_id)
+        .where(VenueModel.company_id == current_user.id)
+        .where(VenueModel.is_active == True)
+    ).first()
+
+    if not venue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venue not found",
+        )
+
+    # Soft delete
+    venue.is_active = False
+    venue.updated_at = datetime.utcnow()
+    session.add(venue)
+    session.commit()
 
 
 # ============================================================================

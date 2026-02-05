@@ -1,31 +1,75 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Search, Plus, MoreVertical, Shield, ShieldCheck } from 'lucide-react'
+import { Search, Plus, MoreVertical, Shield, ShieldCheck, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useAdminAdmins } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/admins')({
   component: AdminsPage,
 })
 
-const mockAdmins = [
-  { id: '1', name: 'Super Admin', email: 'superadmin@extrashifty.com', role: 'super_admin', status: 'active', lastLogin: '2026-02-04T14:30:00' },
-  { id: '2', name: 'Admin User', email: 'admin@extrashifty.com', role: 'admin', status: 'active', lastLogin: '2026-02-04T12:15:00' },
-  { id: '3', name: 'Support Admin', email: 'support@extrashifty.com', role: 'admin', status: 'active', lastLogin: '2026-02-03T16:45:00' },
-  { id: '4', name: 'Finance Admin', email: 'finance@extrashifty.com', role: 'admin', status: 'inactive', lastLogin: '2026-01-28T09:00:00' },
-]
-
 function AdminsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredAdmins = mockAdmins.filter(admin =>
+  // Fetch admin users from API
+  const { data: adminsData, isLoading, error } = useAdminAdmins({
+    search: searchQuery || undefined,
+  })
+
+  // Process admins for display
+  const admins = useMemo(() => {
+    if (!adminsData?.items) return []
+    return adminsData.items.map(admin => ({
+      id: String(admin.id),
+      name: admin.full_name || 'Unknown',
+      email: admin.email || '',
+      role: admin.user_type === 'super_admin' ? 'super_admin' : 'admin',
+      status: admin.is_active ? 'active' : 'inactive',
+      lastLogin: admin.last_login || '',
+    }))
+  }, [adminsData])
+
+  // Filter admins client-side
+  const filteredAdmins = admins.filter(admin =>
+    searchQuery === '' ||
     admin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     admin.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Admin Users</h1>
+            <p className="text-muted-foreground">Manage platform administrators</p>
+          </div>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load admins"
+          description="There was an error loading admin users. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getRoleBadge = (role: string) => {
     if (role === 'super_admin') {

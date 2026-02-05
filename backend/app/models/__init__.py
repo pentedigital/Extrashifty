@@ -25,6 +25,7 @@ from .payment import (
     TransactionStatus,
     TransactionType,
 )
+from .profile import ClockRecord, CompanyProfile, StaffProfile, Venue
 from .review import Review, ReviewType
 from .shift import Shift, ShiftStatus
 from .tax import TaxDocument, TaxFormStatus, TaxFormType, TaxYear
@@ -59,6 +60,11 @@ __all__ = [
     # User
     "User",
     "UserType",
+    # Profile
+    "StaffProfile",
+    "CompanyProfile",
+    "ClockRecord",
+    "Venue",
     # Shift
     "Shift",
     "ShiftStatus",

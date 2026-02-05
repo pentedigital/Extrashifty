@@ -89,6 +89,9 @@ export function useRegister() {
       setUser(user)
       queryClient.setQueryData(authKeys.me(), user)
     },
+    onError: (error) => {
+      console.error('Registration failed:', error)
+    },
   })
 }
 

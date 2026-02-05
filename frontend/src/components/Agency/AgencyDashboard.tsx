@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { useMemo } from 'react'
 import {
   Users,
   Building2,
@@ -15,9 +16,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { formatCurrency, formatTime } from '@/lib/utils'
-import { useAgencyStats, useAgencyStaff } from '@/hooks/api/useAgencyApi'
+import { formatCurrency, formatTime, formatDate } from '@/lib/utils'
+import { useAgencyStats, useAgencyStaff, useAgencyShifts } from '@/hooks/api/useAgencyApi'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // Default stats for loading state or fallback
 const defaultStats = {
@@ -31,57 +33,46 @@ const defaultStats = {
   pending_payroll: 0,
 }
 
-// Mock data for schedule - TODO: Replace with API data when shifts API is integrated
-const mockTodaySchedule = [
-  {
-    id: '1',
-    time: '06:00',
-    title: 'Kitchen Porter',
-    client: 'Hotel ABC',
-    worker: 'John D.',
-    status: 'confirmed',
-  },
-  {
-    id: '2',
-    time: '09:00',
-    title: 'Server',
-    client: 'Café Central',
-    spots_total: 3,
-    spots_filled: 2,
-    status: 'partial',
-  },
-  {
-    id: '3',
-    time: '18:00',
-    title: 'Bartender',
-    client: 'The Local',
-    workers: ['Maria', 'Tom'],
-    status: 'confirmed',
-  },
-]
-
-// Mock data for unfilled shifts - TODO: Replace with API data when shifts API is integrated
-const mockUnfilledShifts = [
-  {
-    id: '1',
-    title: 'Server',
-    client: 'Café Central',
-    date: 'Tomorrow 9AM',
-    spots_needed: 1,
-  },
-  {
-    id: '2',
-    title: 'Kitchen',
-    client: 'Hotel ABC',
-    date: 'Sat',
-    spots_needed: 3,
-  },
-]
-
 export function AgencyDashboard() {
   // Fetch real stats from API
   const { data: stats, isLoading: statsLoading, error: statsError } = useAgencyStats()
   const { data: staffData, isLoading: staffLoading } = useAgencyStaff({ status: 'active', limit: '10' })
+  const { data: shiftsData, isLoading: shiftsLoading } = useAgencyShifts({ status: 'open' })
+
+  // Process shifts data for today's schedule and unfilled shifts
+  const todaySchedule = useMemo(() => {
+    if (!shiftsData) return []
+    const today = new Date().toISOString().split('T')[0]
+    const shiftsArray = Array.isArray(shiftsData) ? shiftsData : []
+    return shiftsArray
+      .filter((shift) => shift.date === today)
+      .slice(0, 5)
+      .map((shift) => ({
+        id: String(shift.id),
+        time: shift.start_time,
+        title: shift.title,
+        client: shift.client?.business_name ?? 'Unknown Client',
+        spots_total: shift.spots_total ?? 1,
+        spots_filled: shift.spots_filled ?? 0,
+        status: shift.spots_filled === shift.spots_total ? 'confirmed' : 'partial',
+        workers: shift.assigned_staff?.map((s) => s.staff?.full_name ?? 'Staff').slice(0, 2) ?? [],
+      }))
+  }, [shiftsData])
+
+  const unfilledShifts = useMemo(() => {
+    if (!shiftsData) return []
+    const shiftsArray = Array.isArray(shiftsData) ? shiftsData : []
+    return shiftsArray
+      .filter((shift) => (shift.spots_filled ?? 0) < (shift.spots_total ?? 1))
+      .slice(0, 5)
+      .map((shift) => ({
+        id: String(shift.id),
+        title: shift.title,
+        client: shift.client?.business_name ?? 'Unknown Client',
+        date: formatDate(shift.date),
+        spots_needed: (shift.spots_total ?? 1) - (shift.spots_filled ?? 0),
+      }))
+  }, [shiftsData])
 
   // Use API data or fallback to defaults
   const displayStats = stats ?? defaultStats
@@ -181,44 +172,58 @@ export function AgencyDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockTodaySchedule.map((shift) => (
-                <div
-                  key={shift.id}
-                  className="flex items-center gap-4 rounded-lg border p-3"
-                >
-                  <div className="text-center min-w-[50px]">
-                    <p className="font-semibold">{formatTime(shift.time)}</p>
+            {shiftsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
+            ) : todaySchedule.length === 0 ? (
+              <EmptyState
+                icon={Calendar}
+                title="No shifts today"
+                description="You don't have any shifts scheduled for today."
+              />
+            ) : (
+              <div className="space-y-3">
+                {todaySchedule.map((shift) => (
+                  <div
+                    key={shift.id}
+                    className="flex items-center gap-4 rounded-lg border p-3"
+                  >
+                    <div className="text-center min-w-[50px]">
+                      <p className="font-semibold">{formatTime(shift.time)}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {shift.title}
+                        {shift.spots_total && shift.spots_total > 1 && ` x${shift.spots_total}`}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {shift.client}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {shift.status === 'confirmed' ? (
+                        <>
+                          <span className="text-sm text-muted-foreground">
+                            {shift.workers.join(', ') || 'Assigned'}
+                          </span>
+                          <Check className="h-4 w-4 text-green-600" />
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm text-yellow-600">
+                            {shift.spots_filled}/{shift.spots_total} assigned
+                          </span>
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {shift.title}
-                      {shift.spots_total && shift.spots_total > 1 && ` x${shift.spots_total}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {shift.client}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {shift.status === 'confirmed' ? (
-                      <>
-                        <span className="text-sm text-muted-foreground">
-                          {shift.worker || (shift.workers && shift.workers.join(', '))}
-                        </span>
-                        <Check className="h-4 w-4 text-green-600" />
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sm text-yellow-600">
-                          {shift.spots_filled}/{shift.spots_total} assigned
-                        </span>
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -295,26 +300,38 @@ export function AgencyDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockUnfilledShifts.map((shift) => (
-                <div
-                  key={shift.id}
-                  className="flex items-center justify-between rounded-lg bg-white border p-3"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {shift.title} @ {shift.client}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {shift.date} - Need {shift.spots_needed} more
-                    </p>
+            {shiftsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
+            ) : unfilledShifts.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <Check className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <p className="text-sm">All shifts are fully staffed!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {unfilledShifts.map((shift) => (
+                  <div
+                    key={shift.id}
+                    className="flex items-center justify-between rounded-lg bg-white border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {shift.title} @ {shift.client}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {shift.date} - Need {shift.spots_needed} more
+                      </p>
+                    </div>
+                    <Link to={`/agency/shifts/${shift.id}/assign`}>
+                      <Button size="sm">Assign Staff</Button>
+                    </Link>
                   </div>
-                  <Link to={`/agency/shifts/${shift.id}/assign`}>
-                    <Button size="sm">Assign Staff</Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

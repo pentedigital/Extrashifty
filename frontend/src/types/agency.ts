@@ -1,12 +1,13 @@
 import type { StaffPublic } from './staff'
 import type { CompanyPublic } from './company'
-import type { Shift } from './shift'
+import type { Shift, ShiftStatus } from './shift'
+import type { ApplicationStatus } from './application'
 
 export type AgencyMode = 'staff_provider' | 'full_intermediary'
 
 export interface AgencyProfile {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   agency_name: string
   mode: AgencyMode
   logo_url?: string
@@ -28,7 +29,7 @@ export interface AgencyProfile {
 }
 
 export interface AgencyPublic {
-  id: string
+  id: number
   agency_name: string
   logo_url?: string
   city: string
@@ -40,9 +41,9 @@ export interface AgencyPublic {
 export type StaffMemberStatus = 'active' | 'inactive' | 'pending'
 
 export interface AgencyStaffMember {
-  id: string
-  agency_id: string
-  staff_id: string
+  id: number
+  agency_id: number
+  staff_id: number
   staff_user_id?: number
   status: StaffMemberStatus
   joined_at: string
@@ -61,9 +62,9 @@ export interface AgencyStaffMember {
 export type ClientStatus = 'active' | 'pending' | 'inactive'
 
 export interface AgencyClient {
-  id: string
-  agency_id: string
-  company_id?: string
+  id: number
+  agency_id: number
+  company_id?: number
   business_email: string
   status?: ClientStatus
   is_active?: boolean
@@ -80,10 +81,10 @@ export interface AgencyClient {
 export type AssignmentStatus = 'assigned' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled'
 
 export interface StaffAssignment {
-  id: string
-  shift_id: string
-  staff_member_id: string
-  agency_id: string
+  id: number
+  shift_id: number
+  staff_member_id: number
+  agency_id: number
   status: AssignmentStatus
   assigned_at: string
   confirmed_at?: string
@@ -96,9 +97,9 @@ export interface StaffAssignment {
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
 export interface Invoice {
-  id: string
-  agency_id: string
-  client_id: string
+  id: number
+  agency_id: number
+  client_id: number
   invoice_number: string
   status: InvoiceStatus
   amount: number
@@ -115,9 +116,9 @@ export interface Invoice {
 export type PayrollStatus = 'pending' | 'approved' | 'paid'
 
 export interface PayrollEntry {
-  id: string
-  agency_id: string
-  staff_member_id: string
+  id: number
+  agency_id: number
+  staff_member_id: number
   period_start: string
   period_end: string
   status: PayrollStatus
@@ -156,8 +157,8 @@ export interface AgencyOnboardingData {
 
 // Agency wallet for payments
 export interface AgencyWallet {
-  id: string
-  agency_id: string
+  id: number
+  agency_id: number
   balance: number
   currency: string
   pending_payouts: number
@@ -167,7 +168,7 @@ export interface AgencyWallet {
 }
 
 // Agency shift (shift posted by agency on behalf of client)
-export type ShiftStatus = 'draft' | 'open' | 'filled' | 'in_progress' | 'completed' | 'cancelled'
+// Note: ShiftStatus is imported from './shift'
 
 export interface AgencyShift {
   id: number
@@ -192,7 +193,7 @@ export interface AgencyShift {
 }
 
 // Agency application (application to agency-posted shift)
-export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+// Note: ApplicationStatus is imported from './application'
 
 export interface AgencyApplication {
   id: number

@@ -1,6 +1,6 @@
 export interface StaffProfile {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   display_name: string
   bio?: string
   avatar_url?: string
@@ -25,8 +25,8 @@ export interface StaffProfile {
 }
 
 export interface StaffPublic {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   display_name: string
   avatar_url?: string
   skills: string[]
@@ -73,8 +73,8 @@ export interface StaffOnboardingData {
 }
 
 export interface StaffWallet {
-  id: string
-  staff_id: string
+  id: number
+  staff_id: number
   balance: number
   currency: string
   pending_earnings: number
@@ -84,9 +84,9 @@ export interface StaffWallet {
 }
 
 export interface ClockRecord {
-  id: string
-  shift_id: string
-  staff_id: string
+  id: number
+  shift_id: number
+  staff_id: number
   clock_in?: string
   clock_out?: string
   total_hours?: number
@@ -97,10 +97,10 @@ export interface ClockRecord {
 
 // Rating from company to staff (two-way rating system)
 export interface StaffRating {
-  id: string
-  staff_id: string
-  company_id: string
-  shift_id: string
+  id: number
+  staff_id: number
+  company_id: number
+  shift_id: number
   rating: number
   comment?: string
   created_at: string

@@ -31,7 +31,7 @@ import { useToast } from '@/components/ui/toast'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { useShiftApplicants, useUpdateApplicationStatus } from '@/hooks/api/useApplicationsApi'
 import { useShift } from '@/hooks/api/useShiftsApi'
-import { useWalletBalance, useReserveFunds } from '@/hooks/api/usePaymentsApi'
+import { useCompanyWalletBalance, useReserveFunds } from '@/hooks/api/usePaymentsApi'
 import {
   InsufficientFundsModal,
   InsufficientFundsWarning,
@@ -51,7 +51,7 @@ function ShiftApplicantsPage() {
   // API hooks
   const { data: applicantsData, isLoading: isLoadingApplicants, error: applicantsError } = useShiftApplicants(shiftId)
   const { data: shiftData, isLoading: isLoadingShift } = useShift(shiftId)
-  const { data: walletData, isLoading: isLoadingWallet } = useWalletBalance()
+  const { data: walletData, isLoading: isLoadingWallet } = useCompanyWalletBalance()
   const updateStatus = useUpdateApplicationStatus()
   const reserveFunds = useReserveFunds()
 

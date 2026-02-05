@@ -1,37 +1,70 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, CheckCircle, Clock, BanknoteIcon } from 'lucide-react'
+import { Search, CheckCircle, Clock, BanknoteIcon, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
+import { useAdminPayouts, useAdminProcessPayout } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/payouts')({
   component: AdminPayoutsPage,
 })
-
-const mockPayouts = [
-  { id: '1', recipient: 'John Doe', type: 'worker', amount: 450, shifts: 4, period: 'Feb 1-7, 2026', status: 'pending', bankLast4: '4567' },
-  { id: '2', recipient: 'Sarah M.', type: 'worker', amount: 320, shifts: 3, period: 'Feb 1-7, 2026', status: 'pending', bankLast4: '8901' },
-  { id: '3', recipient: 'Dublin Staffing Solutions', type: 'agency', amount: 2450, shifts: 18, period: 'Feb 1-7, 2026', status: 'processing', bankLast4: '2345' },
-  { id: '4', recipient: 'Mike Wilson', type: 'worker', amount: 180, shifts: 2, period: 'Jan 25-31, 2026', status: 'completed', bankLast4: '6789' },
-  { id: '5', recipient: 'Cork Hospitality Services', type: 'agency', amount: 1890, shifts: 14, period: 'Jan 25-31, 2026', status: 'completed', bankLast4: '3456' },
-]
 
 function AdminPayoutsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const { addToast } = useToast()
 
-  const handleProcessPayout = (recipient: string, amount: number) => {
-    addToast({
-      type: 'success',
-      title: 'Payout initiated',
-      description: `Processing ${formatCurrency(amount)} payout to ${recipient}.`,
-    })
+  // Fetch payouts from API
+  const { data: payoutsData, isLoading, error } = useAdminPayouts({
+    search: searchQuery || undefined,
+    status: activeTab !== 'all' ? activeTab : undefined,
+  })
+  const processPayoutMutation = useAdminProcessPayout()
+
+  // Process payouts for display
+  const payouts = useMemo(() => {
+    if (!payoutsData?.items) return []
+    return payoutsData.items.map(payout => ({
+      id: String(payout.id),
+      recipient: payout.user_name || 'Unknown',
+      type: 'worker', // Would need additional data to determine
+      amount: payout.amount || 0,
+      shifts: 0, // Would need additional data
+      period: '', // Would need additional data
+      status: payout.status || 'pending',
+      bankLast4: payout.method?.slice(-4) || '****',
+    }))
+  }, [payoutsData])
+
+  // Filter payouts client-side
+  const filteredPayouts = payouts.filter(payout => {
+    const matchesSearch = searchQuery === '' ||
+      payout.recipient.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesTab = activeTab === 'all' || payout.status === activeTab
+    return matchesSearch && matchesTab
+  })
+
+  const handleProcessPayout = async (payoutId: string, recipient: string, amount: number) => {
+    try {
+      await processPayoutMutation.mutateAsync(parseInt(payoutId))
+      addToast({
+        type: 'success',
+        title: 'Payout initiated',
+        description: `Processing ${formatCurrency(amount)} payout to ${recipient}.`,
+      })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to process payout',
+        description: 'Please try again.',
+      })
+    }
   }
 
   const handleProcessAllPending = (totalAmount: number) => {
@@ -42,11 +75,34 @@ function AdminPayoutsPage() {
     })
   }
 
-  const filteredPayouts = mockPayouts.filter(payout => {
-    const matchesSearch = payout.recipient.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === 'all' || payout.status === activeTab
-    return matchesSearch && matchesTab
-  })
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Payouts</h1>
+            <p className="text-muted-foreground">Process worker and agency payouts</p>
+          </div>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load payouts"
+          description="There was an error loading payouts. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -58,7 +114,7 @@ function AdminPayoutsPage() {
     }
   }
 
-  const pendingTotal = mockPayouts
+  const pendingTotal = payouts
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + p.amount, 0)
 
@@ -128,7 +184,7 @@ function AdminPayoutsPage() {
                   {payout.status === 'pending' && (
                     <Button
                       size="sm"
-                      onClick={() => handleProcessPayout(payout.recipient, payout.amount)}
+                      onClick={() => handleProcessPayout(payout.id, payout.recipient, payout.amount)}
                     >
                       Process
                     </Button>

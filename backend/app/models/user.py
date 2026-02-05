@@ -18,6 +18,7 @@ class UserType(str, Enum):
     COMPANY = "company"
     AGENCY = "agency"
     ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
 
 
 class User(SQLModel, table=True):

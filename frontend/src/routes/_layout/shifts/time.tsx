@@ -1,53 +1,49 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Clock, Play, Square, CheckCircle, AlertCircle } from 'lucide-react'
+import { Clock, Play, Square, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { mockApi } from '@/lib/mockApi'
 import { formatDate } from '@/lib/utils'
+import { useClockRecords, useCurrentShiftStatus, useClockOut, useMyShifts } from '@/hooks/api/useShiftsApi'
 import type { ClockRecord } from '@/types/staff'
 
 export const Route = createFileRoute('/_layout/shifts/time')({
   component: TimeTrackingPage,
 })
 
-// Mock shift details for display purposes
-const mockShiftDetails: Record<string, { title: string; business_name: string }> = {
-  s1: { title: 'Bartender', business_name: 'The Brazen Head' },
-  s2: { title: 'Server', business_name: 'Restaurant XYZ' },
-  s3: { title: 'Line Cook', business_name: 'Hotel Dublin' },
-}
-
 function TimeTrackingPage() {
-  const [clockRecords, setClockRecords] = useState<ClockRecord[]>([])
-  const [currentShift, setCurrentShift] = useState<{
-    clocked_in: boolean
-    shift_id?: string
-    clock_record?: ClockRecord
-  } | null>(null)
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00')
-  const [loading, setLoading] = useState(true)
-  const [clockingOut, setClockingOut] = useState(false)
 
-  // Load data on mount
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [records, shift] = await Promise.all([
-          mockApi.time.getRecords(),
-          mockApi.time.getCurrentShift(),
-        ])
-        setClockRecords(records)
-        setCurrentShift(shift)
-      } catch {
-        // Error handled silently
-      } finally {
-        setLoading(false)
+  // Fetch clock records from API
+  const { data: recordsData, isLoading: isLoadingRecords } = useClockRecords()
+  const { data: currentShiftData, isLoading: isLoadingShift } = useCurrentShiftStatus()
+  const { data: shiftsData } = useMyShifts()
+  const clockOutMutation = useClockOut()
+
+  // Process clock records
+  const clockRecords = useMemo(() => {
+    if (!recordsData?.items) return []
+    return recordsData.items
+  }, [recordsData])
+
+  // Build a map of shift details from my shifts
+  const shiftDetailsMap = useMemo(() => {
+    const map: Record<string, { title: string; business_name: string }> = {}
+    if (shiftsData && Array.isArray(shiftsData)) {
+      for (const shift of shiftsData) {
+        map[String(shift.id)] = {
+          title: shift.title || 'Unknown Shift',
+          business_name: shift.company?.business_name || shift.company_name || 'Unknown Business',
+        }
       }
     }
-    loadData()
-  }, [])
+    return map
+  }, [shiftsData])
+
+  const currentShift = currentShiftData || { clocked_in: false }
+  const loading = isLoadingRecords || isLoadingShift
+  const clockingOut = clockOutMutation.isPending
 
   // Update elapsed time every second when clocked in
   useEffect(() => {
@@ -77,16 +73,11 @@ function TimeTrackingPage() {
   const handleClockOut = async () => {
     if (!currentShift?.shift_id) return
 
-    setClockingOut(true)
     try {
-      const record = await mockApi.time.clockOut(currentShift.shift_id)
-      setClockRecords((prev) => [record, ...prev])
-      setCurrentShift({ clocked_in: false })
+      await clockOutMutation.mutateAsync({ shift_id: parseInt(currentShift.shift_id) })
       setElapsedTime('00:00:00')
     } catch {
-      // Error handled silently
-    } finally {
-      setClockingOut(false)
+      // Error handled by mutation onError
     }
   }
 
@@ -157,7 +148,7 @@ function TimeTrackingPage() {
   }
 
   const getShiftDetails = (shiftId: string) => {
-    return mockShiftDetails[shiftId] || { title: 'Unknown Shift', business_name: 'Unknown Business' }
+    return shiftDetailsMap[shiftId] || { title: 'Unknown Shift', business_name: 'Unknown Business' }
   }
 
   if (loading) {

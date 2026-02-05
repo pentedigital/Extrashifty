@@ -1,68 +1,120 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Calendar, Search } from 'lucide-react'
+import { Calendar, Search, Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useMyShifts } from '@/hooks/api/useShiftsApi'
 
 export const Route = createFileRoute('/_layout/shifts/')({
   component: MyShiftsPage,
 })
 
-// TODO: Replace with actual API data from useMyShifts hook
-// Placeholder empty data structure until API integration is complete
-const mockShifts = {
-  upcoming: [] as Array<{
-    id: string
-    title: string
-    company_name: string
-    date: string
-    start_time: string
-    end_time: string
-    hourly_rate: number
-    total_pay: number
-    status: string
-  }>,
-  in_progress: [] as Array<{
-    id: string
-    title: string
-    company_name: string
-    date: string
-    start_time: string
-    end_time: string
-    hourly_rate: number
-    total_pay: number
-    status: string
-  }>,
-  completed: [] as Array<{
-    id: string
-    title: string
-    company_name: string
-    date: string
-    start_time: string
-    end_time: string
-    hourly_rate: number
-    total_pay: number
-    status: string
-  }>,
-  cancelled: [] as Array<{
-    id: string
-    title: string
-    company_name: string
-    date: string
-    start_time: string
-    end_time: string
-    hourly_rate: number
-    total_pay: number
-    status: string
-  }>,
+// Type for processed shift data
+interface ProcessedShift {
+  id: string
+  title: string
+  company_name: string
+  date: string
+  start_time: string
+  end_time: string
+  hourly_rate: number
+  total_pay: number
+  status: string
 }
 
 function MyShiftsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
+  const { data: shiftsData, isLoading, error } = useMyShifts()
+
+  // Process shifts data into categorized lists
+  const categorizedShifts = useMemo(() => {
+    const result: {
+      upcoming: ProcessedShift[]
+      in_progress: ProcessedShift[]
+      completed: ProcessedShift[]
+      cancelled: ProcessedShift[]
+    } = {
+      upcoming: [],
+      in_progress: [],
+      completed: [],
+      cancelled: [],
+    }
+
+    if (!shiftsData) return result
+
+    const shifts = Array.isArray(shiftsData) ? shiftsData : []
+
+    for (const shift of shifts) {
+      // Calculate total pay from hourly rate and hours
+      const startTime = shift.start_time || '00:00'
+      const endTime = shift.end_time || '00:00'
+      const startParts = startTime.split(':').map(Number)
+      const endParts = endTime.split(':').map(Number)
+      const startMinutes = (startParts[0] || 0) * 60 + (startParts[1] || 0)
+      let endMinutes = (endParts[0] || 0) * 60 + (endParts[1] || 0)
+      if (endMinutes < startMinutes) endMinutes += 24 * 60 // Handle overnight shifts
+      const hours = (endMinutes - startMinutes) / 60
+      const totalPay = hours * (shift.hourly_rate || 0)
+
+      const processedShift: ProcessedShift = {
+        id: String(shift.id),
+        title: shift.title || 'Untitled Shift',
+        company_name: shift.company?.business_name || shift.company_name || 'Unknown Company',
+        date: shift.date || '',
+        start_time: startTime,
+        end_time: endTime,
+        hourly_rate: shift.hourly_rate || 0,
+        total_pay: totalPay,
+        status: shift.status || 'upcoming',
+      }
+
+      // Categorize by status
+      const status = (shift.status || '').toLowerCase()
+      if (status === 'in_progress' || status === 'active') {
+        result.in_progress.push(processedShift)
+      } else if (status === 'completed' || status === 'finished') {
+        result.completed.push(processedShift)
+      } else if (status === 'cancelled') {
+        result.cancelled.push(processedShift)
+      } else {
+        // Default to upcoming for confirmed, scheduled, etc.
+        result.upcoming.push(processedShift)
+      }
+    }
+
+    return result
+  }, [shiftsData])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">My Shifts</h1>
+          <p className="text-muted-foreground">Track your upcoming and past shifts</p>
+        </div>
+        <EmptyState
+          icon={Calendar}
+          title="Unable to load shifts"
+          description="There was an error loading your shifts. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -79,7 +131,7 @@ function MyShiftsPage() {
     }
   }
 
-  const renderShiftList = (shifts: typeof mockShifts.upcoming) => {
+  const renderShiftList = (shifts: ProcessedShift[]) => {
     if (shifts.length === 0) {
       return (
         <EmptyState
@@ -182,30 +234,30 @@ function MyShiftsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="upcoming">
-            Upcoming ({mockShifts.upcoming.length})
+            Upcoming ({categorizedShifts.upcoming.length})
           </TabsTrigger>
           <TabsTrigger value="in_progress">
-            In Progress ({mockShifts.in_progress.length})
+            In Progress ({categorizedShifts.in_progress.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({mockShifts.completed.length})
+            Completed ({categorizedShifts.completed.length})
           </TabsTrigger>
           <TabsTrigger value="cancelled">
-            Cancelled ({mockShifts.cancelled.length})
+            Cancelled ({categorizedShifts.cancelled.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-6">
-          {renderShiftList(mockShifts.upcoming)}
+          {renderShiftList(categorizedShifts.upcoming)}
         </TabsContent>
         <TabsContent value="in_progress" className="mt-6">
-          {renderShiftList(mockShifts.in_progress)}
+          {renderShiftList(categorizedShifts.in_progress)}
         </TabsContent>
         <TabsContent value="completed" className="mt-6">
-          {renderShiftList(mockShifts.completed)}
+          {renderShiftList(categorizedShifts.completed)}
         </TabsContent>
         <TabsContent value="cancelled" className="mt-6">
-          {renderShiftList(mockShifts.cancelled)}
+          {renderShiftList(categorizedShifts.cancelled)}
         </TabsContent>
       </Tabs>
     </div>

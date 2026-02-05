@@ -502,6 +502,61 @@ export const api = {
       const query = params ? `?${new URLSearchParams(params)}` : ''
       return baseFetch<{ items: import('@/types/company').CompanyReview[]; total: number }>(`/company/reviews${query}`)
     },
+
+    getStats: () =>
+      baseFetch<import('@/types/company').CompanyStats>('/company/stats'),
+
+    // Preferred agencies management
+    getPreferredAgencies: () =>
+      baseFetch<{
+        items: Array<{
+          id: number
+          agency_id: number
+          agency_name: string
+          rating: number
+          staff_count: number
+          shifts_together: number
+          status: string
+          added_at: string
+        }>
+        total: number
+      }>('/company/preferred-agencies'),
+
+    addPreferredAgency: (agencyId: number) =>
+      baseFetch<{
+        id: number
+        agency_id: number
+        agency_name: string
+        status: string
+        message: string
+      }>('/company/preferred-agencies', {
+        method: 'POST',
+        body: JSON.stringify({ agency_id: agencyId }),
+      }),
+
+    removePreferredAgency: (agencyId: number) =>
+      baseFetch<void>(`/company/preferred-agencies/${agencyId}`, {
+        method: 'DELETE',
+      }),
+
+    // Browse available agencies
+    browseAgencies: (params?: { search?: string; skip?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams()
+      if (params?.search) searchParams.set('search', params.search)
+      if (params?.skip !== undefined) searchParams.set('skip', String(params.skip))
+      if (params?.limit !== undefined) searchParams.set('limit', String(params.limit))
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          name: string
+          rating: number
+          staff_count: number
+          description?: string
+        }>
+        total: number
+      }>(`/company/agencies/browse${query}`)
+    },
   },
 
   agency: {
@@ -1044,70 +1099,214 @@ export const api = {
   },
 
   payments: {
-    createPaymentIntent: (data: { amount: number }) =>
+    // Wallet balance endpoint (from payments router)
+    getWalletBalance: () =>
+      baseFetch<{
+        wallet_id: number
+        available: number
+        reserved: number
+        pending_payout: number
+        total: number
+        currency: string
+      }>('/payments/wallets/balance'),
+
+    // Top up wallet with card/bank payment (from payments router)
+    topupWallet: (data: { amount: number; payment_method_id: number; idempotency_key?: string }) =>
+      baseFetch<{
+        transaction_id: number
+        amount: number
+        new_balance: number
+        status: string
+        message: string
+      }>('/payments/wallets/topup', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    // Create a Stripe PaymentIntent for card payments
+    createPaymentIntent: (amount: number) =>
       baseFetch<{
         client_secret: string
+        payment_intent_id: string
         amount: number
         currency: string
       }>('/payments/create-intent', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ amount }),
       }),
 
-    processTopup: (data: { amount: number; payment_intent_id?: string }) =>
+    // Get auto-topup settings
+    getAutoTopupConfig: () =>
       baseFetch<{
-        transaction_id: number
-        amount: number
-        status: 'pending' | 'completed' | 'failed'
-        new_balance: number
-        message: string
-      }>('/payments/topup', {
-        method: 'POST',
-        body: JSON.stringify(data),
+        enabled: boolean
+        threshold: number | null
+        topup_amount: number | null
+        payment_method_id: number | null
+      }>('/payments/wallets/auto-topup/configure', {
+        method: 'GET',
       }),
 
+    // Configure auto-topup settings
     configureAutoTopup: (data: {
       enabled: boolean
-      threshold: number
-      amount: number
+      threshold?: number
+      topup_amount?: number
       payment_method_id?: number
     }) =>
       baseFetch<{
         enabled: boolean
-        threshold: number
-        amount: number
-        payment_method_id?: number
-      }>('/payments/auto-topup', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-
-    getAutoTopupConfig: () =>
-      baseFetch<{
-        enabled: boolean
-        threshold: number
-        amount: number
-        payment_method_id?: number
-      }>('/payments/auto-topup'),
-
-    reserveFunds: (data: { shift_id: number; amount: number }) =>
-      baseFetch<{
-        success: boolean
-        reserved_amount: number
-        new_available_balance: number
+        threshold: number | null
+        topup_amount: number | null
+        payment_method_id: number | null
         message: string
-      }>('/payments/reserve', {
+      }>('/payments/wallets/auto-topup/configure', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
 
-    getBankTransferInfo: () =>
+    // Reserve funds for accepting a worker (shift_id in URL)
+    reserveFunds: (shiftId: number, data?: { idempotency_key?: string }) =>
       baseFetch<{
-        account_name: string
-        iban: string
-        bic: string
-        bank_name: string
-        reference_prefix: string
-      }>('/payments/bank-transfer-info'),
+        hold_id: number
+        shift_id: number
+        amount_reserved: number
+        remaining_balance: number
+        expires_at: string
+        message: string
+      }>(`/payments/shifts/${shiftId}/reserve`, {
+        method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      }),
+
+    // Settle payment after shift completion
+    settleShift: (shiftId: number, actualHours: number) =>
+      baseFetch<{
+        shift_id: number
+        settlement_id: number
+        actual_hours: number
+        gross_amount: number
+        split: {
+          gross_amount: number
+          platform_fee: number
+          platform_fee_rate: number
+          worker_amount: number
+          agency_fee?: number
+        }
+        transactions: Array<{
+          transaction_id: number
+          type: string
+          amount: string
+          fee?: string
+          net_amount?: string
+        }>
+        message: string
+      }>(`/payments/shifts/${shiftId}/settle?actual_hours=${actualHours}`, {
+        method: 'POST',
+      }),
+
+    // Cancel shift and process refund/compensation
+    cancelShift: (shiftId: number, data: { cancelled_by: 'company' | 'worker' | 'platform'; reason?: string; idempotency_key?: string }) =>
+      baseFetch<{
+        shift_id: number
+        cancelled_by: string
+        policy_applied: string
+        refund_amount: number
+        worker_compensation: number
+        transactions: Array<{
+          transaction_id: number
+          type: string
+          amount: string
+        }>
+        message: string
+      }>(`/payments/shifts/${shiftId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    // Update minimum balance setting
+    updateMinimumBalance: (minimumBalance: number) =>
+      baseFetch<{
+        wallet_id: number
+        minimum_balance: number
+        available_balance: number
+        message: string
+      }>('/payments/wallets/minimum-balance', {
+        method: 'PATCH',
+        body: JSON.stringify({ minimum_balance: minimumBalance }),
+      }),
+
+    // Get wallet status (active, grace_period, suspended)
+    getWalletStatus: () =>
+      baseFetch<{
+        wallet_id: number
+        status: 'active' | 'grace_period' | 'suspended'
+        is_active: boolean
+        can_accept_shifts: boolean
+        grace_period_ends_at?: string
+        last_failed_topup_at?: string
+        suspension_reason?: string
+      }>('/payments/wallets/status'),
+
+    // Reactivate suspended wallet
+    reactivateWallet: (minimumBalance?: number) => {
+      const query = minimumBalance !== undefined ? `?minimum_balance=${minimumBalance}` : ''
+      return baseFetch<{
+        wallet_id: number
+        status: string
+        available_balance: string
+        message: string
+      }>(`/payments/wallets/reactivate${query}`, {
+        method: 'POST',
+      })
+    },
+
+    // Request instant payout (1.5% fee)
+    requestInstantPayout: (data?: { amount?: number; idempotency_key?: string }) =>
+      baseFetch<{
+        payout_id: number
+        amount: number
+        fee: number
+        net_amount: number
+        status: string
+        estimated_arrival: string | null
+        message: string
+      }>('/payments/payouts/request-instant', {
+        method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      }),
+
+    // Get payout schedule
+    getPayoutSchedule: () =>
+      baseFetch<{
+        next_payout_date: string | null
+        minimum_threshold: number
+        current_balance: number
+        scheduled_payouts: Array<{
+          scheduled_date: string
+          estimated_amount: number
+          status: string
+        }>
+      }>('/payments/payouts/schedule'),
+
+    // Get payout history
+    getPayoutHistory: (params?: { skip?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams()
+      if (params?.skip !== undefined) searchParams.set('skip', String(params.skip))
+      if (params?.limit !== undefined) searchParams.set('limit', String(params.limit))
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+      return baseFetch<{
+        items: Array<{
+          payout_id: number
+          amount: number
+          fee: number
+          net_amount: number
+          status: string
+          payout_type: string
+          created_at: string
+          completed_at: string | null
+        }>
+        total: number
+      }>(`/payments/payouts/history${query}`)
+    },
   },
 }

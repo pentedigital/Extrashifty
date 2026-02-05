@@ -1,65 +1,55 @@
 import { Link } from '@tanstack/react-router'
-import { Calendar, Users, Euro, Star, ArrowRight, Plus, AlertCircle, Wallet } from 'lucide-react'
+import { useMemo } from 'react'
+import { Calendar, Users, Euro, Star, ArrowRight, Plus, AlertCircle, Wallet, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
-
-// Mock data - would come from API
-const mockStats = {
-  active_shifts: 5,
-  pending_applications: 12,
-  total_spent: 2850,
-  average_rating: 4.8,
-  wallet_balance: 1500,
-}
-
-const mockShiftsNeedingAttention = [
-  {
-    id: '1',
-    title: 'Bartender',
-    date: '2026-02-07',
-    start_time: '18:00',
-    applicants: 3,
-    spots_filled: 0,
-    spots_total: 1,
-  },
-  {
-    id: '2',
-    title: 'Server',
-    date: '2026-02-08',
-    start_time: '12:00',
-    applicants: 0,
-    spots_filled: 0,
-    spots_total: 2,
-  },
-]
-
-const mockUpcomingShifts = [
-  {
-    id: '3',
-    title: 'Bartender',
-    date: '2026-02-06',
-    start_time: '18:00',
-    worker_name: 'John D.',
-    spots_filled: 1,
-    spots_total: 1,
-    status: 'filled',
-  },
-  {
-    id: '4',
-    title: 'Server',
-    date: '2026-02-07',
-    start_time: '12:00',
-    worker_name: null,
-    spots_filled: 1,
-    spots_total: 2,
-    status: 'partial',
-  },
-]
+import { useCompanyStats, useCompanyShifts, useCompanyWallet } from '@/hooks/api/useCompanyApi'
 
 export function CompanyDashboard() {
+  // Fetch real data from API
+  const { data: stats, isLoading: statsLoading, error: statsError } = useCompanyStats()
+  const { data: shiftsData, isLoading: shiftsLoading } = useCompanyShifts({ status: 'open' })
+  const { data: wallet, isLoading: walletLoading } = useCompanyWallet()
+
+  // Process shifts for attention-needing and upcoming
+  const shiftsNeedingAttention = useMemo(() => {
+    if (!shiftsData?.items) return []
+    return shiftsData.items
+      .filter((shift) => shift.spots_filled < shift.spots_total)
+      .slice(0, 5)
+      .map((shift) => ({
+        id: String(shift.id),
+        title: shift.title,
+        date: shift.date,
+        start_time: shift.start_time,
+        applicants: shift.applications_count ?? 0,
+        spots_filled: shift.spots_filled,
+        spots_total: shift.spots_total,
+      }))
+  }, [shiftsData])
+
+  const upcomingShifts = useMemo(() => {
+    if (!shiftsData?.items) return []
+    const today = new Date().toISOString().split('T')[0]
+    return shiftsData.items
+      .filter((shift) => shift.date >= today && shift.spots_filled > 0)
+      .slice(0, 5)
+      .map((shift) => ({
+        id: String(shift.id),
+        title: shift.title,
+        date: shift.date,
+        start_time: shift.start_time,
+        worker_name: shift.assigned_workers?.[0]?.full_name ?? null,
+        spots_filled: shift.spots_filled,
+        spots_total: shift.spots_total,
+        status: shift.spots_filled === shift.spots_total ? 'filled' : 'partial',
+      }))
+  }, [shiftsData])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,35 +70,54 @@ export function CompanyDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard
-          title="Active Shifts"
-          value={mockStats.active_shifts}
-          icon={Calendar}
-        />
-        <StatCard
-          title="Pending Applications"
-          value={mockStats.pending_applications}
-          icon={Users}
-        />
-        <StatCard
-          title="Spent This Month"
-          value={formatCurrency(mockStats.total_spent)}
-          icon={Euro}
-        />
-        <StatCard
-          title="Wallet Balance"
-          value={formatCurrency(mockStats.wallet_balance)}
-          icon={Wallet}
-        />
-        <StatCard
-          title="Company Rating"
-          value={mockStats.average_rating.toFixed(1)}
-          icon={Star}
-        />
+        {statsLoading ? (
+          <>
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+          </>
+        ) : statsError ? (
+          <Card className="col-span-full">
+            <CardContent className="flex items-center gap-2 py-4 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>Failed to load stats. Please try again.</span>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <StatCard
+              title="Active Shifts"
+              value={stats?.active_shifts ?? 0}
+              icon={Calendar}
+            />
+            <StatCard
+              title="Pending Applications"
+              value={stats?.pending_applications ?? 0}
+              icon={Users}
+            />
+            <StatCard
+              title="Spent This Month"
+              value={formatCurrency(stats?.total_spent ?? 0)}
+              icon={Euro}
+            />
+            <StatCard
+              title="Wallet Balance"
+              value={walletLoading ? '-' : formatCurrency(wallet?.balance ?? 0)}
+              icon={Wallet}
+            />
+            <StatCard
+              title="Company Rating"
+              value={stats?.average_rating ? stats.average_rating.toFixed(1) : 'N/A'}
+              icon={Star}
+            />
+          </>
+        )}
       </div>
 
       {/* Shifts Needing Attention */}
-      {mockShiftsNeedingAttention.length > 0 && (
+      {shiftsLoading ? (
         <Card className="border-yellow-200 bg-yellow-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-yellow-800">
@@ -118,7 +127,22 @@ export function CompanyDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockShiftsNeedingAttention.map((shift) => (
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+            </div>
+          </CardContent>
+        </Card>
+      ) : shiftsNeedingAttention.length > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-800">
+              <AlertCircle className="h-5 w-5" />
+              Shifts Needing Attention
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {shiftsNeedingAttention.map((shift) => (
                 <div
                   key={shift.id}
                   className="flex items-center justify-between rounded-lg bg-white border p-4"
@@ -157,9 +181,14 @@ export function CompanyDashboard() {
           </Link>
         </CardHeader>
         <CardContent>
-          {mockUpcomingShifts.length > 0 ? (
+          {shiftsLoading ? (
             <div className="space-y-4">
-              {mockUpcomingShifts.map((shift) => (
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : upcomingShifts.length > 0 ? (
+            <div className="space-y-4">
+              {upcomingShifts.map((shift) => (
                 <div
                   key={shift.id}
                   className="flex items-center justify-between rounded-lg border p-4"

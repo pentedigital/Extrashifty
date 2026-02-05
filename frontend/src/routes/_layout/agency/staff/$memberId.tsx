@@ -1,91 +1,144 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Star, Calendar, Clock, Phone, Mail, CheckCircle, Shield } from 'lucide-react'
+import { ArrowLeft, Star, Calendar, Clock, Phone, Mail, CheckCircle, Shield, Loader2 } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { useToast } from '@/components/ui/toast'
+import { useAgencyStaffMember, useUpdateStaffAvailability, useRemoveStaff } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/staff/$memberId')({
   component: StaffMemberDetailsPage,
 })
 
-const mockStaffMember = {
-  id: '1',
-  name: 'John Doe',
-  email: 'john.doe@email.com',
-  phone: '+353 87 123 4567',
-  avatar: null,
-  skills: ['Bartending', 'Cocktails', 'Wine Service', 'Customer Service', 'POS Systems'],
-  rating: 4.9,
-  reviewCount: 32,
-  shiftsCompleted: 48,
-  hoursWorked: 384,
-  earnings: 6912,
-  joinedAgency: '2025-06-15',
-  status: 'active',
-  isAvailable: true,
+// Type for display data
+interface StaffMemberDisplay {
+  id: string
+  name: string
+  email: string
+  phone: string
+  avatar: string | null
+  skills: string[]
+  rating: number
+  reviewCount: number
+  shiftsCompleted: number
+  hoursWorked: number
+  earnings: number
+  joinedAgency: string
+  status: string
+  isAvailable: boolean
   verifications: {
-    idVerified: true,
-    backgroundCheck: true,
-    rightToWork: true,
-  },
-  upcomingShifts: [
-    {
-      id: '1',
-      title: 'Bartender',
-      client: 'Hotel ABC',
-      date: '2026-02-05',
-      startTime: '18:00',
-      endTime: '00:00',
-      hourlyRate: 18,
-      location: 'Temple Bar, Dublin 2',
-    },
-    {
-      id: '2',
-      title: 'Bartender',
-      client: 'The Local Pub',
-      date: '2026-02-07',
-      startTime: '20:00',
-      endTime: '02:00',
-      hourlyRate: 18,
-      location: 'The Local, Dublin 4',
-    },
-  ],
-  recentShifts: [
-    {
-      id: '3',
-      title: 'Bartender',
-      client: 'The Local Pub',
-      date: '2026-02-03',
-      startTime: '18:00',
-      endTime: '02:00',
-      hourlyRate: 18,
-      location: 'The Local, Dublin 4',
-      rating: 5,
-    },
-    {
-      id: '4',
-      title: 'Server',
-      client: 'Café Central',
-      date: '2026-02-01',
-      startTime: '09:00',
-      endTime: '17:00',
-      hourlyRate: 15,
-      location: 'Grafton Street, Dublin 2',
-      rating: 5,
-    },
-  ],
+    idVerified: boolean
+    backgroundCheck: boolean
+    rightToWork: boolean
+  }
+  upcomingShifts: Array<{
+    id: string
+    title: string
+    client: string
+    date: string
+    startTime: string
+    endTime: string
+    hourlyRate: number
+    location: string
+  }>
+  recentShifts: Array<{
+    id: string
+    title: string
+    client: string
+    date: string
+    startTime: string
+    endTime: string
+    hourlyRate: number
+    location: string
+    rating: number
+  }>
 }
 
 function StaffMemberDetailsPage() {
   const { memberId } = Route.useParams()
   const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('overview')
-  const staff = mockStaffMember
+
+  // Fetch staff member data
+  const { data: staffData, isLoading, error } = useAgencyStaffMember(memberId || '')
+  const updateAvailabilityMutation = useUpdateStaffAvailability()
+  const removeStaffMutation = useRemoveStaff()
+
+  // Process staff data for display
+  const staff: StaffMemberDisplay = useMemo(() => {
+    if (!staffData) {
+      return {
+        id: '',
+        name: '',
+        email: '',
+        phone: '',
+        avatar: null,
+        skills: [],
+        rating: 0,
+        reviewCount: 0,
+        shiftsCompleted: 0,
+        hoursWorked: 0,
+        earnings: 0,
+        joinedAgency: '',
+        status: 'active',
+        isAvailable: false,
+        verifications: {
+          idVerified: false,
+          backgroundCheck: false,
+          rightToWork: false,
+        },
+        upcomingShifts: [],
+        recentShifts: [],
+      }
+    }
+
+    return {
+      id: String(staffData.id),
+      name: staffData.staff?.display_name || staffData.name || 'Unknown',
+      email: staffData.staff?.email || staffData.email || '',
+      phone: staffData.staff?.phone || staffData.phone || '',
+      avatar: staffData.staff?.avatar_url || null,
+      skills: staffData.skills || staffData.staff?.skills || [],
+      rating: staffData.average_rating || staffData.staff?.average_rating || 0,
+      reviewCount: staffData.review_count || 0,
+      shiftsCompleted: staffData.shifts_completed || 0,
+      hoursWorked: staffData.total_hours || 0,
+      earnings: staffData.total_earnings || 0,
+      joinedAgency: staffData.joined_at || staffData.created_at || '',
+      status: staffData.status || 'active',
+      isAvailable: staffData.is_available ?? true,
+      verifications: {
+        idVerified: staffData.staff?.is_verified ?? false,
+        backgroundCheck: staffData.staff?.background_checked ?? false,
+        rightToWork: staffData.staff?.right_to_work_verified ?? false,
+      },
+      upcomingShifts: (staffData.upcoming_shifts || []).map((s: Record<string, unknown>) => ({
+        id: String(s.id),
+        title: (s.title as string) || '',
+        client: (s.client_name as string) || (s.client as { name?: string })?.name || '',
+        date: (s.date as string) || '',
+        startTime: (s.start_time as string) || '',
+        endTime: (s.end_time as string) || '',
+        hourlyRate: (s.hourly_rate as number) || 0,
+        location: (s.location as string) || '',
+      })),
+      recentShifts: (staffData.recent_shifts || []).map((s: Record<string, unknown>) => ({
+        id: String(s.id),
+        title: (s.title as string) || '',
+        client: (s.client_name as string) || (s.client as { name?: string })?.name || '',
+        date: (s.date as string) || '',
+        startTime: (s.start_time as string) || '',
+        endTime: (s.end_time as string) || '',
+        hourlyRate: (s.hourly_rate as number) || 0,
+        location: (s.location as string) || '',
+        rating: (s.rating as number) || 0,
+      })),
+    }
+  }, [staffData])
 
   // Guard against missing memberId
   if (!memberId) {
@@ -97,20 +150,65 @@ function StaffMemberDetailsPage() {
     )
   }
 
-  const handleToggleAvailability = () => {
-    addToast({
-      type: 'success',
-      title: staff.isAvailable ? 'Marked as unavailable' : 'Marked as available',
-      description: `${staff.name} is now ${staff.isAvailable ? 'unavailable' : 'available'} for shifts.`,
-    })
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
-  const handleRemoveFromAgency = () => {
-    addToast({
-      type: 'info',
-      title: 'Staff member removed',
-      description: `${staff.name} has been removed from your agency.`,
-    })
+  if (error || !staffData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to="/agency/staff">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Staff member not found</h1>
+        </div>
+        <p className="text-muted-foreground">The requested staff member could not be found.</p>
+      </div>
+    )
+  }
+
+  const handleToggleAvailability = async () => {
+    try {
+      await updateAvailabilityMutation.mutateAsync({
+        staffId: memberId,
+        data: { is_available: !staff.isAvailable },
+      })
+      addToast({
+        type: 'success',
+        title: staff.isAvailable ? 'Marked as unavailable' : 'Marked as available',
+        description: `${staff.name} is now ${staff.isAvailable ? 'unavailable' : 'available'} for shifts.`,
+      })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to update availability',
+        description: 'Please try again.',
+      })
+    }
+  }
+
+  const handleRemoveFromAgency = async () => {
+    try {
+      await removeStaffMutation.mutateAsync(memberId)
+      addToast({
+        type: 'info',
+        title: 'Staff member removed',
+        description: `${staff.name} has been removed from your agency.`,
+      })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to remove staff member',
+        description: 'Please try again.',
+      })
+    }
   }
 
   return (

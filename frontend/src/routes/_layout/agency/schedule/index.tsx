@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Plus, Users, AlertCircle, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Users, AlertCircle, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatTime } from '@/lib/utils'
+import { useAgencySchedule } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/schedule/')({
   component: SchedulePage,
@@ -23,15 +24,33 @@ type ScheduleEntry = {
   status: string
 }
 
-// TODO: Replace with actual API data from useAgencySchedule hook
-// Placeholder empty data structure until API integration is complete
-const mockSchedule: Record<string, ScheduleEntry[]> = {}
-
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function SchedulePage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 4)) // Feb 4, 2026
-  // View state removed - currently only week view is implemented
+  const [currentDate, setCurrentDate] = useState(new Date()) // Use current date
+
+  // Calculate week date range for the API query
+  const weekDateRange = useMemo(() => {
+    const startOfWeek = new Date(currentDate)
+    const day = startOfWeek.getDay()
+    startOfWeek.setDate(startOfWeek.getDate() - day)
+    startOfWeek.setHours(0, 0, 0, 0)
+
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(endOfWeek.getDate() + 6)
+    endOfWeek.setHours(23, 59, 59, 999)
+
+    return {
+      start_date: startOfWeek.toISOString().split('T')[0],
+      end_date: endOfWeek.toISOString().split('T')[0],
+    }
+  }, [currentDate])
+
+  // Fetch schedule data from API
+  const { data: scheduleData, isLoading } = useAgencySchedule(weekDateRange)
+
+  // The schedule data is already in the correct format from the hook
+  const schedule: Record<string, ScheduleEntry[]> = scheduleData || {}
 
   const getWeekDates = () => {
     const startOfWeek = new Date(currentDate)
@@ -53,7 +72,7 @@ function SchedulePage() {
 
   const getShiftsForDate = (date: Date) => {
     const key = formatDateKey(date)
-    return mockSchedule[key as keyof typeof mockSchedule] || []
+    return schedule[key] || []
   }
 
   const navigateWeek = (direction: number) => {
@@ -63,7 +82,7 @@ function SchedulePage() {
   }
 
   const isToday = (date: Date) => {
-    const today = new Date(2026, 1, 4) // Simulated today
+    const today = new Date()
     return formatDateKey(date) === formatDateKey(today)
   }
 
@@ -111,14 +130,21 @@ function SchedulePage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => setCurrentDate(new Date(2026, 1, 4))}
+          onClick={() => setCurrentDate(new Date())}
         >
           Today
         </Button>
       </div>
 
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
       {/* Week Calendar - Desktop */}
-      <Card className="hidden md:block">
+      <Card className={cn("hidden md:block", isLoading && "opacity-50")}>
         <CardContent className="p-0">
           <div className="grid grid-cols-7 border-b">
             {weekDates.map((date, idx) => (

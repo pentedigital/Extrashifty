@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState, useMemo } from 'react'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -7,16 +7,17 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Plus, Search, Calendar, MapPin, Clock, Euro, Users, Building2 } from 'lucide-react'
+import { Plus, Search, Calendar, MapPin, Clock, Euro, Users, Building2, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useAgencyShifts } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/shifts/')({
   component: AgencyShiftsPage,
 })
 
 // Shift type definition for agency shifts
-type AgencyShift = {
+type AgencyShiftDisplay = {
   id: string
   title: string
   client: { id: string; name: string }
@@ -31,37 +32,103 @@ type AgencyShift = {
   assignedStaff: Array<{ id: string; name: string }>
 }
 
-// TODO: Replace with actual API data from useAgencyShifts hook
-// Placeholder empty data structure until API integration is complete
-const mockShifts: {
-  upcoming: AgencyShift[]
-  inProgress: AgencyShift[]
-  completed: AgencyShift[]
-} = {
-  upcoming: [],
-  inProgress: [],
-  completed: [],
-}
-
 function AgencyShiftsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+  const navigate = useNavigate()
+  const { data: shiftsData, isLoading, error } = useAgencyShifts()
 
-  const handleAssignStaff = (shiftTitle: string, spotsNeeded: number) => {
-    addToast({
-      type: 'info',
-      title: 'Assign staff',
-      description: `Opening staff assignment for ${shiftTitle}. ${spotsNeeded} position(s) to fill.`,
-    })
+  // Process shifts into categorized lists
+  const categorizedShifts = useMemo(() => {
+    const result: {
+      upcoming: AgencyShiftDisplay[]
+      inProgress: AgencyShiftDisplay[]
+      completed: AgencyShiftDisplay[]
+    } = {
+      upcoming: [],
+      inProgress: [],
+      completed: [],
+    }
+
+    if (!shiftsData) return result
+
+    const shifts = Array.isArray(shiftsData) ? shiftsData : []
+
+    for (const shift of shifts) {
+      const spotsFilled = shift.spots_filled ?? shift.assigned_staff?.length ?? 0
+      const spotsTotal = shift.spots_total ?? 1
+
+      const processedShift: AgencyShiftDisplay = {
+        id: String(shift.id),
+        title: shift.title || 'Untitled Shift',
+        client: {
+          id: String(shift.client_id || shift.client?.id || ''),
+          name: shift.client?.business_name || shift.client?.name || 'Unknown Client',
+        },
+        date: shift.date || '',
+        startTime: shift.start_time || '',
+        endTime: shift.end_time || '',
+        hourlyRate: shift.hourly_rate || 0,
+        location: shift.location || '',
+        spotsTotal,
+        spotsFilled,
+        status: spotsFilled >= spotsTotal ? 'filled' : 'open',
+        assignedStaff: (shift.assigned_staff || []).map((s: { id?: string | number; name?: string; staff?: { display_name?: string } }) => ({
+          id: String(s.id || ''),
+          name: s.name || s.staff?.display_name || 'Unknown',
+        })),
+      }
+
+      // Categorize by status
+      const status = (shift.status || '').toLowerCase()
+      if (status === 'in_progress' || status === 'active') {
+        result.inProgress.push(processedShift)
+      } else if (status === 'completed' || status === 'finished') {
+        result.completed.push(processedShift)
+      } else {
+        result.upcoming.push(processedShift)
+      }
+    }
+
+    return result
+  }, [shiftsData])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
-  const handleViewDetails = (shiftTitle: string, clientName: string) => {
-    addToast({
-      type: 'info',
-      title: 'Shift details',
-      description: `Loading details for ${shiftTitle} at ${clientName}.`,
-    })
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Agency Shifts</h1>
+          <p className="text-muted-foreground">Manage all shifts for your clients</p>
+        </div>
+        <EmptyState
+          icon={Calendar}
+          title="Unable to load shifts"
+          description="There was an error loading shifts. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  const handleAssignStaff = (shiftId: string) => {
+    // Navigate to staff assignment page
+    navigate({ to: `/agency/shifts/${shiftId}/assign` })
+  }
+
+  const handleViewDetails = (shiftId: string) => {
+    // Navigate to shift details page
+    navigate({ to: `/agency/shifts/${shiftId}` })
   }
 
   const getStatusBadge = (status: string, spotsFilled: number, spotsTotal: number) => {
@@ -79,7 +146,7 @@ function AgencyShiftsPage() {
     }
   }
 
-  const filteredShifts = (shifts: typeof mockShifts.upcoming) => {
+  const filteredShifts = (shifts: AgencyShiftDisplay[]) => {
     if (!searchQuery) return shifts
     const query = searchQuery.toLowerCase()
     return shifts.filter(
@@ -90,7 +157,7 @@ function AgencyShiftsPage() {
     )
   }
 
-  const renderShiftList = (shifts: typeof mockShifts.upcoming) => {
+  const renderShiftList = (shifts: AgencyShiftDisplay[]) => {
     const filtered = filteredShifts(shifts)
 
     if (filtered.length === 0) {
@@ -178,7 +245,7 @@ function AgencyShiftsPage() {
                   {shift.status === 'open' && (
                     <Button
                       size="sm"
-                      onClick={() => handleAssignStaff(shift.title, shift.spotsTotal - shift.spotsFilled)}
+                      onClick={() => handleAssignStaff(shift.id)}
                     >
                       Assign Staff
                     </Button>
@@ -186,7 +253,7 @@ function AgencyShiftsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleViewDetails(shift.title, shift.client.name)}
+                    onClick={() => handleViewDetails(shift.id)}
                   >
                     View Details
                   </Button>
@@ -230,24 +297,24 @@ function AgencyShiftsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="upcoming">
-            Upcoming ({mockShifts.upcoming.length})
+            Upcoming ({categorizedShifts.upcoming.length})
           </TabsTrigger>
           <TabsTrigger value="inProgress">
-            In Progress ({mockShifts.inProgress.length})
+            In Progress ({categorizedShifts.inProgress.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({mockShifts.completed.length})
+            Completed ({categorizedShifts.completed.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-6">
-          {renderShiftList(mockShifts.upcoming)}
+          {renderShiftList(categorizedShifts.upcoming)}
         </TabsContent>
         <TabsContent value="inProgress" className="mt-6">
-          {renderShiftList(mockShifts.inProgress)}
+          {renderShiftList(categorizedShifts.inProgress)}
         </TabsContent>
         <TabsContent value="completed" className="mt-6">
-          {renderShiftList(mockShifts.completed)}
+          {renderShiftList(categorizedShifts.completed)}
         </TabsContent>
       </Tabs>
     </div>

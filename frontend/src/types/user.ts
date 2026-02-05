@@ -1,7 +1,7 @@
 export type UserType = 'staff' | 'company' | 'agency' | 'admin' | 'super_admin'
 
 export interface User {
-  id: string
+  id: number
   email: string
   full_name: string
   user_type: UserType

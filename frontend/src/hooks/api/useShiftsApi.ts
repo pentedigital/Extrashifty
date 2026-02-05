@@ -152,7 +152,9 @@ export function useApplyToShift() {
 }
 
 /**
- * Hook to fetch current user's shifts
+ * Hook to fetch current user's shifts (staff)
+ * Note: This is kept for backward compatibility.
+ * For staff-specific shifts, prefer importing from useStaffApi.ts
  * Returns array of ShiftRead
  */
 export function useMyShifts(params?: Record<string, string>) {
@@ -160,5 +162,75 @@ export function useMyShifts(params?: Record<string, string>) {
     queryKey: [...shiftKeys.all, 'my-shifts', params] as const,
     queryFn: () => apiClient.shifts.getMyShifts(params),
     staleTime: 1000 * 60 * 2, // 2 minutes
+  })
+}
+
+/**
+ * Hook to fetch time tracking records
+ */
+export function useClockRecords(params?: Record<string, string>) {
+  return useQuery({
+    queryKey: [...shiftKeys.all, 'clock-records', params] as const,
+    queryFn: () => api.staff.getClockRecords(params),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  })
+}
+
+/**
+ * Hook to get current shift status (is user clocked in?)
+ */
+export function useCurrentShiftStatus() {
+  return useQuery({
+    queryKey: [...shiftKeys.all, 'current-shift-status'] as const,
+    queryFn: async () => {
+      // Check if there's an active clock-in by looking at recent records
+      const records = await api.staff.getClockRecords({ limit: '1', status: 'clocked_in' })
+      if (records.items && records.items.length > 0) {
+        const activeRecord = records.items[0]
+        return {
+          clocked_in: true,
+          shift_id: String(activeRecord.shift_id),
+          clock_record: activeRecord,
+        }
+      }
+      return { clocked_in: false }
+    },
+    staleTime: 1000 * 30, // 30 seconds - more frequent updates for time tracking
+  })
+}
+
+/**
+ * Hook to clock in to a shift
+ */
+export function useClockIn() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { shift_id: number; notes?: string }) => api.staff.clockIn(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'clock-records'] })
+      queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'current-shift-status'] })
+    },
+    onError: (error) => {
+      console.error('Clock in failed:', error)
+    },
+  })
+}
+
+/**
+ * Hook to clock out from a shift
+ */
+export function useClockOut() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: { shift_id: number; notes?: string }) => api.staff.clockOut(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'clock-records'] })
+      queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'current-shift-status'] })
+    },
+    onError: (error) => {
+      console.error('Clock out failed:', error)
+    },
   })
 }

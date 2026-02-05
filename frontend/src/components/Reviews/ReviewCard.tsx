@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { Calendar, Briefcase } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatReviewDate } from '@/lib/utils'
 import type { Review } from '@/hooks/api/useReviewsApi'
 
 export interface ReviewCardProps {
@@ -11,18 +11,6 @@ export interface ReviewCardProps {
   showShiftInfo?: boolean
   /** Additional CSS classes */
   className?: string
-}
-
-/**
- * Formats a date string to a human-readable format
- */
-function formatReviewDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-IE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 /**

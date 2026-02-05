@@ -1,6 +1,7 @@
-import { Building, CreditCard, Check, Clock, AlertCircle, ArrowRight } from 'lucide-react'
+import { Building, CreditCard } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatReviewDate } from '@/lib/utils'
+import { getPayoutStatusBadge } from '@/lib/badgeUtils'
 import type { PayoutStatus } from '@/hooks/api/usePaymentsApi'
 
 interface PayoutCardProps {
@@ -27,48 +28,7 @@ export function PayoutCard({
   currency = 'EUR',
   onClick,
 }: PayoutCardProps) {
-  const getStatusBadge = () => {
-    switch (status) {
-      case 'paid':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Paid
-          </Badge>
-        )
-      case 'in_transit':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <ArrowRight className="h-3 w-3" />
-            In Transit
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="default" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Intl.DateTimeFormat('en-IE', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(new Date(dateString))
-  }
+  const badgeConfig = getPayoutStatusBadge(status)
 
   const getMethodIcon = () => {
     if (method === 'bank_account') {
@@ -91,21 +51,21 @@ export function PayoutCard({
             {method === 'bank_account' ? 'Bank Transfer' : 'Card Transfer'}
           </p>
           <p className="text-sm text-muted-foreground">
-            ****{methodLastFour} - {formatDate(createdAt)}
+            ****{methodLastFour} - {formatReviewDate(createdAt)}
           </p>
           {status === 'failed' && failureReason && (
             <p className="text-xs text-destructive mt-1">{failureReason}</p>
           )}
           {status === 'paid' && completedAt && (
             <p className="text-xs text-muted-foreground mt-1">
-              Completed {formatDate(completedAt)}
+              Completed {formatReviewDate(completedAt)}
             </p>
           )}
         </div>
       </div>
       <div className="flex items-center gap-4">
         <span className="font-semibold">{formatCurrency(amount, currency)}</span>
-        {getStatusBadge()}
+        <Badge variant={badgeConfig.variant}>{badgeConfig.label}</Badge>
       </div>
     </div>
   )

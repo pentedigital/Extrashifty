@@ -1,21 +1,18 @@
+import { useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, TrendingUp, Users, Calendar, DollarSign } from 'lucide-react'
+import { Download, TrendingUp, Users, Calendar, DollarSign, Loader2, Search } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { useAdminReports } from '@/hooks/api/useAdminApi'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const Route = createFileRoute('/_layout/admin/reports')({
   component: ReportsPage,
 })
 
-const mockReportData = {
-  revenue: { current: 48520, previous: 42100, change: 15.2 },
-  users: { current: 5247, previous: 4890, change: 7.3 },
-  shifts: { current: 1247, previous: 1102, change: 13.2 },
-  fillRate: { current: 94, previous: 91, change: 3.3 },
-}
-
-const mockReports = [
+// Static report templates that can be generated
+const reportTemplates = [
   { id: '1', name: 'Monthly Revenue Report', description: 'Detailed breakdown of platform revenue', period: 'January 2026', type: 'revenue' },
   { id: '2', name: 'User Growth Report', description: 'New registrations and user activity', period: 'January 2026', type: 'users' },
   { id: '3', name: 'Shift Analytics', description: 'Shift posting, fill rates, and trends', period: 'January 2026', type: 'shifts' },
@@ -23,6 +20,62 @@ const mockReports = [
 ]
 
 function ReportsPage() {
+  // Fetch reports data from API
+  const { data: reportsData, isLoading, error } = useAdminReports()
+
+  // Process report summary data
+  const reportSummary = useMemo(() => {
+    const summary = reportsData?.summary || {}
+    return {
+      revenue: {
+        current: summary.total_revenue || 0,
+        previous: summary.previous_revenue || 0,
+        change: summary.revenue_change || 0
+      },
+      users: {
+        current: summary.total_users || 0,
+        previous: summary.previous_users || 0,
+        change: summary.users_change || 0
+      },
+      shifts: {
+        current: summary.total_shifts || 0,
+        previous: summary.previous_shifts || 0,
+        change: summary.shifts_change || 0
+      },
+      fillRate: {
+        current: summary.fill_rate || 0,
+        previous: summary.previous_fill_rate || 0,
+        change: summary.fill_rate_change || 0
+      },
+    }
+  }, [reportsData])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Reports</h1>
+          <p className="text-muted-foreground">Platform analytics and insights</p>
+        </div>
+        <EmptyState
+          icon={Search}
+          title="Unable to load reports"
+          description="There was an error loading reports. Please try again later."
+          action={
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          }
+        />
+      </div>
+    )
+  }
   return (
     <div className="space-y-6">
       <div>
@@ -40,10 +93,10 @@ function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(mockReportData.revenue.current)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(reportSummary.revenue.current)}</p>
             <p className="text-xs text-green-600 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
-              +{mockReportData.revenue.change}% vs last month
+              +{reportSummary.revenue.change}% vs last month
             </p>
           </CardContent>
         </Card>
@@ -55,10 +108,10 @@ function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{mockReportData.users.current.toLocaleString()}</p>
+            <p className="text-2xl font-bold">{reportSummary.users.current.toLocaleString()}</p>
             <p className="text-xs text-green-600 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
-              +{mockReportData.users.change}% vs last month
+              +{reportSummary.users.change}% vs last month
             </p>
           </CardContent>
         </Card>
@@ -70,10 +123,10 @@ function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{mockReportData.shifts.current.toLocaleString()}</p>
+            <p className="text-2xl font-bold">{reportSummary.shifts.current.toLocaleString()}</p>
             <p className="text-xs text-green-600 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
-              +{mockReportData.shifts.change}% vs last month
+              +{reportSummary.shifts.change}% vs last month
             </p>
           </CardContent>
         </Card>
@@ -85,10 +138,10 @@ function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{mockReportData.fillRate.current}%</p>
+            <p className="text-2xl font-bold">{reportSummary.fillRate.current}%</p>
             <p className="text-xs text-green-600 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
-              +{mockReportData.fillRate.change}% vs last month
+              +{reportSummary.fillRate.change}% vs last month
             </p>
           </CardContent>
         </Card>
@@ -102,7 +155,7 @@ function ReportsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockReports.map((report) => (
+            {reportTemplates.map((report) => (
               <div
                 key={report.id}
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"

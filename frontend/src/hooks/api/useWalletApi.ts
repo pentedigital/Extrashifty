@@ -87,6 +87,9 @@ export function useWithdraw() {
       queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
       queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
     },
+    onError: (error) => {
+      console.error('Failed to withdraw funds:', error)
+    },
   })
 }
 
@@ -99,6 +102,9 @@ export function useTopUp() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: walletKeys.balance() })
       queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
+    },
+    onError: (error) => {
+      console.error('Failed to top up wallet:', error)
     },
   })
 }
@@ -117,6 +123,9 @@ export function useAddPaymentMethod() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: walletKeys.paymentMethods() })
     },
+    onError: (error) => {
+      console.error('Failed to add payment method:', error)
+    },
   })
 }
 
@@ -128,6 +137,9 @@ export function useRemovePaymentMethod() {
       api.wallet.removePaymentMethod(paymentMethodId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: walletKeys.paymentMethods() })
+    },
+    onError: (error) => {
+      console.error('Failed to remove payment method:', error)
     },
   })
 }

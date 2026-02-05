@@ -1,7 +1,7 @@
 import { DollarSign, Clock, Calendar, TrendingUp } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatPayoutDate } from '@/lib/utils'
 
 interface EarningsSummaryProps {
   thisWeek: number
@@ -26,12 +26,6 @@ export function EarningsSummary({
   isLoading = false,
   currency = 'EUR',
 }: EarningsSummaryProps) {
-  const formatPayoutDate = (date: string | null) => {
-    if (!date) return 'No payout scheduled'
-    const d = new Date(date)
-    return d.toLocaleDateString('en-IE', { weekday: 'long', month: 'short', day: 'numeric' })
-  }
-
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

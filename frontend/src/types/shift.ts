@@ -1,14 +1,14 @@
 import type { CompanyPublic } from './company'
 
-export type ShiftStatus = 'draft' | 'open' | 'assigned' | 'in_progress' | 'completed' | 'cancelled'
+export type ShiftStatus = 'draft' | 'open' | 'filled' | 'in_progress' | 'completed' | 'cancelled'
 export type ShiftType = 'bar' | 'server' | 'kitchen' | 'chef' | 'host' | 'general'
 
 export interface Shift {
-  id: string
-  company_id: string
-  venue_id?: string
-  agency_id?: string
-  client_id?: string
+  id: number
+  company_id: number
+  venue_id?: number
+  agency_id?: number
+  client_id?: number
   title: string
   description: string
   shift_type: ShiftType
@@ -57,5 +57,5 @@ export interface ShiftFormData {
   hourly_rate: number
   spots_total: number
   required_skills: string[]
-  venue_id?: string
+  venue_id?: number
 }
