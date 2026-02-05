@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/Logo'
 import { tokenManager } from '@/lib/api'
 import { LiveActivityTicker, LiveStatCounter, LiveShiftCard } from '@/components/Landing/LiveActivityTicker'
 import {
@@ -39,12 +40,7 @@ function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border" role="navigation" aria-label="Main navigation">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 md:h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2" aria-label="ExtraShifty home">
-            <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg" aria-hidden="true">E</span>
-            </div>
-            <span className="font-semibold text-xl tracking-tight">ExtraShifty</span>
-          </Link>
+          <Logo linkTo="/" />
 
           <div className="flex items-center gap-2 sm:gap-4">
             <Link to="/login">
@@ -336,7 +332,7 @@ function LandingPage() {
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
                 Trust isn't optional.
               </h2>
-              <p className="text-lg sm:text-xl text-slate-400">
+              <p className="text-lg sm:text-xl text-muted-foreground">
                 We don't take shortcuts.
               </p>
             </div>
@@ -368,7 +364,7 @@ function LandingPage() {
                 description="Funds held in escrow until work is complete. Both sides protected."
               />
               <div className="flex items-center justify-center p-6 md:p-8">
-                <p className="text-base sm:text-lg text-slate-400 text-center">
+                <p className="text-base sm:text-lg text-muted-foreground text-center">
                   Because trust is everything.<br />
                   <span className="text-white font-medium">And everything is verified.</span>
                 </p>
@@ -439,12 +435,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10 md:mb-12">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg" aria-hidden="true">E</span>
-                </div>
-                <span className="font-semibold text-xl tracking-tight">ExtraShifty</span>
-              </div>
+              <Logo className="mb-4" />
               <p className="text-brand-600 dark:text-brand-400 font-medium">
                 Shift covered.
               </p>
@@ -528,12 +519,12 @@ function TrustCard({
   description: string
 }) {
   return (
-    <div className="bg-slate-800/50 dark:bg-slate-800/30 rounded-xl p-5 md:p-6 border border-slate-700/50">
+    <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-5 md:p-6 border border-muted-foreground/20">
       <div className="h-10 w-10 mb-4 rounded-lg bg-brand-500/20 flex items-center justify-center">
         <Icon className="h-5 w-5 text-brand-400" aria-hidden="true" />
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
-      <p className="text-slate-400 text-sm">{description}</p>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   )
 }

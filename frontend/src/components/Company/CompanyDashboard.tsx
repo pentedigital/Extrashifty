@@ -63,21 +63,23 @@ export function CompanyDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Manage your shifts and workers.</p>
         </div>
-        <Link to="/company/shifts/create">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Post Shift
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/company/shifts/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Post Shift
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           title="Active Shifts"
           value={mockStats.active_shifts}

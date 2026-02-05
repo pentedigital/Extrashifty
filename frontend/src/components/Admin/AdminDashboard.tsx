@@ -126,11 +126,14 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
-          System overview and management
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground">System overview and management</p>
+        </div>
+        <div className="flex gap-2">
+          {/* Action buttons can be added here */}
+        </div>
       </div>
 
       {/* Key Stats */}

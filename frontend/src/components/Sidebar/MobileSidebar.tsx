@@ -51,7 +51,7 @@ export function MobileSidebar({
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-[85vw] max-w-72 p-0">
           <div className="flex h-full flex-col">
             {/* Header */}
             <div className="flex h-16 items-center justify-between border-b px-4">

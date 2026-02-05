@@ -1,6 +1,17 @@
+/**
+ * Main authenticated layout component.
+ *
+ * Spacing conventions used throughout the app:
+ * - Page sections: space-y-6
+ * - Card content items: space-y-4
+ * - Form fields: space-y-2
+ * - Grid gaps: gap-4 (dense), gap-6 (normal)
+ */
+
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { AppSidebar } from '@/components/Sidebar/AppSidebar'
 import { AppHeader } from '@/components/Header/AppHeader'
+import { AppFooter } from '@/components/Footer/AppFooter'
 import { useSidebarCollapsed, useAppStore } from '@/stores/app'
 import { cn } from '@/lib/utils'
 import { tokenManager, api } from '@/lib/api'
@@ -110,6 +121,7 @@ function LayoutComponent() {
         <main className="flex-1 p-4 md:p-6">
           <Outlet />
         </main>
+        <AppFooter />
       </div>
     </div>
   )

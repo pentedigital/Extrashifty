@@ -160,16 +160,15 @@ function AddClientPage() {
               </ul>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-end">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
                 onClick={() => navigate({ to: '/agency/clients' })}
               >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send Invitation
               </Button>

@@ -193,18 +193,16 @@ function InviteStaffPage() {
               </ul>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-end">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
                 onClick={() => navigate({ to: '/agency/staff' })}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="flex-1"
                 disabled={isSubmitting || emails.length === 0}
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

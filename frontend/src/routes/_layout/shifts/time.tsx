@@ -269,7 +269,35 @@ function TimeTrackingPage() {
               <p className="text-muted-foreground">No clock records yet</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-3">
+              {clockRecords.map((record) => {
+                const shiftDetails = getShiftDetails(record.shift_id)
+                return (
+                  <div key={record.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{shiftDetails.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {shiftDetails.business_name}
+                        </p>
+                      </div>
+                      {getStatusBadge(record.status)}
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{formatRecordDate(record.created_at)}</span>
+                      <span>{formatClockTime(record.clock_in)} - {formatClockTime(record.clock_out)}</span>
+                    </div>
+                    <div className="text-sm font-medium">
+                      {record.total_hours ? `${record.total_hours.toFixed(2)} hrs` : '-'}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Desktop table layout */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
@@ -279,10 +307,10 @@ function TimeTrackingPage() {
                     <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">
                       Shift
                     </th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">
+                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground hidden md:table-cell">
                       Clock In
                     </th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">
+                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground hidden md:table-cell">
                       Clock Out
                     </th>
                     <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">
@@ -309,10 +337,10 @@ function TimeTrackingPage() {
                             </p>
                           </div>
                         </td>
-                        <td className="py-3 px-2 text-sm">
+                        <td className="py-3 px-2 text-sm hidden md:table-cell">
                           {formatClockTime(record.clock_in)}
                         </td>
-                        <td className="py-3 px-2 text-sm">
+                        <td className="py-3 px-2 text-sm hidden md:table-cell">
                           {formatClockTime(record.clock_out)}
                         </td>
                         <td className="py-3 px-2 text-sm font-medium">
@@ -325,6 +353,7 @@ function TimeTrackingPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

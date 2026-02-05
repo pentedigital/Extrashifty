@@ -94,7 +94,7 @@ export function ShiftFilters({ filters, onFiltersChange, totalResults }: ShiftFi
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[300px]">
+          <SheetContent side="left" className="w-full sm:w-[300px]">
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>

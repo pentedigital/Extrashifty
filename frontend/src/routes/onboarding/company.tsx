@@ -114,6 +114,7 @@ function CompanyOnboardingPage() {
                   id="company_type"
                   options={companyTypes}
                   placeholder="Select a type"
+                  required
                   {...register('company_type')}
                 />
                 {errors.company_type && (

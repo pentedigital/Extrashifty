@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Logo } from '@/components/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import type { UserType } from '@/types/user'
@@ -90,9 +91,7 @@ function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white font-bold text-xl">
-            E
-          </div>
+          <Logo size="lg" showText={false} className="mx-auto mb-4" />
           <CardTitle className="text-2xl">Create your account</CardTitle>
           <CardDescription>
             {step === 'type'

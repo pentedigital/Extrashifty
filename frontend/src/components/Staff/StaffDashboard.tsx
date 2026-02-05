@@ -61,17 +61,19 @@ export function StaffDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
         </div>
-        <Link to="/marketplace">
-          <Button>
-            <Search className="mr-2 h-4 w-4" />
-            Find Shifts
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/marketplace">
+            <Button>
+              <Search className="mr-2 h-4 w-4" />
+              Find Shifts
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

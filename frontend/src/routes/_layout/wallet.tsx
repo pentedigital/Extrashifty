@@ -174,7 +174,10 @@ function WalletPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Wallet</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Wallet</h1>
+        <p className="text-muted-foreground">Manage your earnings and withdrawals</p>
+      </div>
 
       {/* Balance Card */}
       <Card>

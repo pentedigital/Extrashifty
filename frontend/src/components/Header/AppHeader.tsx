@@ -40,7 +40,7 @@ export function AppHeader({ title, onLogout }: AppHeaderProps) {
       <div className="flex-1" />
 
       {/* Search */}
-      <div className="hidden md:flex relative w-64">
+      <div className="hidden sm:flex relative w-64">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"

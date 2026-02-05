@@ -84,23 +84,27 @@ function AdminUsersPage() {
             {filteredUsers.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors gap-3"
               >
-                <div className="flex items-center gap-4">
-                  <Avatar>
+                <div className="flex items-center gap-4 min-w-0">
+                  <Avatar className="shrink-0">
                     <AvatarFallback>
                       {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{user.name}</p>
-                      {user.verified && <Shield className="h-4 w-4 text-green-600" />}
+                      <p className="font-medium truncate">{user.name}</p>
+                      {user.verified && <Shield className="h-4 w-4 text-green-600 shrink-0" />}
                     </div>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex sm:hidden items-center gap-2 mt-1">
+                      {getTypeBadge(user.type)}
+                      {getStatusBadge(user.status)}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between sm:justify-end gap-4">
                   <div className="hidden sm:flex items-center gap-2">
                     {getTypeBadge(user.type)}
                     {getStatusBadge(user.status)}

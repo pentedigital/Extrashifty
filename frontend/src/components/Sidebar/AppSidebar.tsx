@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
+import { Logo } from '@/components/Logo'
 import { useAppStore, useSidebarCollapsed } from '@/stores/app'
 import type { UserType } from '@/types/user'
 import { getNavForUserType } from './navigation'
@@ -50,19 +51,10 @@ export function AppSidebar({
         {/* Header */}
         <div className="flex h-16 items-center justify-between border-b px-4">
           {!collapsed && (
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
-                E
-              </div>
-              <span className="font-semibold text-lg">ExtraShifty</span>
-            </Link>
+            <Logo linkTo="/dashboard" />
           )}
           {collapsed && (
-            <Link to="/dashboard" className="mx-auto">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
-                E
-              </div>
-            </Link>
+            <Logo linkTo="/dashboard" showText={false} className="mx-auto" />
           )}
           <Button
             variant="ghost"

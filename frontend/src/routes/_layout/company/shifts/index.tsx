@@ -116,17 +116,17 @@ function CompanyShiftsPage() {
         {shifts.map((shift) => (
           <Card key={shift.id}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="text-center min-w-[100px]">
-                    <p className="text-sm font-medium">{formatDate(shift.date)}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="text-center min-w-0 shrink-0">
+                    <p className="text-sm font-medium truncate">{formatDate(shift.date)}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                     </p>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{shift.title}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium truncate">{shift.title}</p>
                       {shift.spots_total > 1 && (
                         <span className="text-sm text-muted-foreground">
                           x{shift.spots_total}
@@ -138,13 +138,13 @@ function CompanyShiftsPage() {
                       {formatCurrency(shift.hourly_rate)}/hr
                     </p>
                     {'worker' in shift && shift.worker && (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground truncate">
                         Assigned: {shift.worker}
                       </p>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   {showApplicants && 'applicants' in shift && shift.applicants > 0 && (
                     <Link to={`/company/shifts/${shift.id}/applicants`}>
                       <Button variant="outline" size="sm">
