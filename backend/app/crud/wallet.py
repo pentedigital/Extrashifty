@@ -1,23 +1,30 @@
-"""CRUD operations for Wallet, Transaction, and PaymentMethod models."""
+"""CRUD operations for Wallet and PaymentMethod models."""
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
-from app.crud.base import CRUDBase
 from app.models.wallet import (
     PaymentMethod,
     PaymentMethodType,
-    Transaction,
-    TransactionStatus,
-    TransactionType,
     Wallet,
+    WalletType,
 )
 from app.schemas.wallet import PaymentMethodCreate
 
 
 class CRUDWallet:
     """CRUD operations for Wallet."""
+
+    def get(
+        self,
+        db: Session,
+        *,
+        id: int,
+    ) -> Wallet | None:
+        """Get wallet by ID."""
+        return db.get(Wallet, id)
 
     def get_by_user(
         self,
@@ -30,17 +37,32 @@ class CRUDWallet:
             select(Wallet).where(Wallet.user_id == user_id)
         ).first()
 
+    def get_by_stripe_account_id(
+        self,
+        db: Session,
+        *,
+        stripe_account_id: str,
+    ) -> Wallet | None:
+        """Get wallet by Stripe Connect account ID."""
+        return db.exec(
+            select(Wallet).where(Wallet.stripe_account_id == stripe_account_id)
+        ).first()
+
     def get_or_create(
         self,
         db: Session,
         *,
         user_id: int,
+        wallet_type: WalletType = WalletType.STAFF,
     ) -> Wallet:
         """Get or create wallet for a user."""
         wallet = self.get_by_user(db, user_id=user_id)
 
         if not wallet:
-            wallet = Wallet(user_id=user_id)
+            wallet = Wallet(
+                user_id=user_id,
+                wallet_type=wallet_type,
+            )
             db.add(wallet)
             db.commit()
             db.refresh(wallet)
@@ -52,7 +74,7 @@ class CRUDWallet:
         db: Session,
         *,
         wallet: Wallet,
-        amount: float,
+        amount: Decimal,
     ) -> Wallet:
         """Update wallet balance by adding amount (can be negative for withdrawals)."""
         wallet.balance += amount
@@ -62,91 +84,124 @@ class CRUDWallet:
         db.refresh(wallet)
         return wallet
 
-
-class CRUDTransaction:
-    """CRUD operations for Transaction."""
-
-    def get_by_wallet(
+    def update_reserved_balance(
         self,
         db: Session,
         *,
-        wallet_id: int,
-        skip: int = 0,
-        limit: int = 50,
-        type_filter: TransactionType | None = None,
-        status_filter: TransactionStatus | None = None,
-    ) -> list[Transaction]:
-        """Get transactions for a wallet."""
-        statement = select(Transaction).where(Transaction.wallet_id == wallet_id)
-
-        if type_filter:
-            statement = statement.where(Transaction.type == type_filter)
-
-        if status_filter:
-            statement = statement.where(Transaction.status == status_filter)
-
-        statement = statement.offset(skip).limit(limit).order_by(Transaction.created_at.desc())
-        return list(db.exec(statement).all())
-
-    def get_count_by_wallet(
-        self,
-        db: Session,
-        *,
-        wallet_id: int,
-        type_filter: TransactionType | None = None,
-        status_filter: TransactionStatus | None = None,
-    ) -> int:
-        """Get transaction count for a wallet."""
-        statement = select(func.count(Transaction.id)).where(Transaction.wallet_id == wallet_id)
-
-        if type_filter:
-            statement = statement.where(Transaction.type == type_filter)
-
-        if status_filter:
-            statement = statement.where(Transaction.status == status_filter)
-
-        return db.exec(statement).one()
-
-    def create_transaction(
-        self,
-        db: Session,
-        *,
-        wallet_id: int,
-        type: TransactionType,
-        amount: float,
-        description: str,
-        status: TransactionStatus = TransactionStatus.PENDING,
-        reference_id: str | None = None,
-    ) -> Transaction:
-        """Create a new transaction."""
-        db_obj = Transaction(
-            wallet_id=wallet_id,
-            type=type,
-            amount=amount,
-            description=description,
-            status=status,
-            reference_id=reference_id,
-        )
-        db.add(db_obj)
+        wallet: Wallet,
+        amount: Decimal,
+    ) -> Wallet:
+        """Update wallet reserved balance by adding amount (can be negative to release)."""
+        wallet.reserved_balance += amount
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
         db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        db.refresh(wallet)
+        return wallet
 
-    def update_status(
+    def set_stripe_account(
         self,
         db: Session,
         *,
-        transaction_id: int,
-        status: TransactionStatus,
-    ) -> Transaction | None:
-        """Update transaction status."""
-        transaction = db.get(Transaction, transaction_id)
-        if transaction:
-            transaction.status = status
-            db.add(transaction)
-            db.commit()
-            db.refresh(transaction)
-        return transaction
+        wallet: Wallet,
+        stripe_account_id: str,
+    ) -> Wallet:
+        """Set the Stripe Connect account ID for a wallet."""
+        wallet.stripe_account_id = stripe_account_id
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+
+    def complete_onboarding(
+        self,
+        db: Session,
+        *,
+        wallet: Wallet,
+    ) -> Wallet:
+        """Mark Stripe onboarding as complete."""
+        wallet.stripe_onboarding_complete = True
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+
+    def configure_auto_topup(
+        self,
+        db: Session,
+        *,
+        wallet: Wallet,
+        enabled: bool,
+        threshold: Decimal | None = None,
+        amount: Decimal | None = None,
+    ) -> Wallet:
+        """Configure auto top-up settings for a wallet."""
+        wallet.auto_topup_enabled = enabled
+        wallet.auto_topup_threshold = threshold
+        wallet.auto_topup_amount = amount
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+
+    def deactivate(
+        self,
+        db: Session,
+        *,
+        wallet: Wallet,
+    ) -> Wallet:
+        """Deactivate a wallet."""
+        wallet.is_active = False
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+
+    def activate(
+        self,
+        db: Session,
+        *,
+        wallet: Wallet,
+    ) -> Wallet:
+        """Activate a wallet."""
+        wallet.is_active = True
+        wallet.updated_at = datetime.utcnow()
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+
+    def has_sufficient_balance(
+        self,
+        db: Session,
+        *,
+        wallet: Wallet,
+        amount: Decimal,
+    ) -> bool:
+        """Check if wallet has sufficient available balance for an amount."""
+        available = wallet.balance - wallet.reserved_balance
+        return available >= amount
+
+    def get_wallets_needing_topup(
+        self,
+        db: Session,
+    ) -> list[Wallet]:
+        """Get all wallets that need auto top-up."""
+        return list(
+            db.exec(
+                select(Wallet).where(
+                    Wallet.is_active == True,
+                    Wallet.auto_topup_enabled == True,
+                    Wallet.auto_topup_threshold.isnot(None),
+                    Wallet.auto_topup_amount.isnot(None),
+                    (Wallet.balance - Wallet.reserved_balance) < Wallet.auto_topup_threshold,
+                )
+            ).all()
+        )
 
 
 class CRUDPaymentMethod:
@@ -187,6 +242,17 @@ class CRUDPaymentMethod:
                 PaymentMethod.user_id == user_id,
                 PaymentMethod.is_default == True,
             )
+        ).first()
+
+    def get_by_external_id(
+        self,
+        db: Session,
+        *,
+        external_id: str,
+    ) -> PaymentMethod | None:
+        """Get payment method by Stripe payment method ID."""
+        return db.exec(
+            select(PaymentMethod).where(PaymentMethod.external_id == external_id)
         ).first()
 
     def create(
@@ -291,6 +357,6 @@ class CRUDPaymentMethod:
         db.commit()
 
 
+# Create singleton instances
 wallet = CRUDWallet()
-transaction = CRUDTransaction()
 payment_method = CRUDPaymentMethod()

@@ -1,0 +1,188 @@
+"""Payment, transaction, and dispute models for ExtraShifty."""
+
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
+from typing import TYPE_CHECKING, Any
+
+from sqlmodel import JSON, Column, Field, Index, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from .shift import Shift
+    from .user import User
+    from .wallet import Wallet
+
+
+class TransactionType(str, Enum):
+    """Transaction type enumeration for all payment flows."""
+
+    TOPUP = "topup"                      # Adding funds to wallet
+    RESERVE = "reserve"                  # Reserving funds for accepted shift
+    RELEASE = "release"                  # Releasing reserved funds back to available
+    SETTLEMENT = "settlement"            # Paying staff after shift completion
+    COMMISSION = "commission"            # Platform commission fee
+    PAYOUT = "payout"                    # Withdrawal to bank account
+    REFUND = "refund"                    # Refund to company wallet
+    CANCELLATION_FEE = "cancellation_fee"  # Fee for late cancellation
+
+
+class TransactionStatus(str, Enum):
+    """Transaction status enumeration."""
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class FundsHoldStatus(str, Enum):
+    """Status for fund holds."""
+
+    ACTIVE = "active"
+    RELEASED = "released"
+    SETTLED = "settled"
+    EXPIRED = "expired"
+
+
+class PayoutType(str, Enum):
+    """Payout type enumeration."""
+
+    WEEKLY = "weekly"    # Standard weekly payout
+    INSTANT = "instant"  # Instant payout with 1.5% fee
+
+
+class PayoutStatus(str, Enum):
+    """Payout status enumeration."""
+
+    PENDING = "pending"
+    IN_TRANSIT = "in_transit"
+    PAID = "paid"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class DisputeStatus(str, Enum):
+    """Dispute status enumeration."""
+
+    OPEN = "open"
+    UNDER_REVIEW = "under_review"
+    RESOLVED_FOR_RAISER = "resolved_for_raiser"
+    RESOLVED_AGAINST_RAISER = "resolved_against_raiser"
+    CLOSED = "closed"
+
+
+class Transaction(SQLModel, table=True):
+    """Transaction model for all wallet transactions."""
+
+    __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_transactions_wallet_id_created_at", "wallet_id", "created_at"),
+        Index("ix_transactions_type_status", "transaction_type", "status"),
+        Index("ix_transactions_stripe_payment_intent_id", "stripe_payment_intent_id"),
+        Index("ix_transactions_stripe_transfer_id", "stripe_transfer_id"),
+        Index("ix_transactions_idempotency_key", "idempotency_key", unique=True),
+        Index("ix_transactions_related_shift_id", "related_shift_id"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    wallet_id: int = Field(foreign_key="wallets.id", index=True)
+    transaction_type: TransactionType = Field(default=TransactionType.TOPUP)
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    fee: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    net_amount: Decimal = Field(max_digits=12, decimal_places=2)
+    status: TransactionStatus = Field(default=TransactionStatus.PENDING)
+    stripe_payment_intent_id: str | None = Field(default=None, max_length=255)
+    stripe_transfer_id: str | None = Field(default=None, max_length=255)
+    idempotency_key: str = Field(max_length=255)  # Required for all Stripe calls
+    related_shift_id: int | None = Field(default=None, foreign_key="shifts.id")
+    description: str = Field(max_length=500)
+    extra_data: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime | None = Field(default=None)
+
+    # Relationships
+    related_shift: "Shift | None" = Relationship()
+
+
+class FundsHold(SQLModel, table=True):
+    """Represents reserved funds for accepted shifts."""
+
+    __tablename__ = "funds_holds"
+    __table_args__ = (
+        Index("ix_funds_holds_wallet_id_status", "wallet_id", "status"),
+        Index("ix_funds_holds_shift_id", "shift_id"),
+        Index("ix_funds_holds_expires_at", "expires_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    wallet_id: int = Field(foreign_key="wallets.id", index=True)
+    shift_id: int = Field(foreign_key="shifts.id", index=True)
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    status: FundsHoldStatus = Field(default=FundsHoldStatus.ACTIVE)
+    expires_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    released_at: datetime | None = Field(default=None)
+
+    # Relationships
+    wallet: "Wallet" = Relationship(back_populates="funds_holds")
+    shift: "Shift" = Relationship()
+
+
+class Payout(SQLModel, table=True):
+    """Payout model for withdrawals to bank accounts."""
+
+    __tablename__ = "payouts"
+    __table_args__ = (
+        Index("ix_payouts_wallet_id_status", "wallet_id", "status"),
+        Index("ix_payouts_scheduled_date", "scheduled_date"),
+        Index("ix_payouts_stripe_payout_id", "stripe_payout_id"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    wallet_id: int = Field(foreign_key="wallets.id", index=True)
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    fee: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)  # 1.5% for instant payouts
+    net_amount: Decimal = Field(max_digits=12, decimal_places=2)
+    payout_type: PayoutType = Field(default=PayoutType.WEEKLY)
+    stripe_payout_id: str | None = Field(default=None, max_length=255)
+    status: PayoutStatus = Field(default=PayoutStatus.PENDING)
+    scheduled_date: date
+    paid_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relationships
+    wallet: "Wallet" = Relationship(back_populates="payouts")
+
+
+class Dispute(SQLModel, table=True):
+    """Dispute model for payment conflicts between users."""
+
+    __tablename__ = "disputes"
+    __table_args__ = (
+        Index("ix_disputes_shift_id", "shift_id"),
+        Index("ix_disputes_raised_by_user_id", "raised_by_user_id"),
+        Index("ix_disputes_against_user_id", "against_user_id"),
+        Index("ix_disputes_status", "status"),
+        Index("ix_disputes_created_at", "created_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    shift_id: int = Field(foreign_key="shifts.id", index=True)
+    raised_by_user_id: int = Field(foreign_key="users.id", index=True)
+    against_user_id: int = Field(foreign_key="users.id", index=True)
+    amount_disputed: Decimal = Field(max_digits=12, decimal_places=2)
+    reason: str = Field(max_length=1000)
+    evidence: str | None = Field(default=None, max_length=5000)
+    status: DisputeStatus = Field(default=DisputeStatus.OPEN)
+    resolution_notes: str | None = Field(default=None, max_length=2000)
+    resolved_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relationships
+    shift: "Shift" = Relationship()
+    raised_by_user: "User" = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Dispute.raised_by_user_id]"}
+    )
+    against_user: "User" = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Dispute.against_user_id]"}
+    )

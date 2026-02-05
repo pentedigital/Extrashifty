@@ -4,7 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..models.wallet import PaymentMethodType, TransactionStatus, TransactionType
+from ..models.payment import TransactionStatus, TransactionType
+from ..models.wallet import PaymentMethodType
 
 
 class WalletRead(BaseModel):

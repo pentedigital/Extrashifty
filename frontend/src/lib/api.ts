@@ -466,6 +466,15 @@ export const api = {
     getShiftApplications: (shiftId: string) =>
       baseFetch<{ items: import('@/types/application').Application[]; total: number }>(`/company/shifts/${shiftId}/applications`),
 
+    getApplicants: (shiftId: string) =>
+      baseFetch<import('@/types/application').Application[]>(`/company/shifts/${shiftId}/applications`).then(
+        (response) => {
+          // Handle both array response and object with items
+          if (Array.isArray(response)) return response
+          return (response as { items: import('@/types/application').Application[] }).items || []
+        }
+      ),
+
     acceptApplication: (applicationId: string) =>
       baseFetch<import('@/types/application').Application>(`/company/applications/${applicationId}/accept`, {
         method: 'POST',
@@ -1032,5 +1041,73 @@ export const api = {
       baseFetch<void>(`/wallet/payment-methods/${paymentMethodId}`, {
         method: 'DELETE',
       }),
+  },
+
+  payments: {
+    createPaymentIntent: (data: { amount: number }) =>
+      baseFetch<{
+        client_secret: string
+        amount: number
+        currency: string
+      }>('/payments/create-intent', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    processTopup: (data: { amount: number; payment_intent_id?: string }) =>
+      baseFetch<{
+        transaction_id: number
+        amount: number
+        status: 'pending' | 'completed' | 'failed'
+        new_balance: number
+        message: string
+      }>('/payments/topup', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    configureAutoTopup: (data: {
+      enabled: boolean
+      threshold: number
+      amount: number
+      payment_method_id?: number
+    }) =>
+      baseFetch<{
+        enabled: boolean
+        threshold: number
+        amount: number
+        payment_method_id?: number
+      }>('/payments/auto-topup', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getAutoTopupConfig: () =>
+      baseFetch<{
+        enabled: boolean
+        threshold: number
+        amount: number
+        payment_method_id?: number
+      }>('/payments/auto-topup'),
+
+    reserveFunds: (data: { shift_id: number; amount: number }) =>
+      baseFetch<{
+        success: boolean
+        reserved_amount: number
+        new_available_balance: number
+        message: string
+      }>('/payments/reserve', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getBankTransferInfo: () =>
+      baseFetch<{
+        account_name: string
+        iban: string
+        bic: string
+        bank_name: string
+        reference_prefix: string
+      }>('/payments/bank-transfer-info'),
   },
 }

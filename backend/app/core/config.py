@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_EMAIL: str = "admin@extrashifty.com"
     FIRST_SUPERUSER_PASSWORD: str = "changeme"
 
+    # Stripe
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PLATFORM_ACCOUNT_ID: str = ""
+
     @model_validator(mode="after")
     def warn_default_secrets(self) -> Self:
         """

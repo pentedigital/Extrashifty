@@ -17,6 +17,7 @@ from app.core.middleware import (
     SecurityHeadersMiddleware,
 )
 from app.core.rate_limit import limiter
+from app.core.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -31,9 +32,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # In production, use Alembic migrations
     # from app.core.db import init_db
     # init_db()
+
+    # Start background scheduler for payment jobs
+    await start_scheduler()
+
     yield
+
     # Shutdown
-    # Add cleanup logic here if needed
+    # Stop the scheduler gracefully
+    stop_scheduler()
 
 
 app = FastAPI(

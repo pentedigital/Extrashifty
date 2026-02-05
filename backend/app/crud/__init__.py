@@ -8,33 +8,54 @@ from app.crud.notification import (
     notification,
     notification_preference,
 )
+from app.crud.payment import (
+    CRUDDispute,
+    CRUDFundsHold,
+    CRUDPayout,
+    CRUDTransaction,
+    dispute,
+    funds_hold,
+    payout,
+    transaction,
+)
 from app.crud.shift import CRUDShift, shift
 from app.crud.user import CRUDUser, user
 from app.crud.wallet import (
     CRUDPaymentMethod,
-    CRUDTransaction,
     CRUDWallet,
     payment_method,
-    transaction,
     wallet,
 )
 
 __all__ = [
+    # Base
     "CRUDBase",
+    # User
     "CRUDUser",
     "user",
+    # Shift
     "CRUDShift",
     "shift",
+    # Application
     "CRUDApplication",
     "application",
+    # Notification
     "CRUDNotification",
     "CRUDNotificationPreference",
     "notification",
     "notification_preference",
+    # Wallet
     "CRUDWallet",
-    "CRUDTransaction",
     "CRUDPaymentMethod",
     "wallet",
-    "transaction",
     "payment_method",
+    # Payment/Transaction
+    "CRUDTransaction",
+    "CRUDFundsHold",
+    "CRUDPayout",
+    "CRUDDispute",
+    "transaction",
+    "funds_hold",
+    "payout",
+    "dispute",
 ]

@@ -1,15 +1,15 @@
 import { useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Euro, FileText, CreditCard, TrendingUp, ArrowRight, AlertCircle, Plus } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Euro, FileText, CreditCard, TrendingUp, ArrowRight, AlertCircle, Plus, Wallet, History, DollarSign, Clock, Building } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { useAgencyInvoices, useAgencyPayroll, useAgencyWallet } from '@/hooks/api/useAgencyApi'
-import type { Invoice, PayrollEntry } from '@/types/agency'
+import { useAgencyInvoices, useAgencyPayroll, useAgencyWallet, useAgencyProfile } from '@/hooks/api/useAgencyApi'
+import type { Invoice, PayrollEntry, AgencyMode } from '@/types/agency'
 
 export const Route = createFileRoute('/_layout/agency/billing/')({
   component: BillingOverviewPage,
@@ -19,6 +19,10 @@ function BillingOverviewPage() {
   const { data: invoicesData, isLoading: invoicesLoading, error: invoicesError } = useAgencyInvoices()
   const { data: payrollData, isLoading: payrollLoading, error: payrollError } = useAgencyPayroll()
   const { data: walletData, isLoading: walletLoading } = useAgencyWallet()
+  const { data: profileData, isLoading: profileLoading } = useAgencyProfile()
+
+  const agencyMode: AgencyMode = profileData?.mode ?? 'staff_provider'
+  const modeLabel = agencyMode === 'staff_provider' ? 'Staff Provider' : 'Full Intermediary'
 
   // Calculate stats from actual data
   const stats = useMemo(() => {
@@ -85,8 +89,13 @@ function BillingOverviewPage() {
     return `${startDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })}`
   }
 
-  const isLoading = invoicesLoading || payrollLoading || walletLoading
+  const isLoading = invoicesLoading || payrollLoading || walletLoading || profileLoading
   const hasError = invoicesError || payrollError
+
+  // Earnings data
+  const availableBalance = walletData?.balance ?? 0
+  const pendingBalance = walletData?.pending_payouts ?? 0
+  const totalRevenue = walletData?.total_revenue ?? 0
 
   if (hasError) {
     return (
@@ -106,9 +115,9 @@ function BillingOverviewPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Billing Overview</h1>
+          <h1 className="text-2xl font-bold">Billing & Earnings</h1>
           <p className="text-muted-foreground">
-            Manage invoices and payroll for your agency
+            Manage invoices, payroll, and earnings for your agency
           </p>
         </div>
         <div className="flex gap-2">
@@ -126,6 +135,70 @@ function BillingOverviewPage() {
           </Link>
         </div>
       </div>
+
+      {/* Agency Earnings Dashboard */}
+      <Card className="bg-gradient-to-br from-brand-50 to-brand-100 border-brand-200">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Earnings from Placements
+              </CardTitle>
+              <CardDescription>
+                Mode: {modeLabel}
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="bg-white">
+              <Building className="h-3 w-3 mr-1" />
+              {modeLabel}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 mb-4">
+            {isLoading ? (
+              <>
+                <Skeleton className="h-[80px]" />
+                <Skeleton className="h-[80px]" />
+                <Skeleton className="h-[80px]" />
+              </>
+            ) : (
+              <>
+                <div className="p-4 bg-white rounded-lg">
+                  <p className="text-sm text-muted-foreground">Available</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(availableBalance)}</p>
+                  <p className="text-xs text-muted-foreground">Ready to withdraw</p>
+                </div>
+                <div className="p-4 bg-white rounded-lg">
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingBalance)}</p>
+                  <p className="text-xs text-muted-foreground">Processing</p>
+                </div>
+                <div className="p-4 bg-white rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-xs text-muted-foreground">All time</p>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Link to="/wallet/withdraw">
+              <Button className="gap-2">
+                <DollarSign className="h-4 w-4" />
+                Request Payout
+              </Button>
+            </Link>
+            <Link to="/agency/billing/earnings">
+              <Button variant="outline" className="gap-2">
+                <History className="h-4 w-4" />
+                View Earnings History
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

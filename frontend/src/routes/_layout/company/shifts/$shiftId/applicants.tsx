@@ -1,15 +1,42 @@
-import { useMemo } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useMemo, useState, useCallback } from 'react'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ArrowLeft, Check, X, Star, Calendar, MessageSquare, AlertCircle, Loader2, Users } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  ArrowLeft,
+  Check,
+  X,
+  Calendar,
+  MessageSquare,
+  AlertCircle,
+  Loader2,
+  Users,
+  Euro,
+  Clock,
+  Wallet,
+} from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatCurrency } from '@/lib/utils'
 import { useShiftApplicants, useUpdateApplicationStatus } from '@/hooks/api/useApplicationsApi'
+import { useShift } from '@/hooks/api/useShiftsApi'
+import { useWalletBalance, useReserveFunds } from '@/hooks/api/usePaymentsApi'
+import {
+  InsufficientFundsModal,
+  InsufficientFundsWarning,
+  FundsReservedConfirmation,
+} from '@/components/Payment'
 import type { Application, ApplicationStatus } from '@/types/application'
 
 export const Route = createFileRoute('/_layout/company/shifts/$shiftId/applicants')({
@@ -18,13 +45,43 @@ export const Route = createFileRoute('/_layout/company/shifts/$shiftId/applicant
 
 function ShiftApplicantsPage() {
   const { shiftId } = Route.useParams()
+  const navigate = useNavigate()
   const { addToast } = useToast()
 
-  // Fetch applicants for this shift
-  const { data, isLoading, error } = useShiftApplicants(shiftId)
+  // API hooks
+  const { data: applicantsData, isLoading: isLoadingApplicants, error: applicantsError } = useShiftApplicants(shiftId)
+  const { data: shiftData, isLoading: isLoadingShift } = useShift(shiftId)
+  const { data: walletData, isLoading: isLoadingWallet } = useWalletBalance()
   const updateStatus = useUpdateApplicationStatus()
+  const reserveFunds = useReserveFunds()
 
-  const applicants = data?.items ?? []
+  // Local state
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showInsufficientFundsModal, setShowInsufficientFundsModal] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const applicants = applicantsData?.items ?? []
+  const shift = shiftData
+  const availableBalance = walletData?.available ?? 0
+  const currency = walletData?.currency ?? 'EUR'
+
+  // Calculate shift cost
+  const calculateShiftCost = useCallback(() => {
+    if (!shift) return 0
+    const startTime = shift.start_time ? shift.start_time.split(':') : ['0', '0']
+    const endTime = shift.end_time ? shift.end_time.split(':') : ['0', '0']
+    const startMinutes = parseInt(startTime[0]) * 60 + parseInt(startTime[1])
+    const endMinutes = parseInt(endTime[0]) * 60 + parseInt(endTime[1])
+    let durationMinutes = endMinutes - startMinutes
+    if (durationMinutes < 0) durationMinutes += 24 * 60 // Overnight shift
+    const durationHours = durationMinutes / 60
+    return shift.hourly_rate * durationHours
+  }, [shift])
+
+  const shiftCost = calculateShiftCost()
+  const hasSufficientFunds = availableBalance >= shiftCost
 
   // Group applicants by status
   const groupedApplicants = useMemo(() => {
@@ -36,26 +93,54 @@ function ShiftApplicantsPage() {
     }
   }, [applicants])
 
-  const handleAccept = async (applicationId: string) => {
-    try {
-      await updateStatus.mutateAsync({
-        id: applicationId,
-        status: 'accepted' as ApplicationStatus,
-      })
-      addToast({
-        type: 'success',
-        title: 'Applicant accepted',
-        description: 'The worker has been notified and assigned to this shift.',
-      })
-    } catch {
-      addToast({
-        type: 'error',
-        title: 'Failed to accept applicant',
-        description: 'Please try again or contact support.',
-      })
+  // Handle accept click - show confirmation or insufficient funds modal
+  const handleAcceptClick = (application: Application) => {
+    setSelectedApplication(application)
+    if (hasSufficientFunds) {
+      setShowConfirmModal(true)
+    } else {
+      setShowInsufficientFundsModal(true)
     }
   }
 
+  // Handle confirm acceptance
+  const handleConfirmAccept = async () => {
+    if (!selectedApplication || !shift) return
+
+    setIsProcessing(true)
+    try {
+      // First, reserve the funds
+      await reserveFunds.mutateAsync({
+        shift_id: parseInt(shiftId),
+        amount: shiftCost,
+      })
+
+      // Then, update the application status
+      await updateStatus.mutateAsync({
+        id: String(selectedApplication.id),
+        status: 'accepted' as ApplicationStatus,
+      })
+
+      setShowConfirmModal(false)
+      setShowSuccessModal(true)
+    } catch (error) {
+      // Check if it's an insufficient funds error (402)
+      if (error instanceof Error && error.message.includes('402')) {
+        setShowConfirmModal(false)
+        setShowInsufficientFundsModal(true)
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Failed to accept applicant',
+          description: 'Please try again or contact support.',
+        })
+      }
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handle reject
   const handleReject = async (applicationId: string) => {
     try {
       await updateStatus.mutateAsync({
@@ -76,6 +161,20 @@ function ShiftApplicantsPage() {
     }
   }
 
+  // Handle top-up navigation
+  const handleTopUp = () => {
+    setShowInsufficientFundsModal(false)
+    navigate({ to: '/wallet/top-up' })
+  }
+
+  // Handle success modal close
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false)
+    setSelectedApplication(null)
+  }
+
+  const isLoading = isLoadingApplicants || isLoadingShift || isLoadingWallet
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -84,7 +183,7 @@ function ShiftApplicantsPage() {
     )
   }
 
-  if (error) {
+  if (applicantsError) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -157,7 +256,7 @@ function ShiftApplicantsPage() {
               </Button>
               <Button
                 size="sm"
-                onClick={() => handleAccept(String(application.id))}
+                onClick={() => handleAcceptClick(application)}
                 disabled={updateStatus.isPending}
               >
                 {updateStatus.isPending ? (
@@ -176,6 +275,7 @@ function ShiftApplicantsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Link to={`/company/shifts/${shiftId}`}>
           <Button variant="ghost" size="icon">
@@ -189,6 +289,59 @@ function ShiftApplicantsPage() {
           </p>
         </div>
       </div>
+
+      {/* Shift Cost Info Card */}
+      {shift && (
+        <Card className="border-brand-200 bg-brand-50/50">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-full bg-brand-100">
+                  <Euro className="h-5 w-5 text-brand-600" />
+                </div>
+                <div>
+                  <p className="font-medium">Shift Cost per Worker</p>
+                  <p className="text-2xl font-bold text-brand-600">
+                    {formatCurrency(shiftCost, currency)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>{shift.hourly_rate && formatCurrency(shift.hourly_rate, currency)}/hr</span>
+                <span className="text-muted-foreground">x</span>
+                <span>{shift.duration_hours || Math.round((shiftCost / (shift.hourly_rate || 1)) * 10) / 10} hours</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Wallet Balance Warning */}
+      {!hasSufficientFunds && groupedApplicants.pending.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-900">Insufficient Balance</p>
+                  <p className="text-sm text-amber-800">
+                    Your available balance ({formatCurrency(availableBalance, currency)}) is not enough
+                    to accept workers. Top up to continue.
+                  </p>
+                </div>
+              </div>
+              <Link to="/wallet/top-up">
+                <Button size="sm">
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Top Up Now
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending Applicants */}
       {groupedApplicants.pending.length > 0 && (
@@ -230,7 +383,13 @@ function ShiftApplicantsPage() {
                     <p className="text-sm text-muted-foreground">Accepted {formatDate(application.applied_at)}</p>
                   </div>
                 </div>
-                <Badge variant="success">Assigned</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Funds Reserved
+                  </Badge>
+                  <Badge variant="success">Assigned</Badge>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -295,6 +454,7 @@ function ShiftApplicantsPage() {
         </Card>
       )}
 
+      {/* No Applicants */}
       {applicants.length === 0 && (
         <EmptyState
           icon={Users}
@@ -302,6 +462,90 @@ function ShiftApplicantsPage() {
           description="When workers apply for this shift, they'll appear here for your review."
         />
       )}
+
+      {/* Confirmation Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept Worker</DialogTitle>
+            <DialogDescription>
+              Confirm that you want to accept {selectedApplication?.applicant?.full_name} for this shift.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            {/* Shift Cost Summary */}
+            <div className="p-4 rounded-lg bg-muted">
+              <div className="flex justify-between mb-2">
+                <span className="text-muted-foreground">Shift Cost</span>
+                <span className="font-semibold">{formatCurrency(shiftCost, currency)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This amount will be reserved from your wallet until the shift is completed.
+              </p>
+            </div>
+
+            {/* Funds Check */}
+            <InsufficientFundsWarning
+              currentBalance={availableBalance}
+              requiredAmount={shiftCost}
+              currency={currency}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmModal(false)}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAccept}
+              disabled={isProcessing || !hasSufficientFunds}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Accept Worker
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Insufficient Funds Modal */}
+      <InsufficientFundsModal
+        open={showInsufficientFundsModal}
+        onOpenChange={setShowInsufficientFundsModal}
+        currentBalance={availableBalance}
+        requiredAmount={shiftCost}
+        currency={currency}
+        shiftTitle={shift?.title}
+        onTopUp={handleTopUp}
+      />
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent>
+          <div className="py-4">
+            <FundsReservedConfirmation
+              amount={shiftCost}
+              shiftTitle={shift?.title || 'this shift'}
+              workerName={selectedApplication?.applicant?.full_name || 'Worker'}
+              currency={currency}
+              onClose={handleSuccessClose}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

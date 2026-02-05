@@ -3,11 +3,11 @@
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.crud.payment import transaction as transaction_crud
 from app.crud.wallet import payment_method as payment_method_crud
-from app.crud.wallet import transaction as transaction_crud
 from app.crud.wallet import wallet as wallet_crud
+from app.models.payment import TransactionStatus, TransactionType
 from app.models.user import UserType
-from app.models.wallet import TransactionStatus, TransactionType
 from app.schemas.wallet import (
     PaymentMethodCreate,
     PaymentMethodListResponse,

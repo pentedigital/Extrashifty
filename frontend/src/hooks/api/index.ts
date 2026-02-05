@@ -30,3 +30,6 @@ export * from './useNotificationsApi'
 
 // Wallet hooks
 export * from './useWalletApi'
+
+// Payments hooks
+export * from './usePaymentsApi'

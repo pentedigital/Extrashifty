@@ -82,7 +82,7 @@ export const companyNav: NavSection[] = [
     title: 'Account',
     items: [
       { label: 'Company Profile', href: '/profile', icon: Building },
-      { label: 'Wallet', href: '/wallet', icon: Wallet },
+      { label: 'Wallet', href: '/company/wallet', icon: Wallet },
       { label: 'Settings', href: '/settings', icon: Settings },
     ],
   },
