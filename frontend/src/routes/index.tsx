@@ -502,8 +502,6 @@ function LandingPage() {
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li><Link to="/about" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">About</Link></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed select-none" aria-disabled="true">Blog</span></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed select-none" aria-disabled="true">Careers</span></li>
                 <li><Link to="/contact" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">Contact</Link></li>
               </ul>
             </div>
