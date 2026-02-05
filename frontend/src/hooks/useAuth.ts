@@ -6,6 +6,7 @@ import type { User, UserType } from '@/types/user'
 
 interface UseAuthReturn {
   user: User | null
+  token: string | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
@@ -67,6 +68,8 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(
     async (email: string, password: string) => {
       const user = await loginMutation.mutateAsync({ email, password })
+      // Dispatch custom event for WebSocket to connect
+      window.dispatchEvent(new Event('extrashifty:login'))
       return user
     },
     [loginMutation]
@@ -80,12 +83,17 @@ export function useAuth(): UseAuthReturn {
       user_type: UserType
     }) => {
       const user = await registerMutation.mutateAsync(data)
+      // Dispatch custom event for WebSocket to connect
+      window.dispatchEvent(new Event('extrashifty:login'))
       return user
     },
     [registerMutation]
   )
 
   const logout = useCallback(() => {
+    // Dispatch custom event for WebSocket to disconnect
+    window.dispatchEvent(new Event('extrashifty:logout'))
+
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         navigate({ to: '/login' })
@@ -93,8 +101,12 @@ export function useAuth(): UseAuthReturn {
     })
   }, [logoutMutation, navigate])
 
+  // Get the current access token
+  const token = tokenManager.getAccessToken()
+
   return {
     user: user ?? null,
+    token,
     isAuthenticated,
     isLoading,
     error: error ?? null,

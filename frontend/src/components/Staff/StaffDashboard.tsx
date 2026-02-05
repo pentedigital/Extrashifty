@@ -6,9 +6,12 @@ import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { StarRating } from '@/components/Ratings/StarRating'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
-import { useMyShifts, useMyStats } from '@/hooks/api/useStaffApi'
+import { useMyShifts, useMyStats, useStaffProfile } from '@/hooks/api/useStaffApi'
 import { useMyApplications } from '@/hooks/api/useApplicationsApi'
+import { useStaffReviews } from '@/hooks/api/useReviewsApi'
+import { useAuth } from '@/hooks/useAuth'
 
 // Helper to get badge variant for application status
 function getApplicationBadgeVariant(status: string): 'default' | 'success' | 'warning' | 'destructive' {
@@ -31,13 +34,20 @@ function formatApplicationStatus(status: string): string {
 }
 
 export function StaffDashboard() {
+  const { user } = useAuth()
+
   // Fetch data using React Query hooks
   const { data: stats, isLoading: statsLoading, error: statsError } = useMyStats()
   const { data: upcomingShifts, isLoading: shiftsLoading, error: shiftsError } = useMyShifts()
   const { data: applicationsData, isLoading: applicationsLoading, error: applicationsError } = useMyApplications('pending')
+  const { data: reviewsData, isLoading: reviewsLoading, error: reviewsError } = useStaffReviews(
+    user?.id ? String(user.id) : '',
+    { limit: '3' }
+  )
 
   // Extract applications from the response (backend returns { items, total })
   const applications = applicationsData?.items ?? []
+  const reviews = reviewsData?.items ?? []
 
   return (
     <div className="space-y-6">
@@ -233,6 +243,59 @@ export function StaffDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent Reviews */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Recent Reviews</CardTitle>
+          <Link to="/reviews" className="text-sm text-brand-600 hover:underline flex items-center gap-1">
+            View all <ArrowRight className="h-4 w-4" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {reviewsLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner size="lg" />
+            </div>
+          ) : reviewsError ? (
+            <div className="flex items-center gap-2 py-8 justify-center text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>Failed to load reviews</span>
+            </div>
+          ) : reviews.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="rounded-lg border p-4 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <StarRating value={review.rating} readonly size="sm" />
+                    <span className="text-sm font-medium">{review.rating.toFixed(1)}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    By {review.reviewer_name || 'Anonymous'}
+                  </p>
+                  {review.comment && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {review.comment}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(review.created_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Star}
+              title="No reviews yet"
+              description="Complete shifts to start receiving reviews from companies."
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -268,10 +268,15 @@ function SettingsPage() {
           <CardTitle>Notifications</CardTitle>
           <CardDescription>Manage notification preferences</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Notification settings coming soon.
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Control how and when you receive notifications about shifts, payments, and more.
           </p>
+          <Link to="/notifications/settings">
+            <Button variant="outline">
+              Manage Notification Settings
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 

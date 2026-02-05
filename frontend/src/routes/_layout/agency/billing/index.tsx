@@ -1,80 +1,65 @@
+import { useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Euro, FileText, CreditCard, TrendingUp, ArrowRight } from 'lucide-react'
+import { Euro, FileText, CreditCard, TrendingUp, ArrowRight, AlertCircle, Plus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { useAgencyInvoices, useAgencyPayroll, useAgencyWallet } from '@/hooks/api/useAgencyApi'
+import type { Invoice, PayrollEntry } from '@/types/agency'
 
 export const Route = createFileRoute('/_layout/agency/billing/')({
   component: BillingOverviewPage,
 })
 
-// Mock data
-const mockStats = {
-  total_revenue_month: 12500,
-  pending_invoices: 3,
-  pending_invoices_amount: 4200,
-  pending_payroll: 5,
-  pending_payroll_amount: 2800,
-  total_staff_paid: 38,
-}
-
-const mockRecentInvoices = [
-  {
-    id: '1',
-    client: 'Hotel ABC',
-    invoice_number: 'INV-2026-0042',
-    amount: 1850,
-    status: 'sent',
-    due_date: '2026-02-15',
-  },
-  {
-    id: '2',
-    client: 'Café Central',
-    invoice_number: 'INV-2026-0041',
-    amount: 920,
-    status: 'paid',
-    due_date: '2026-02-01',
-  },
-  {
-    id: '3',
-    client: 'The Local',
-    invoice_number: 'INV-2026-0040',
-    amount: 1430,
-    status: 'overdue',
-    due_date: '2026-01-25',
-  },
-]
-
-const mockRecentPayroll = [
-  {
-    id: '1',
-    name: 'John Doe',
-    period: 'Jan 27 - Feb 2',
-    hours: 32,
-    amount: 576,
-    status: 'pending',
-  },
-  {
-    id: '2',
-    name: 'Maria Santos',
-    period: 'Jan 27 - Feb 2',
-    hours: 28,
-    amount: 504,
-    status: 'pending',
-  },
-  {
-    id: '3',
-    name: 'Tom Wilson',
-    period: 'Jan 20 - Jan 26',
-    hours: 40,
-    amount: 720,
-    status: 'paid',
-  },
-]
-
 function BillingOverviewPage() {
+  const { data: invoicesData, isLoading: invoicesLoading, error: invoicesError } = useAgencyInvoices()
+  const { data: payrollData, isLoading: payrollLoading, error: payrollError } = useAgencyPayroll()
+  const { data: walletData, isLoading: walletLoading } = useAgencyWallet()
+
+  // Calculate stats from actual data
+  const stats = useMemo(() => {
+    const invoices = invoicesData?.items ?? []
+    const payroll = payrollData?.items ?? []
+
+    const pendingInvoices = invoices.filter(i => i.status === 'sent' || i.status === 'draft')
+    const overdueInvoices = invoices.filter(i => i.status === 'overdue')
+    const pendingPayroll = payroll.filter(p => p.status === 'pending' || p.status === 'approved')
+    const paidPayroll = payroll.filter(p => p.status === 'paid')
+
+    // Calculate this month's revenue from paid invoices
+    const now = new Date()
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const paidThisMonth = invoices
+      .filter(i => i.status === 'paid' && i.paid_date && new Date(i.paid_date) >= thisMonthStart)
+      .reduce((sum, i) => sum + i.amount, 0)
+
+    return {
+      total_revenue_month: walletData?.total_revenue ?? paidThisMonth,
+      pending_invoices: pendingInvoices.length + overdueInvoices.length,
+      pending_invoices_amount: pendingInvoices.reduce((sum, i) => sum + i.amount, 0) + overdueInvoices.reduce((sum, i) => sum + i.amount, 0),
+      pending_payroll: pendingPayroll.length,
+      pending_payroll_amount: pendingPayroll.reduce((sum, p) => sum + p.net_amount, 0),
+      total_staff_paid: paidPayroll.length,
+    }
+  }, [invoicesData, payrollData, walletData])
+
+  // Get recent items (last 3)
+  const recentInvoices = useMemo(() => {
+    return (invoicesData?.items ?? [])
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3)
+  }, [invoicesData])
+
+  const recentPayroll = useMemo(() => {
+    return (payrollData?.items ?? [])
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3)
+  }, [payrollData])
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
@@ -87,46 +72,97 @@ function BillingOverviewPage() {
         return <Badge variant="destructive">Overdue</Badge>
       case 'approved':
         return <Badge variant="success">Approved</Badge>
+      case 'draft':
+        return <Badge variant="outline">Draft</Badge>
       default:
         return <Badge>{status}</Badge>
     }
   }
 
+  const formatPeriod = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    return `${startDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })}`
+  }
+
+  const isLoading = invoicesLoading || payrollLoading || walletLoading
+  const hasError = invoicesError || payrollError
+
+  if (hasError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="h-10 w-10 text-destructive mb-4" />
+        <h2 className="text-lg font-semibold">Failed to load billing data</h2>
+        <p className="text-muted-foreground mb-4">Please try again later.</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Billing Overview</h1>
-        <p className="text-muted-foreground">
-          Manage invoices and payroll for your agency
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Billing Overview</h1>
+          <p className="text-muted-foreground">
+            Manage invoices and payroll for your agency
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/agency/billing/invoices/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Invoice
+            </Button>
+          </Link>
+          <Link to="/agency/billing/payroll/process">
+            <Button variant="outline">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Process Payroll
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Revenue This Month"
-          value={formatCurrency(mockStats.total_revenue_month)}
-          icon={TrendingUp}
-        />
-        <StatCard
-          title="Pending Invoices"
-          value={mockStats.pending_invoices}
-          subtitle={formatCurrency(mockStats.pending_invoices_amount)}
-          icon={FileText}
-        />
-        <StatCard
-          title="Pending Payroll"
-          value={mockStats.pending_payroll}
-          subtitle={formatCurrency(mockStats.pending_payroll_amount)}
-          icon={CreditCard}
-        />
-        <StatCard
-          title="Staff Paid"
-          value={mockStats.total_staff_paid}
-          subtitle="This month"
-          icon={Euro}
-        />
+        {isLoading ? (
+          <>
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+            <Skeleton className="h-[100px]" />
+          </>
+        ) : (
+          <>
+            <StatCard
+              title="Revenue This Month"
+              value={formatCurrency(stats.total_revenue_month)}
+              icon={TrendingUp}
+            />
+            <StatCard
+              title="Pending Invoices"
+              value={stats.pending_invoices}
+              subtitle={formatCurrency(stats.pending_invoices_amount)}
+              icon={FileText}
+            />
+            <StatCard
+              title="Pending Payroll"
+              value={stats.pending_payroll}
+              subtitle={formatCurrency(stats.pending_payroll_amount)}
+              icon={CreditCard}
+            />
+            <StatCard
+              title="Staff Paid"
+              value={stats.total_staff_paid}
+              subtitle="This month"
+              icon={Euro}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -142,33 +178,58 @@ function BillingOverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockRecentInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div>
-                    <p className="font-medium">{invoice.client}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {invoice.invoice_number}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">
-                      {formatCurrency(invoice.amount)}
-                    </p>
-                    {getStatusBadge(invoice.status)}
-                  </div>
+            {invoicesLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-[72px]" />
+                <Skeleton className="h-[72px]" />
+                <Skeleton className="h-[72px]" />
+              </div>
+            ) : recentInvoices.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No invoices yet"
+                description="Create your first invoice to start billing clients."
+                action={
+                  <Link to="/agency/billing/invoices/create">
+                    <Button size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Invoice
+                    </Button>
+                  </Link>
+                }
+              />
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {recentInvoices.map((invoice: Invoice) => (
+                    <Link
+                      key={invoice.id}
+                      to={`/agency/billing/invoices/${invoice.id}`}
+                      className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div>
+                        <p className="font-medium">{invoice.client?.company?.business_name ?? invoice.client?.business_email ?? 'Unknown Client'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {invoice.invoice_number}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">
+                          {formatCurrency(invoice.amount)}
+                        </p>
+                        {getStatusBadge(invoice.status)}
+                      </div>
+                    </Link>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Link to="/agency/billing/invoices">
-              <Button variant="outline" className="w-full mt-4">
-                <FileText className="mr-2 h-4 w-4" />
-                Manage Invoices
-              </Button>
-            </Link>
+                <Link to="/agency/billing/invoices">
+                  <Button variant="outline" className="w-full mt-4">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Manage Invoices
+                  </Button>
+                </Link>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -184,33 +245,57 @@ function BillingOverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockRecentPayroll.map((payroll) => (
-                <div
-                  key={payroll.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div>
-                    <p className="font-medium">{payroll.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {payroll.period} • {payroll.hours}h
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">
-                      {formatCurrency(payroll.amount)}
-                    </p>
-                    {getStatusBadge(payroll.status)}
-                  </div>
+            {payrollLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-[72px]" />
+                <Skeleton className="h-[72px]" />
+                <Skeleton className="h-[72px]" />
+              </div>
+            ) : recentPayroll.length === 0 ? (
+              <EmptyState
+                icon={CreditCard}
+                title="No payroll entries"
+                description="Process payroll to pay your staff members."
+                action={
+                  <Link to="/agency/billing/payroll/process">
+                    <Button size="sm">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Process Payroll
+                    </Button>
+                  </Link>
+                }
+              />
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {recentPayroll.map((payroll: PayrollEntry) => (
+                    <div
+                      key={payroll.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div>
+                        <p className="font-medium">{payroll.staff_member?.staff?.name ?? payroll.staff_member?.name ?? 'Unknown Staff'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatPeriod(payroll.period_start, payroll.period_end)} - {payroll.hours_worked}h
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">
+                          {formatCurrency(payroll.net_amount)}
+                        </p>
+                        {getStatusBadge(payroll.status)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Link to="/agency/billing/payroll">
-              <Button variant="outline" className="w-full mt-4">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Manage Payroll
-              </Button>
-            </Link>
+                <Link to="/agency/billing/payroll">
+                  <Button variant="outline" className="w-full mt-4">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Manage Payroll
+                  </Button>
+                </Link>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

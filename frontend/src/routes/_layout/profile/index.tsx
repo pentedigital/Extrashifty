@@ -1,8 +1,9 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useStaffProfile } from '@/hooks/api/useStaffApi'
 import { useCompanyProfile } from '@/hooks/api/useCompanyApi'
 import { useAgencyProfile, useAgencyStats } from '@/hooks/api/useAgencyApi'
+import { useStaffReviews, useCompanyReviews } from '@/hooks/api/useReviewsApi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { VerificationBadges } from '@/components/Verification/VerificationBadges'
-import { MapPin, Calendar, Edit, AlertCircle } from 'lucide-react'
+import { ReviewCard } from '@/components/Reviews/ReviewCard'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Spinner } from '@/components/ui/spinner'
+import { MapPin, Calendar, Edit, AlertCircle, ArrowRight, Star } from 'lucide-react'
 
 export const Route = createFileRoute('/_layout/profile/')({
   component: ProfilePage,
@@ -32,6 +36,16 @@ function ProfilePage() {
   const companyProfileQuery = useCompanyProfile()
   const agencyProfileQuery = useAgencyProfile()
   const agencyStatsQuery = useAgencyStats()
+
+  // Fetch reviews for staff/company
+  const staffReviewsQuery = useStaffReviews(
+    userType === 'staff' && user?.id ? String(user.id) : '',
+    { limit: '3' }
+  )
+  const companyReviewsQuery = useCompanyReviews(
+    userType === 'company' && user?.id ? String(user.id) : '',
+    { limit: '3' }
+  )
 
   // Determine loading and error states based on user type
   const isLoading =
@@ -220,6 +234,41 @@ function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Recent Reviews Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Recent Reviews</CardTitle>
+              {(staffReviewsQuery.data?.total || 0) > 0 && (
+                <Link to="/reviews" className="text-sm text-brand-600 hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
+            </CardHeader>
+            <CardContent>
+              {staffReviewsQuery.isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner size="lg" />
+                </div>
+              ) : staffReviewsQuery.data?.items && staffReviewsQuery.data.items.length > 0 ? (
+                <div className="space-y-3">
+                  {staffReviewsQuery.data.items.map((review) => (
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      showShiftInfo={false}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Star}
+                  title="No reviews yet"
+                  description="Complete shifts to start receiving reviews from companies."
+                />
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -323,6 +372,41 @@ function ProfilePage() {
                   <p className="text-xs sm:text-sm text-muted-foreground">Reviews</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Reviews Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Recent Reviews</CardTitle>
+              {(companyReviewsQuery.data?.total || 0) > 0 && (
+                <Link to="/reviews" className="text-sm text-brand-600 hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
+            </CardHeader>
+            <CardContent>
+              {companyReviewsQuery.isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner size="lg" />
+                </div>
+              ) : companyReviewsQuery.data?.items && companyReviewsQuery.data.items.length > 0 ? (
+                <div className="space-y-3">
+                  {companyReviewsQuery.data.items.map((review) => (
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      showShiftInfo={false}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Star}
+                  title="No reviews yet"
+                  description="Reviews from workers will appear here once they are submitted."
+                />
+              )}
             </CardContent>
           </Card>
         </>

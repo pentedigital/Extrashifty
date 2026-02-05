@@ -1,107 +1,71 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, CreditCard, Check, Clock } from 'lucide-react'
+import { ArrowLeft, CreditCard, Check, Clock, Search, AlertCircle, Plus } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { useAgencyPayroll, useAgencyStaff } from '@/hooks/api/useAgencyApi'
+import type { PayrollEntry } from '@/types/agency'
 
 export const Route = createFileRoute('/_layout/agency/billing/payroll')({
   component: PayrollPage,
 })
 
-// Mock data
-const mockPayroll = {
-  pending: [
-    {
-      id: '1',
-      name: 'John Doe',
-      avatar: null,
-      period: 'Jan 27 - Feb 2, 2026',
-      hours: 32,
-      gross_amount: 576,
-      deductions: 0,
-      net_amount: 576,
-      shifts_count: 4,
-      status: 'pending',
-    },
-    {
-      id: '2',
-      name: 'Maria Santos',
-      avatar: null,
-      period: 'Jan 27 - Feb 2, 2026',
-      hours: 28,
-      gross_amount: 504,
-      deductions: 0,
-      net_amount: 504,
-      shifts_count: 3,
-      status: 'pending',
-    },
-    {
-      id: '3',
-      name: 'Sarah Chen',
-      avatar: null,
-      period: 'Jan 27 - Feb 2, 2026',
-      hours: 24,
-      gross_amount: 336,
-      deductions: 0,
-      net_amount: 336,
-      shifts_count: 3,
-      status: 'pending',
-    },
-  ],
-  approved: [
-    {
-      id: '4',
-      name: 'Tom Wilson',
-      avatar: null,
-      period: 'Jan 20 - Jan 26, 2026',
-      hours: 40,
-      gross_amount: 720,
-      deductions: 0,
-      net_amount: 720,
-      shifts_count: 5,
-      status: 'approved',
-    },
-  ],
-  paid: [
-    {
-      id: '5',
-      name: 'John Doe',
-      avatar: null,
-      period: 'Jan 20 - Jan 26, 2026',
-      hours: 36,
-      gross_amount: 648,
-      deductions: 0,
-      net_amount: 648,
-      shifts_count: 5,
-      paid_date: '2026-01-28',
-      status: 'paid',
-    },
-    {
-      id: '6',
-      name: 'Maria Santos',
-      avatar: null,
-      period: 'Jan 20 - Jan 26, 2026',
-      hours: 32,
-      gross_amount: 576,
-      deductions: 0,
-      net_amount: 576,
-      shifts_count: 4,
-      paid_date: '2026-01-28',
-      status: 'paid',
-    },
-  ],
-}
-
 function PayrollPage() {
   const [activeTab, setActiveTab] = useState('pending')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [staffFilter, setStaffFilter] = useState('')
   const { addToast } = useToast()
+
+  const { data: payrollData, isLoading, error } = useAgencyPayroll()
+  const { data: staffData } = useAgencyStaff()
+
+  // Group payroll entries by status
+  const groupedPayroll = useMemo(() => {
+    const entries = payrollData?.items ?? []
+    const filtered = entries.filter(entry => {
+      const staffName = entry.staff_member?.staff?.name ?? entry.staff_member?.name ?? ''
+      const matchesSearch = !searchQuery ||
+        staffName.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesStaff = !staffFilter || entry.staff_member_id === staffFilter
+      return matchesSearch && matchesStaff
+    })
+
+    return {
+      pending: filtered.filter(p => p.status === 'pending'),
+      approved: filtered.filter(p => p.status === 'approved'),
+      paid: filtered.filter(p => p.status === 'paid'),
+    }
+  }, [payrollData, searchQuery, staffFilter])
+
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const entries = payrollData?.items ?? []
+    const pending = entries.filter(p => p.status === 'pending')
+    const approved = entries.filter(p => p.status === 'approved')
+    const paid = entries.filter(p => p.status === 'paid')
+
+    return {
+      pendingTotal: pending.reduce((sum, e) => sum + e.net_amount, 0),
+      approvedTotal: approved.reduce((sum, e) => sum + e.net_amount, 0),
+      paidTotal: paid.reduce((sum, e) => sum + e.net_amount, 0),
+    }
+  }, [payrollData])
+
+  const staffOptions = useMemo(() => {
+    return (staffData?.items ?? []).map(member => ({
+      value: member.id,
+      label: member.staff?.name ?? member.name ?? member.email ?? 'Unknown',
+    }))
+  }, [staffData])
 
   const handleApproveSelected = (count: number, totalAmount: number) => {
     addToast({
@@ -148,7 +112,7 @@ function PayrollPage() {
     )
   }
 
-  const selectAll = (entries: typeof mockPayroll.pending) => {
+  const selectAll = (entries: PayrollEntry[]) => {
     if (selectedIds.length === entries.length) {
       setSelectedIds([])
     } else {
@@ -156,19 +120,67 @@ function PayrollPage() {
     }
   }
 
-  const getTotalSelected = (entries: typeof mockPayroll.pending) => {
+  const getTotalSelected = (entries: PayrollEntry[]) => {
     return entries
       .filter((e) => selectedIds.includes(e.id))
       .reduce((sum, e) => sum + e.net_amount, 0)
   }
 
-  const renderPayrollList = (entries: typeof mockPayroll.pending, showCheckbox = false) => {
+  const formatPeriod = (start: string, end: string) => {
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    return `${startDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-IE', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }
+
+  const getStaffName = (entry: PayrollEntry) => {
+    return entry.staff_member?.staff?.name ?? entry.staff_member?.name ?? 'Unknown Staff'
+  }
+
+  const getStaffInitials = (entry: PayrollEntry) => {
+    const name = getStaffName(entry)
+    return name.split(' ').map(n => n[0]).join('').toUpperCase()
+  }
+
+  const renderPayrollList = (entries: PayrollEntry[], showCheckbox = false) => {
+    if (isLoading) {
+      return (
+        <div className="space-y-3">
+          <Skeleton className="h-[80px]" />
+          <Skeleton className="h-[80px]" />
+          <Skeleton className="h-[80px]" />
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+          <p className="text-muted-foreground">Failed to load payroll data. Please try again.</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      )
+    }
+
     if (entries.length === 0) {
       return (
         <EmptyState
           icon={CreditCard}
           title="No payroll entries"
-          description={`No ${activeTab} payroll entries found.`}
+          description={searchQuery || staffFilter
+            ? 'No payroll entries match your filters.'
+            : `No ${activeTab} payroll entries found.`
+          }
+          action={activeTab === 'pending' ? (
+            <Link to="/agency/billing/payroll/process">
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Process Payroll
+              </Button>
+            </Link>
+          ) : undefined}
         />
       )
     }
@@ -180,7 +192,7 @@ function PayrollPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={selectedIds.length === entries.length}
+                checked={selectedIds.length === entries.length && entries.length > 0}
                 onChange={() => selectAll(entries)}
                 className="h-4 w-4 rounded border-gray-300"
               />
@@ -191,7 +203,7 @@ function PayrollPage() {
             {selectedIds.length > 0 && (
               <div className="flex items-center gap-4">
                 <span className="text-sm text-muted-foreground">
-                  {selectedIds.length} selected • {formatCurrency(getTotalSelected(entries))}
+                  {selectedIds.length} selected - {formatCurrency(getTotalSelected(entries))}
                 </span>
                 <Button
                   size="sm"
@@ -209,7 +221,7 @@ function PayrollPage() {
         )}
 
         {entries.map((entry) => (
-          <Card key={entry.id}>
+          <Card key={entry.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 {showCheckbox && (
@@ -221,19 +233,21 @@ function PayrollPage() {
                   />
                 )}
                 <Avatar>
-                  {entry.avatar && <AvatarImage src={entry.avatar} />}
-                  <AvatarFallback>
-                    {entry.name.split(' ').map((n) => n[0]).join('')}
-                  </AvatarFallback>
+                  <AvatarFallback>{getStaffInitials(entry)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold">{entry.name}</p>
+                    <p className="font-semibold">{getStaffName(entry)}</p>
                     {getStatusBadge(entry.status)}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {entry.period} • {entry.shifts_count} shifts • {entry.hours}h
+                    {formatPeriod(entry.period_start, entry.period_end)} - {entry.shifts?.length ?? 0} shifts - {entry.hours_worked}h
                   </p>
+                  {entry.paid_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Paid on {formatDate(entry.paid_at)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-lg">
@@ -248,7 +262,7 @@ function PayrollPage() {
                 {!showCheckbox && entry.status === 'approved' && (
                   <Button
                     size="sm"
-                    onClick={() => handlePayIndividual(entry.name, entry.net_amount)}
+                    onClick={() => handlePayIndividual(getStaffName(entry), entry.net_amount)}
                   >
                     <CreditCard className="mr-2 h-4 w-4" />
                     Pay
@@ -277,6 +291,12 @@ function PayrollPage() {
             Manage staff payments
           </p>
         </div>
+        <Link to="/agency/billing/payroll/process">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Process Payroll
+          </Button>
+        </Link>
       </div>
 
       {/* Summary Cards */}
@@ -290,7 +310,7 @@ function PayrollPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending Approval</p>
                 <p className="font-semibold">
-                  {formatCurrency(mockPayroll.pending.reduce((s, e) => s + e.net_amount, 0))}
+                  {isLoading ? <Skeleton className="h-6 w-20" /> : formatCurrency(summaryStats.pendingTotal)}
                 </p>
               </div>
             </div>
@@ -305,7 +325,7 @@ function PayrollPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Ready to Pay</p>
                 <p className="font-semibold">
-                  {formatCurrency(mockPayroll.approved.reduce((s, e) => s + e.net_amount, 0))}
+                  {isLoading ? <Skeleton className="h-6 w-20" /> : formatCurrency(summaryStats.approvedTotal)}
                 </p>
               </div>
             </div>
@@ -320,7 +340,7 @@ function PayrollPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Paid This Month</p>
                 <p className="font-semibold">
-                  {formatCurrency(mockPayroll.paid.reduce((s, e) => s + e.net_amount, 0))}
+                  {isLoading ? <Skeleton className="h-6 w-20" /> : formatCurrency(summaryStats.paidTotal)}
                 </p>
               </div>
             </div>
@@ -328,27 +348,53 @@ function PayrollPage() {
         </Card>
       </div>
 
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search staff..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <select
+          value={staffFilter}
+          onChange={(e) => setStaffFilter(e.target.value)}
+          className="h-9 px-3 rounded-md border border-input bg-transparent text-sm"
+        >
+          <option value="">All Staff</option>
+          {staffOptions.map((staff) => (
+            <option key={staff.value} value={staff.value}>
+              {staff.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelectedIds([]) }}>
         <TabsList>
           <TabsTrigger value="pending">
-            Pending ({mockPayroll.pending.length})
+            Pending {isLoading ? '' : `(${groupedPayroll.pending.length})`}
           </TabsTrigger>
           <TabsTrigger value="approved">
-            Approved ({mockPayroll.approved.length})
+            Approved {isLoading ? '' : `(${groupedPayroll.approved.length})`}
           </TabsTrigger>
           <TabsTrigger value="paid">
-            Paid ({mockPayroll.paid.length})
+            Paid {isLoading ? '' : `(${groupedPayroll.paid.length})`}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="mt-6">
-          {renderPayrollList(mockPayroll.pending, true)}
+          {renderPayrollList(groupedPayroll.pending, true)}
         </TabsContent>
         <TabsContent value="approved" className="mt-6">
-          {renderPayrollList(mockPayroll.approved, true)}
+          {renderPayrollList(groupedPayroll.approved, true)}
         </TabsContent>
         <TabsContent value="paid" className="mt-6">
-          {renderPayrollList(mockPayroll.paid)}
+          {renderPayrollList(groupedPayroll.paid)}
         </TabsContent>
       </Tabs>
     </div>

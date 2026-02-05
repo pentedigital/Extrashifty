@@ -30,15 +30,23 @@ import { Route as LegalCookiesRouteImport } from './routes/legal/cookies'
 import { Route as LayoutWalletRouteImport } from './routes/_layout/wallet'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutDashboardRouteImport } from './routes/_layout/dashboard'
+import { Route as LayoutWalletIndexRouteImport } from './routes/_layout/wallet/index'
 import { Route as LayoutShiftsIndexRouteImport } from './routes/_layout/shifts/index'
+import { Route as LayoutReviewsIndexRouteImport } from './routes/_layout/reviews/index'
 import { Route as LayoutProfileIndexRouteImport } from './routes/_layout/profile/index'
+import { Route as LayoutNotificationsIndexRouteImport } from './routes/_layout/notifications/index'
 import { Route as LayoutMarketplaceIndexRouteImport } from './routes/_layout/marketplace/index'
 import { Route as LayoutCompanyIndexRouteImport } from './routes/_layout/company/index'
 import { Route as LayoutAgencyIndexRouteImport } from './routes/_layout/agency/index'
 import { Route as LayoutAdminIndexRouteImport } from './routes/_layout/admin/index'
+import { Route as LayoutWalletWithdrawRouteImport } from './routes/_layout/wallet/withdraw'
+import { Route as LayoutWalletTransactionsRouteImport } from './routes/_layout/wallet/transactions'
+import { Route as LayoutWalletTopUpRouteImport } from './routes/_layout/wallet/top-up'
+import { Route as LayoutWalletPaymentMethodsRouteImport } from './routes/_layout/wallet/payment-methods'
 import { Route as LayoutShiftsTimeRouteImport } from './routes/_layout/shifts/time'
 import { Route as LayoutShiftsApplicationsRouteImport } from './routes/_layout/shifts/applications'
 import { Route as LayoutProfileUserIdRouteImport } from './routes/_layout/profile/$userId'
+import { Route as LayoutNotificationsSettingsRouteImport } from './routes/_layout/notifications/settings'
 import { Route as LayoutMarketplaceShiftIdRouteImport } from './routes/_layout/marketplace/$shiftId'
 import { Route as LayoutCompanyAgenciesRouteImport } from './routes/_layout/company/agencies'
 import { Route as LayoutAdminUsersRouteImport } from './routes/_layout/admin/users'
@@ -69,6 +77,9 @@ import { Route as LayoutCompanyShiftsShiftIdEditRouteImport } from './routes/_la
 import { Route as LayoutCompanyShiftsShiftIdApplicantsRouteImport } from './routes/_layout/company/shifts/$shiftId/applicants'
 import { Route as LayoutAgencyShiftsShiftIdAssignRouteImport } from './routes/_layout/agency/shifts/$shiftId/assign'
 import { Route as LayoutAgencyClientsClientIdShiftsRouteImport } from './routes/_layout/agency/clients/$clientId/shifts'
+import { Route as LayoutAgencyBillingPayrollProcessRouteImport } from './routes/_layout/agency/billing/payroll/process'
+import { Route as LayoutAgencyBillingInvoicesCreateRouteImport } from './routes/_layout/agency/billing/invoices/create'
+import { Route as LayoutAgencyBillingInvoicesInvoiceIdRouteImport } from './routes/_layout/agency/billing/invoices/$invoiceId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -174,9 +185,19 @@ const LayoutDashboardRoute = LayoutDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutWalletIndexRoute = LayoutWalletIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LayoutWalletRoute,
+} as any)
 const LayoutShiftsIndexRoute = LayoutShiftsIndexRouteImport.update({
   id: '/shifts/',
   path: '/shifts/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutReviewsIndexRoute = LayoutReviewsIndexRouteImport.update({
+  id: '/reviews/',
+  path: '/reviews/',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutProfileIndexRoute = LayoutProfileIndexRouteImport.update({
@@ -184,6 +205,12 @@ const LayoutProfileIndexRoute = LayoutProfileIndexRouteImport.update({
   path: '/profile/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutNotificationsIndexRoute =
+  LayoutNotificationsIndexRouteImport.update({
+    id: '/notifications/',
+    path: '/notifications/',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutMarketplaceIndexRoute = LayoutMarketplaceIndexRouteImport.update({
   id: '/marketplace/',
   path: '/marketplace/',
@@ -204,6 +231,28 @@ const LayoutAdminIndexRoute = LayoutAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutWalletWithdrawRoute = LayoutWalletWithdrawRouteImport.update({
+  id: '/withdraw',
+  path: '/withdraw',
+  getParentRoute: () => LayoutWalletRoute,
+} as any)
+const LayoutWalletTransactionsRoute =
+  LayoutWalletTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => LayoutWalletRoute,
+  } as any)
+const LayoutWalletTopUpRoute = LayoutWalletTopUpRouteImport.update({
+  id: '/top-up',
+  path: '/top-up',
+  getParentRoute: () => LayoutWalletRoute,
+} as any)
+const LayoutWalletPaymentMethodsRoute =
+  LayoutWalletPaymentMethodsRouteImport.update({
+    id: '/payment-methods',
+    path: '/payment-methods',
+    getParentRoute: () => LayoutWalletRoute,
+  } as any)
 const LayoutShiftsTimeRoute = LayoutShiftsTimeRouteImport.update({
   id: '/shifts/time',
   path: '/shifts/time',
@@ -220,6 +269,12 @@ const LayoutProfileUserIdRoute = LayoutProfileUserIdRouteImport.update({
   path: '/profile/$userId',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutNotificationsSettingsRoute =
+  LayoutNotificationsSettingsRouteImport.update({
+    id: '/notifications/settings',
+    path: '/notifications/settings',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutMarketplaceShiftIdRoute =
   LayoutMarketplaceShiftIdRouteImport.update({
     id: '/marketplace/$shiftId',
@@ -386,6 +441,24 @@ const LayoutAgencyClientsClientIdShiftsRoute =
     path: '/agency/clients/$clientId/shifts',
     getParentRoute: () => LayoutRoute,
   } as any)
+const LayoutAgencyBillingPayrollProcessRoute =
+  LayoutAgencyBillingPayrollProcessRouteImport.update({
+    id: '/process',
+    path: '/process',
+    getParentRoute: () => LayoutAgencyBillingPayrollRoute,
+  } as any)
+const LayoutAgencyBillingInvoicesCreateRoute =
+  LayoutAgencyBillingInvoicesCreateRouteImport.update({
+    id: '/create',
+    path: '/create',
+    getParentRoute: () => LayoutAgencyBillingInvoicesRoute,
+  } as any)
+const LayoutAgencyBillingInvoicesInvoiceIdRoute =
+  LayoutAgencyBillingInvoicesInvoiceIdRouteImport.update({
+    id: '/$invoiceId',
+    path: '/$invoiceId',
+    getParentRoute: () => LayoutAgencyBillingInvoicesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -401,7 +474,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/dashboard': typeof LayoutDashboardRoute
   '/settings': typeof LayoutSettingsRoute
-  '/wallet': typeof LayoutWalletRoute
+  '/wallet': typeof LayoutWalletRouteWithChildren
   '/legal/cookies': typeof LegalCookiesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -419,17 +492,25 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof LayoutAdminUsersRoute
   '/company/agencies': typeof LayoutCompanyAgenciesRoute
   '/marketplace/$shiftId': typeof LayoutMarketplaceShiftIdRoute
+  '/notifications/settings': typeof LayoutNotificationsSettingsRoute
   '/profile/$userId': typeof LayoutProfileUserIdRoute
   '/shifts/applications': typeof LayoutShiftsApplicationsRoute
   '/shifts/time': typeof LayoutShiftsTimeRoute
+  '/wallet/payment-methods': typeof LayoutWalletPaymentMethodsRoute
+  '/wallet/top-up': typeof LayoutWalletTopUpRoute
+  '/wallet/transactions': typeof LayoutWalletTransactionsRoute
+  '/wallet/withdraw': typeof LayoutWalletWithdrawRoute
   '/admin/': typeof LayoutAdminIndexRoute
   '/agency/': typeof LayoutAgencyIndexRoute
   '/company/': typeof LayoutCompanyIndexRoute
   '/marketplace/': typeof LayoutMarketplaceIndexRoute
+  '/notifications/': typeof LayoutNotificationsIndexRoute
   '/profile/': typeof LayoutProfileIndexRoute
+  '/reviews/': typeof LayoutReviewsIndexRoute
   '/shifts/': typeof LayoutShiftsIndexRoute
-  '/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRoute
-  '/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRoute
+  '/wallet/': typeof LayoutWalletIndexRoute
+  '/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRouteWithChildren
+  '/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRouteWithChildren
   '/agency/clients/add': typeof LayoutAgencyClientsAddRoute
   '/agency/shifts/create': typeof LayoutAgencyShiftsCreateRoute
   '/agency/staff/$memberId': typeof LayoutAgencyStaffMemberIdRoute
@@ -441,6 +522,9 @@ export interface FileRoutesByFullPath {
   '/agency/shifts/': typeof LayoutAgencyShiftsIndexRoute
   '/agency/staff/': typeof LayoutAgencyStaffIndexRoute
   '/company/shifts/': typeof LayoutCompanyShiftsIndexRoute
+  '/agency/billing/invoices/$invoiceId': typeof LayoutAgencyBillingInvoicesInvoiceIdRoute
+  '/agency/billing/invoices/create': typeof LayoutAgencyBillingInvoicesCreateRoute
+  '/agency/billing/payroll/process': typeof LayoutAgencyBillingPayrollProcessRoute
   '/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
   '/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
@@ -462,7 +546,6 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/dashboard': typeof LayoutDashboardRoute
   '/settings': typeof LayoutSettingsRoute
-  '/wallet': typeof LayoutWalletRoute
   '/legal/cookies': typeof LegalCookiesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -480,17 +563,25 @@ export interface FileRoutesByTo {
   '/admin/users': typeof LayoutAdminUsersRoute
   '/company/agencies': typeof LayoutCompanyAgenciesRoute
   '/marketplace/$shiftId': typeof LayoutMarketplaceShiftIdRoute
+  '/notifications/settings': typeof LayoutNotificationsSettingsRoute
   '/profile/$userId': typeof LayoutProfileUserIdRoute
   '/shifts/applications': typeof LayoutShiftsApplicationsRoute
   '/shifts/time': typeof LayoutShiftsTimeRoute
+  '/wallet/payment-methods': typeof LayoutWalletPaymentMethodsRoute
+  '/wallet/top-up': typeof LayoutWalletTopUpRoute
+  '/wallet/transactions': typeof LayoutWalletTransactionsRoute
+  '/wallet/withdraw': typeof LayoutWalletWithdrawRoute
   '/admin': typeof LayoutAdminIndexRoute
   '/agency': typeof LayoutAgencyIndexRoute
   '/company': typeof LayoutCompanyIndexRoute
   '/marketplace': typeof LayoutMarketplaceIndexRoute
+  '/notifications': typeof LayoutNotificationsIndexRoute
   '/profile': typeof LayoutProfileIndexRoute
+  '/reviews': typeof LayoutReviewsIndexRoute
   '/shifts': typeof LayoutShiftsIndexRoute
-  '/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRoute
-  '/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRoute
+  '/wallet': typeof LayoutWalletIndexRoute
+  '/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRouteWithChildren
+  '/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRouteWithChildren
   '/agency/clients/add': typeof LayoutAgencyClientsAddRoute
   '/agency/shifts/create': typeof LayoutAgencyShiftsCreateRoute
   '/agency/staff/$memberId': typeof LayoutAgencyStaffMemberIdRoute
@@ -502,6 +593,9 @@ export interface FileRoutesByTo {
   '/agency/shifts': typeof LayoutAgencyShiftsIndexRoute
   '/agency/staff': typeof LayoutAgencyStaffIndexRoute
   '/company/shifts': typeof LayoutCompanyShiftsIndexRoute
+  '/agency/billing/invoices/$invoiceId': typeof LayoutAgencyBillingInvoicesInvoiceIdRoute
+  '/agency/billing/invoices/create': typeof LayoutAgencyBillingInvoicesCreateRoute
+  '/agency/billing/payroll/process': typeof LayoutAgencyBillingPayrollProcessRoute
   '/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
   '/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
@@ -525,7 +619,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_layout/dashboard': typeof LayoutDashboardRoute
   '/_layout/settings': typeof LayoutSettingsRoute
-  '/_layout/wallet': typeof LayoutWalletRoute
+  '/_layout/wallet': typeof LayoutWalletRouteWithChildren
   '/legal/cookies': typeof LegalCookiesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -543,17 +637,25 @@ export interface FileRoutesById {
   '/_layout/admin/users': typeof LayoutAdminUsersRoute
   '/_layout/company/agencies': typeof LayoutCompanyAgenciesRoute
   '/_layout/marketplace/$shiftId': typeof LayoutMarketplaceShiftIdRoute
+  '/_layout/notifications/settings': typeof LayoutNotificationsSettingsRoute
   '/_layout/profile/$userId': typeof LayoutProfileUserIdRoute
   '/_layout/shifts/applications': typeof LayoutShiftsApplicationsRoute
   '/_layout/shifts/time': typeof LayoutShiftsTimeRoute
+  '/_layout/wallet/payment-methods': typeof LayoutWalletPaymentMethodsRoute
+  '/_layout/wallet/top-up': typeof LayoutWalletTopUpRoute
+  '/_layout/wallet/transactions': typeof LayoutWalletTransactionsRoute
+  '/_layout/wallet/withdraw': typeof LayoutWalletWithdrawRoute
   '/_layout/admin/': typeof LayoutAdminIndexRoute
   '/_layout/agency/': typeof LayoutAgencyIndexRoute
   '/_layout/company/': typeof LayoutCompanyIndexRoute
   '/_layout/marketplace/': typeof LayoutMarketplaceIndexRoute
+  '/_layout/notifications/': typeof LayoutNotificationsIndexRoute
   '/_layout/profile/': typeof LayoutProfileIndexRoute
+  '/_layout/reviews/': typeof LayoutReviewsIndexRoute
   '/_layout/shifts/': typeof LayoutShiftsIndexRoute
-  '/_layout/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRoute
-  '/_layout/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRoute
+  '/_layout/wallet/': typeof LayoutWalletIndexRoute
+  '/_layout/agency/billing/invoices': typeof LayoutAgencyBillingInvoicesRouteWithChildren
+  '/_layout/agency/billing/payroll': typeof LayoutAgencyBillingPayrollRouteWithChildren
   '/_layout/agency/clients/add': typeof LayoutAgencyClientsAddRoute
   '/_layout/agency/shifts/create': typeof LayoutAgencyShiftsCreateRoute
   '/_layout/agency/staff/$memberId': typeof LayoutAgencyStaffMemberIdRoute
@@ -565,6 +667,9 @@ export interface FileRoutesById {
   '/_layout/agency/shifts/': typeof LayoutAgencyShiftsIndexRoute
   '/_layout/agency/staff/': typeof LayoutAgencyStaffIndexRoute
   '/_layout/company/shifts/': typeof LayoutCompanyShiftsIndexRoute
+  '/_layout/agency/billing/invoices/$invoiceId': typeof LayoutAgencyBillingInvoicesInvoiceIdRoute
+  '/_layout/agency/billing/invoices/create': typeof LayoutAgencyBillingInvoicesCreateRoute
+  '/_layout/agency/billing/payroll/process': typeof LayoutAgencyBillingPayrollProcessRoute
   '/_layout/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
   '/_layout/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/_layout/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
@@ -606,15 +711,23 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/company/agencies'
     | '/marketplace/$shiftId'
+    | '/notifications/settings'
     | '/profile/$userId'
     | '/shifts/applications'
     | '/shifts/time'
+    | '/wallet/payment-methods'
+    | '/wallet/top-up'
+    | '/wallet/transactions'
+    | '/wallet/withdraw'
     | '/admin/'
     | '/agency/'
     | '/company/'
     | '/marketplace/'
+    | '/notifications/'
     | '/profile/'
+    | '/reviews/'
     | '/shifts/'
+    | '/wallet/'
     | '/agency/billing/invoices'
     | '/agency/billing/payroll'
     | '/agency/clients/add'
@@ -628,6 +741,9 @@ export interface FileRouteTypes {
     | '/agency/shifts/'
     | '/agency/staff/'
     | '/company/shifts/'
+    | '/agency/billing/invoices/$invoiceId'
+    | '/agency/billing/invoices/create'
+    | '/agency/billing/payroll/process'
     | '/agency/clients/$clientId/shifts'
     | '/agency/shifts/$shiftId/assign'
     | '/company/shifts/$shiftId/applicants'
@@ -649,7 +765,6 @@ export interface FileRouteTypes {
     | '/terms'
     | '/dashboard'
     | '/settings'
-    | '/wallet'
     | '/legal/cookies'
     | '/legal/privacy'
     | '/legal/terms'
@@ -667,15 +782,23 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/company/agencies'
     | '/marketplace/$shiftId'
+    | '/notifications/settings'
     | '/profile/$userId'
     | '/shifts/applications'
     | '/shifts/time'
+    | '/wallet/payment-methods'
+    | '/wallet/top-up'
+    | '/wallet/transactions'
+    | '/wallet/withdraw'
     | '/admin'
     | '/agency'
     | '/company'
     | '/marketplace'
+    | '/notifications'
     | '/profile'
+    | '/reviews'
     | '/shifts'
+    | '/wallet'
     | '/agency/billing/invoices'
     | '/agency/billing/payroll'
     | '/agency/clients/add'
@@ -689,6 +812,9 @@ export interface FileRouteTypes {
     | '/agency/shifts'
     | '/agency/staff'
     | '/company/shifts'
+    | '/agency/billing/invoices/$invoiceId'
+    | '/agency/billing/invoices/create'
+    | '/agency/billing/payroll/process'
     | '/agency/clients/$clientId/shifts'
     | '/agency/shifts/$shiftId/assign'
     | '/company/shifts/$shiftId/applicants'
@@ -729,15 +855,23 @@ export interface FileRouteTypes {
     | '/_layout/admin/users'
     | '/_layout/company/agencies'
     | '/_layout/marketplace/$shiftId'
+    | '/_layout/notifications/settings'
     | '/_layout/profile/$userId'
     | '/_layout/shifts/applications'
     | '/_layout/shifts/time'
+    | '/_layout/wallet/payment-methods'
+    | '/_layout/wallet/top-up'
+    | '/_layout/wallet/transactions'
+    | '/_layout/wallet/withdraw'
     | '/_layout/admin/'
     | '/_layout/agency/'
     | '/_layout/company/'
     | '/_layout/marketplace/'
+    | '/_layout/notifications/'
     | '/_layout/profile/'
+    | '/_layout/reviews/'
     | '/_layout/shifts/'
+    | '/_layout/wallet/'
     | '/_layout/agency/billing/invoices'
     | '/_layout/agency/billing/payroll'
     | '/_layout/agency/clients/add'
@@ -751,6 +885,9 @@ export interface FileRouteTypes {
     | '/_layout/agency/shifts/'
     | '/_layout/agency/staff/'
     | '/_layout/company/shifts/'
+    | '/_layout/agency/billing/invoices/$invoiceId'
+    | '/_layout/agency/billing/invoices/create'
+    | '/_layout/agency/billing/payroll/process'
     | '/_layout/agency/clients/$clientId/shifts'
     | '/_layout/agency/shifts/$shiftId/assign'
     | '/_layout/company/shifts/$shiftId/applicants'
@@ -929,6 +1066,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutDashboardRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/wallet/': {
+      id: '/_layout/wallet/'
+      path: '/'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof LayoutWalletIndexRouteImport
+      parentRoute: typeof LayoutWalletRoute
+    }
     '/_layout/shifts/': {
       id: '/_layout/shifts/'
       path: '/shifts'
@@ -936,11 +1080,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutShiftsIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/reviews/': {
+      id: '/_layout/reviews/'
+      path: '/reviews'
+      fullPath: '/reviews/'
+      preLoaderRoute: typeof LayoutReviewsIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/profile/': {
       id: '/_layout/profile/'
       path: '/profile'
       fullPath: '/profile/'
       preLoaderRoute: typeof LayoutProfileIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/notifications/': {
+      id: '/_layout/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof LayoutNotificationsIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/marketplace/': {
@@ -971,6 +1129,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/wallet/withdraw': {
+      id: '/_layout/wallet/withdraw'
+      path: '/withdraw'
+      fullPath: '/wallet/withdraw'
+      preLoaderRoute: typeof LayoutWalletWithdrawRouteImport
+      parentRoute: typeof LayoutWalletRoute
+    }
+    '/_layout/wallet/transactions': {
+      id: '/_layout/wallet/transactions'
+      path: '/transactions'
+      fullPath: '/wallet/transactions'
+      preLoaderRoute: typeof LayoutWalletTransactionsRouteImport
+      parentRoute: typeof LayoutWalletRoute
+    }
+    '/_layout/wallet/top-up': {
+      id: '/_layout/wallet/top-up'
+      path: '/top-up'
+      fullPath: '/wallet/top-up'
+      preLoaderRoute: typeof LayoutWalletTopUpRouteImport
+      parentRoute: typeof LayoutWalletRoute
+    }
+    '/_layout/wallet/payment-methods': {
+      id: '/_layout/wallet/payment-methods'
+      path: '/payment-methods'
+      fullPath: '/wallet/payment-methods'
+      preLoaderRoute: typeof LayoutWalletPaymentMethodsRouteImport
+      parentRoute: typeof LayoutWalletRoute
+    }
     '/_layout/shifts/time': {
       id: '/_layout/shifts/time'
       path: '/shifts/time'
@@ -990,6 +1176,13 @@ declare module '@tanstack/react-router' {
       path: '/profile/$userId'
       fullPath: '/profile/$userId'
       preLoaderRoute: typeof LayoutProfileUserIdRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/notifications/settings': {
+      id: '/_layout/notifications/settings'
+      path: '/notifications/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof LayoutNotificationsSettingsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/marketplace/$shiftId': {
@@ -1202,13 +1395,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAgencyClientsClientIdShiftsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/agency/billing/payroll/process': {
+      id: '/_layout/agency/billing/payroll/process'
+      path: '/process'
+      fullPath: '/agency/billing/payroll/process'
+      preLoaderRoute: typeof LayoutAgencyBillingPayrollProcessRouteImport
+      parentRoute: typeof LayoutAgencyBillingPayrollRoute
+    }
+    '/_layout/agency/billing/invoices/create': {
+      id: '/_layout/agency/billing/invoices/create'
+      path: '/create'
+      fullPath: '/agency/billing/invoices/create'
+      preLoaderRoute: typeof LayoutAgencyBillingInvoicesCreateRouteImport
+      parentRoute: typeof LayoutAgencyBillingInvoicesRoute
+    }
+    '/_layout/agency/billing/invoices/$invoiceId': {
+      id: '/_layout/agency/billing/invoices/$invoiceId'
+      path: '/$invoiceId'
+      fullPath: '/agency/billing/invoices/$invoiceId'
+      preLoaderRoute: typeof LayoutAgencyBillingInvoicesInvoiceIdRouteImport
+      parentRoute: typeof LayoutAgencyBillingInvoicesRoute
+    }
   }
 }
+
+interface LayoutWalletRouteChildren {
+  LayoutWalletPaymentMethodsRoute: typeof LayoutWalletPaymentMethodsRoute
+  LayoutWalletTopUpRoute: typeof LayoutWalletTopUpRoute
+  LayoutWalletTransactionsRoute: typeof LayoutWalletTransactionsRoute
+  LayoutWalletWithdrawRoute: typeof LayoutWalletWithdrawRoute
+  LayoutWalletIndexRoute: typeof LayoutWalletIndexRoute
+}
+
+const LayoutWalletRouteChildren: LayoutWalletRouteChildren = {
+  LayoutWalletPaymentMethodsRoute: LayoutWalletPaymentMethodsRoute,
+  LayoutWalletTopUpRoute: LayoutWalletTopUpRoute,
+  LayoutWalletTransactionsRoute: LayoutWalletTransactionsRoute,
+  LayoutWalletWithdrawRoute: LayoutWalletWithdrawRoute,
+  LayoutWalletIndexRoute: LayoutWalletIndexRoute,
+}
+
+const LayoutWalletRouteWithChildren = LayoutWalletRoute._addFileChildren(
+  LayoutWalletRouteChildren,
+)
+
+interface LayoutAgencyBillingInvoicesRouteChildren {
+  LayoutAgencyBillingInvoicesInvoiceIdRoute: typeof LayoutAgencyBillingInvoicesInvoiceIdRoute
+  LayoutAgencyBillingInvoicesCreateRoute: typeof LayoutAgencyBillingInvoicesCreateRoute
+}
+
+const LayoutAgencyBillingInvoicesRouteChildren: LayoutAgencyBillingInvoicesRouteChildren =
+  {
+    LayoutAgencyBillingInvoicesInvoiceIdRoute:
+      LayoutAgencyBillingInvoicesInvoiceIdRoute,
+    LayoutAgencyBillingInvoicesCreateRoute:
+      LayoutAgencyBillingInvoicesCreateRoute,
+  }
+
+const LayoutAgencyBillingInvoicesRouteWithChildren =
+  LayoutAgencyBillingInvoicesRoute._addFileChildren(
+    LayoutAgencyBillingInvoicesRouteChildren,
+  )
+
+interface LayoutAgencyBillingPayrollRouteChildren {
+  LayoutAgencyBillingPayrollProcessRoute: typeof LayoutAgencyBillingPayrollProcessRoute
+}
+
+const LayoutAgencyBillingPayrollRouteChildren: LayoutAgencyBillingPayrollRouteChildren =
+  {
+    LayoutAgencyBillingPayrollProcessRoute:
+      LayoutAgencyBillingPayrollProcessRoute,
+  }
+
+const LayoutAgencyBillingPayrollRouteWithChildren =
+  LayoutAgencyBillingPayrollRoute._addFileChildren(
+    LayoutAgencyBillingPayrollRouteChildren,
+  )
 
 interface LayoutRouteChildren {
   LayoutDashboardRoute: typeof LayoutDashboardRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
-  LayoutWalletRoute: typeof LayoutWalletRoute
+  LayoutWalletRoute: typeof LayoutWalletRouteWithChildren
   LayoutAdminAdminsRoute: typeof LayoutAdminAdminsRoute
   LayoutAdminAgenciesRoute: typeof LayoutAdminAgenciesRoute
   LayoutAdminAuditRoute: typeof LayoutAdminAuditRoute
@@ -1220,6 +1487,7 @@ interface LayoutRouteChildren {
   LayoutAdminUsersRoute: typeof LayoutAdminUsersRoute
   LayoutCompanyAgenciesRoute: typeof LayoutCompanyAgenciesRoute
   LayoutMarketplaceShiftIdRoute: typeof LayoutMarketplaceShiftIdRoute
+  LayoutNotificationsSettingsRoute: typeof LayoutNotificationsSettingsRoute
   LayoutProfileUserIdRoute: typeof LayoutProfileUserIdRoute
   LayoutShiftsApplicationsRoute: typeof LayoutShiftsApplicationsRoute
   LayoutShiftsTimeRoute: typeof LayoutShiftsTimeRoute
@@ -1227,10 +1495,12 @@ interface LayoutRouteChildren {
   LayoutAgencyIndexRoute: typeof LayoutAgencyIndexRoute
   LayoutCompanyIndexRoute: typeof LayoutCompanyIndexRoute
   LayoutMarketplaceIndexRoute: typeof LayoutMarketplaceIndexRoute
+  LayoutNotificationsIndexRoute: typeof LayoutNotificationsIndexRoute
   LayoutProfileIndexRoute: typeof LayoutProfileIndexRoute
+  LayoutReviewsIndexRoute: typeof LayoutReviewsIndexRoute
   LayoutShiftsIndexRoute: typeof LayoutShiftsIndexRoute
-  LayoutAgencyBillingInvoicesRoute: typeof LayoutAgencyBillingInvoicesRoute
-  LayoutAgencyBillingPayrollRoute: typeof LayoutAgencyBillingPayrollRoute
+  LayoutAgencyBillingInvoicesRoute: typeof LayoutAgencyBillingInvoicesRouteWithChildren
+  LayoutAgencyBillingPayrollRoute: typeof LayoutAgencyBillingPayrollRouteWithChildren
   LayoutAgencyClientsAddRoute: typeof LayoutAgencyClientsAddRoute
   LayoutAgencyShiftsCreateRoute: typeof LayoutAgencyShiftsCreateRoute
   LayoutAgencyStaffMemberIdRoute: typeof LayoutAgencyStaffMemberIdRoute
@@ -1253,7 +1523,7 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardRoute: LayoutDashboardRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
-  LayoutWalletRoute: LayoutWalletRoute,
+  LayoutWalletRoute: LayoutWalletRouteWithChildren,
   LayoutAdminAdminsRoute: LayoutAdminAdminsRoute,
   LayoutAdminAgenciesRoute: LayoutAdminAgenciesRoute,
   LayoutAdminAuditRoute: LayoutAdminAuditRoute,
@@ -1265,6 +1535,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminUsersRoute: LayoutAdminUsersRoute,
   LayoutCompanyAgenciesRoute: LayoutCompanyAgenciesRoute,
   LayoutMarketplaceShiftIdRoute: LayoutMarketplaceShiftIdRoute,
+  LayoutNotificationsSettingsRoute: LayoutNotificationsSettingsRoute,
   LayoutProfileUserIdRoute: LayoutProfileUserIdRoute,
   LayoutShiftsApplicationsRoute: LayoutShiftsApplicationsRoute,
   LayoutShiftsTimeRoute: LayoutShiftsTimeRoute,
@@ -1272,10 +1543,13 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAgencyIndexRoute: LayoutAgencyIndexRoute,
   LayoutCompanyIndexRoute: LayoutCompanyIndexRoute,
   LayoutMarketplaceIndexRoute: LayoutMarketplaceIndexRoute,
+  LayoutNotificationsIndexRoute: LayoutNotificationsIndexRoute,
   LayoutProfileIndexRoute: LayoutProfileIndexRoute,
+  LayoutReviewsIndexRoute: LayoutReviewsIndexRoute,
   LayoutShiftsIndexRoute: LayoutShiftsIndexRoute,
-  LayoutAgencyBillingInvoicesRoute: LayoutAgencyBillingInvoicesRoute,
-  LayoutAgencyBillingPayrollRoute: LayoutAgencyBillingPayrollRoute,
+  LayoutAgencyBillingInvoicesRoute:
+    LayoutAgencyBillingInvoicesRouteWithChildren,
+  LayoutAgencyBillingPayrollRoute: LayoutAgencyBillingPayrollRouteWithChildren,
   LayoutAgencyClientsAddRoute: LayoutAgencyClientsAddRoute,
   LayoutAgencyShiftsCreateRoute: LayoutAgencyShiftsCreateRoute,
   LayoutAgencyStaffMemberIdRoute: LayoutAgencyStaffMemberIdRoute,

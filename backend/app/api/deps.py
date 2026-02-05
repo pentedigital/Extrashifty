@@ -91,3 +91,34 @@ def get_current_company_user(current_user: ActiveUserDep) -> User:
 
 
 CompanyUserDep = Annotated[User, Depends(get_current_company_user)]
+
+
+async def get_current_user_ws(token: str) -> User | None:
+    """
+    Get current user from JWT token for WebSocket authentication.
+
+    Unlike the regular get_current_user, this function accepts the token directly
+    rather than extracting it from the OAuth2 scheme, making it suitable for
+    WebSocket connections where the token is passed as a query parameter.
+
+    Args:
+        token: JWT access token string
+
+    Returns:
+        User object if token is valid, None otherwise
+    """
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+        if token_data.sub is None:
+            return None
+    except (jwt.InvalidTokenError, ValidationError):
+        return None
+
+    with Session(engine) as session:
+        user = user_crud.get(session, id=token_data.sub)
+        if user is None or not user.is_active:
+            return None
+        return user
