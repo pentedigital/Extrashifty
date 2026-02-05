@@ -28,21 +28,22 @@ test.describe('Navigation', () => {
   })
 
   test.describe('Legal Pages', () => {
+    // Legal page routes are: /privacy, /terms, /cookies (not /legal/*)
     test('should navigate to privacy policy', async ({ page }) => {
-      await page.goto('/legal/privacy')
-      await expect(page).toHaveURL('/legal/privacy')
+      await page.goto('/privacy')
+      await expect(page).toHaveURL('/privacy')
       await expect(page.locator('h1')).toBeVisible()
     })
 
     test('should navigate to terms of service', async ({ page }) => {
-      await page.goto('/legal/terms')
-      await expect(page).toHaveURL('/legal/terms')
+      await page.goto('/terms')
+      await expect(page).toHaveURL('/terms')
       await expect(page.locator('h1')).toBeVisible()
     })
 
     test('should navigate to cookie policy', async ({ page }) => {
-      await page.goto('/legal/cookies')
-      await expect(page).toHaveURL('/legal/cookies')
+      await page.goto('/cookies')
+      await expect(page).toHaveURL('/cookies')
       await expect(page.locator('h1')).toBeVisible()
     })
   })
@@ -74,8 +75,8 @@ test.describe('Navigation', () => {
       await page.setViewportSize({ width: 375, height: 667 })
       await page.goto('/')
 
-      // Page should still function
-      await expect(page.locator('text=ExtraShifty')).toBeVisible()
+      // Logo component: <div class="flex items-center gap-2"><div class="...bg-brand-600...">E</div><span class="font-semibold">ExtraShifty</span></div>
+      await expect(page.locator('span.font-semibold:text("ExtraShifty")')).toBeVisible()
     })
 
     test('should show mobile menu button on small screens', async ({ page }) => {

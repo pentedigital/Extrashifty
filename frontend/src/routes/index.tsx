@@ -43,6 +43,17 @@ function LandingPage() {
           <Logo linkTo="/" />
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden md:flex items-center gap-4 mr-4">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                About
+              </Link>
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Pricing
+              </Link>
+              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Contact
+              </Link>
+            </div>
             <Link to="/login">
               <Button variant="ghost" size="sm" className="focus-visible:ring-2 focus-visible:ring-brand-500">
                 Sign in

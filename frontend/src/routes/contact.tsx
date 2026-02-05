@@ -1,39 +1,99 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Mail, MessageSquare, Building2 } from 'lucide-react'
+import { Logo } from '@/components/Logo'
+import { useToast } from '@/components/ui/toast'
+import { Mail, MessageSquare, Building2, MapPin, Loader2 } from 'lucide-react'
+
+const contactSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  subject: z.string().min(5, 'Subject must be at least 5 characters'),
+  message: z.string().min(20, 'Message must be at least 20 characters'),
+})
+
+type ContactFormData = z.infer<typeof contactSchema>
 
 export const Route = createFileRoute('/contact')({
   component: ContactPage,
 })
 
 function ContactPage() {
+  const { addToast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+  })
+
+  const onSubmit = async (data: ContactFormData) => {
+    setIsSubmitting(true)
+
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // In a real app, you would send this data to your backend
+    console.log('Contact form submitted:', data)
+
+    addToast({
+      type: 'success',
+      title: 'Message sent!',
+      description: "We'll get back to you within 24 hours.",
+    })
+
+    reset()
+    setIsSubmitting(false)
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Skip to main content - Accessibility */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:rounded-md"
+      >
+        Skip to main content
+      </a>
+
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border" role="navigation" aria-label="Main navigation">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 md:h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
-            <span className="font-semibold text-xl tracking-tight">ExtraShifty</span>
-          </Link>
+          <Logo linkTo="/" />
           <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden md:flex items-center gap-4 mr-4">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                About
+              </Link>
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Pricing
+              </Link>
+              <Link to="/contact" className="text-sm font-medium text-foreground">
+                Contact
+              </Link>
+            </div>
             <Link to="/login">
-              <Button variant="ghost" size="sm">Sign in</Button>
+              <Button variant="ghost" size="sm" className="focus-visible:ring-2 focus-visible:ring-brand-500">Sign in</Button>
             </Link>
             <Link to="/signup">
-              <Button size="sm">Get started</Button>
+              <Button size="sm" className="focus-visible:ring-2 focus-visible:ring-brand-500">Get started</Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="pt-24 md:pt-32 pb-16 px-4 sm:px-6">
+      <main id="main" className="pt-24 md:pt-32 pb-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12 md:mb-16">
@@ -69,6 +129,12 @@ function ContactPage() {
                 action="sales@extrashifty.com"
                 href="mailto:sales@extrashifty.com"
               />
+              <ContactOption
+                icon={MapPin}
+                title="Office"
+                description="Visit us"
+                action="Dublin, Ireland"
+              />
             </div>
 
             {/* Contact Form */}
@@ -80,24 +146,43 @@ function ContactPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First name</Label>
-                      <Input id="firstName" placeholder="John" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last name</Label>
-                      <Input id="lastName" placeholder="Doe" />
-                    </div>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      placeholder="John Doe"
+                      {...register('name')}
+                      aria-invalid={errors.name ? 'true' : 'false'}
+                    />
+                    {errors.name && (
+                      <p className="text-sm text-destructive">{errors.name.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="john@example.com" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="john@example.com"
+                      {...register('email')}
+                      aria-invalid={errors.email ? 'true' : 'false'}
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
-                    <Input id="subject" placeholder="How can we help?" />
+                    <Input
+                      id="subject"
+                      placeholder="How can we help?"
+                      {...register('subject')}
+                      aria-invalid={errors.subject ? 'true' : 'false'}
+                    />
+                    {errors.subject && (
+                      <p className="text-sm text-destructive">{errors.subject.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">Message</Label>
@@ -105,9 +190,15 @@ function ContactPage() {
                       id="message"
                       placeholder="Tell us more about your inquiry..."
                       rows={5}
+                      {...register('message')}
+                      aria-invalid={errors.message ? 'true' : 'false'}
                     />
+                    {errors.message && (
+                      <p className="text-sm text-destructive">{errors.message.message}</p>
+                    )}
                   </div>
-                  <Button type="submit" className="w-full sm:w-auto">
+                  <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send message
                   </Button>
                 </form>
@@ -118,9 +209,24 @@ function ContactPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-8 px-4 sm:px-6 border-t border-border">
-        <div className="max-w-6xl mx-auto text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} ExtraShifty. All rights reserved.</p>
+      <footer className="py-10 md:py-12 px-4 sm:px-6 border-t border-border bg-background" role="contentinfo">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <Logo />
+            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <Link to="/" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Home</Link>
+              <Link to="/about" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About</Link>
+              <Link to="/pricing" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Pricing</Link>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 pt-8 border-t border-border text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} ExtraShifty. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <Link to="/legal/privacy" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Privacy</Link>
+              <Link to="/legal/terms" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Terms</Link>
+              <Link to="/legal/cookies" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Cookies</Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
@@ -138,21 +244,25 @@ function ContactOption({
   title: string
   description: string
   action: string
-  href: string
+  href?: string
 }) {
   return (
     <div className="p-6 rounded-xl bg-card border border-border">
       <div className="h-10 w-10 rounded-lg bg-brand-500/10 flex items-center justify-center mb-4">
-        <Icon className="h-5 w-5 text-brand-600" />
+        <Icon className="h-5 w-5 text-brand-600" aria-hidden="true" />
       </div>
       <h3 className="font-semibold mb-1">{title}</h3>
       <p className="text-sm text-muted-foreground mb-3">{description}</p>
-      <a
-        href={href}
-        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-      >
-        {action}
-      </a>
+      {href ? (
+        <a
+          href={href}
+          className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+        >
+          {action}
+        </a>
+      ) : (
+        <span className="text-sm font-medium text-foreground">{action}</span>
+      )}
     </div>
   )
 }

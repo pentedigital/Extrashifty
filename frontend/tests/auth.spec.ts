@@ -43,7 +43,8 @@ test.describe('Authentication Flow', () => {
     })
 
     test('should have ExtraShifty branding', async ({ page }) => {
-      await expect(page.locator('text=ExtraShifty')).toBeVisible()
+      // Logo component: <div class="flex items-center gap-2"><div class="...bg-brand-600...">E</div><span class="font-semibold">ExtraShifty</span></div>
+      await expect(page.locator('span.font-semibold:text("ExtraShifty")')).toBeVisible()
     })
   })
 
@@ -83,7 +84,8 @@ test.describe('Authentication Flow', () => {
     })
 
     test('should have ExtraShifty branding', async ({ page }) => {
-      await expect(page.locator('text=ExtraShifty')).toBeVisible()
+      // Logo component: <div class="flex items-center gap-2"><div class="...bg-brand-600...">E</div><span class="font-semibold">ExtraShifty</span></div>
+      await expect(page.locator('span.font-semibold:text("ExtraShifty")')).toBeVisible()
     })
   })
 

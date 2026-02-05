@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/Logo'
 
 export const Route = createFileRoute('/legal/terms')({
   component: TermsPage,
@@ -7,28 +8,42 @@ export const Route = createFileRoute('/legal/terms')({
 
 function TermsPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Skip to main content - Accessibility */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:rounded-md"
+      >
+        Skip to main content
+      </a>
+
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border" role="navigation" aria-label="Main navigation">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 md:h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-brand-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
-            <span className="font-semibold text-xl tracking-tight">ExtraShifty</span>
-          </Link>
+          <Logo linkTo="/" />
           <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden md:flex items-center gap-4 mr-4">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                About
+              </Link>
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Pricing
+              </Link>
+              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Contact
+              </Link>
+            </div>
             <Link to="/login">
-              <Button variant="ghost" size="sm">Sign in</Button>
+              <Button variant="ghost" size="sm" className="focus-visible:ring-2 focus-visible:ring-brand-500">Sign in</Button>
             </Link>
             <Link to="/signup">
-              <Button size="sm">Get started</Button>
+              <Button size="sm" className="focus-visible:ring-2 focus-visible:ring-brand-500">Get started</Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="pt-24 md:pt-32 pb-16 px-4 sm:px-6">
+      <main id="main" className="pt-24 md:pt-32 pb-16 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto prose prose-gray dark:prose-invert">
           <h1>Terms of Service</h1>
           <p className="lead">Last updated: {new Date().toLocaleDateString('en-IE', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
@@ -120,9 +135,25 @@ function TermsPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-8 px-4 sm:px-6 border-t border-border">
-        <div className="max-w-6xl mx-auto text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} ExtraShifty. All rights reserved.</p>
+      <footer className="py-10 md:py-12 px-4 sm:px-6 border-t border-border bg-background" role="contentinfo">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <Logo />
+            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <Link to="/" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Home</Link>
+              <Link to="/about" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About</Link>
+              <Link to="/pricing" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Pricing</Link>
+              <Link to="/contact" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Contact</Link>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 pt-8 border-t border-border text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} ExtraShifty. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              <Link to="/legal/privacy" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Privacy</Link>
+              <Link to="/legal/terms" className="font-medium text-foreground">Terms</Link>
+              <Link to="/legal/cookies" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Cookies</Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

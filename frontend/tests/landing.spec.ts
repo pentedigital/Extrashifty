@@ -6,7 +6,8 @@ test.describe('Landing Page', () => {
   })
 
   test('should display the ExtraShifty branding', async ({ page }) => {
-    await expect(page.locator('text=ExtraShifty')).toBeVisible()
+    // Logo component: <div class="flex items-center gap-2"><div class="...bg-brand-600...">E</div><span class="font-semibold">ExtraShifty</span></div>
+    await expect(page.locator('span.font-semibold:text("ExtraShifty")')).toBeVisible()
   })
 
   test('should have a hero section with heading', async ({ page }) => {
@@ -36,21 +37,26 @@ test.describe('Landing Page', () => {
 
   test('should have footer with legal links', async ({ page }) => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await expect(page.locator('a[href="/legal/privacy"]')).toBeVisible()
-    await expect(page.locator('a[href="/legal/terms"]')).toBeVisible()
+    // Legal page routes are: /privacy, /terms, /cookies (not /legal/*)
+    await expect(page.locator('a[href="/privacy"]')).toBeVisible()
+    await expect(page.locator('a[href="/terms"]')).toBeVisible()
+    await expect(page.locator('a[href="/cookies"]')).toBeVisible()
   })
 
   test('should be responsive across viewports', async ({ page }) => {
+    // Logo component: <div class="flex items-center gap-2"><div class="...bg-brand-600...">E</div><span class="font-semibold">ExtraShifty</span></div>
+    const logoSelector = 'span.font-semibold:text("ExtraShifty")'
+
     // Mobile
     await page.setViewportSize({ width: 375, height: 667 })
-    await expect(page.locator('text=ExtraShifty')).toBeVisible()
+    await expect(page.locator(logoSelector)).toBeVisible()
 
     // Tablet
     await page.setViewportSize({ width: 768, height: 1024 })
-    await expect(page.locator('text=ExtraShifty')).toBeVisible()
+    await expect(page.locator(logoSelector)).toBeVisible()
 
     // Desktop
     await page.setViewportSize({ width: 1280, height: 720 })
-    await expect(page.locator('text=ExtraShifty')).toBeVisible()
+    await expect(page.locator(logoSelector)).toBeVisible()
   })
 })
