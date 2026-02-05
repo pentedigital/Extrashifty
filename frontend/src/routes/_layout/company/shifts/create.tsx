@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
 import { cn, formatCurrency, formatDate, formatTime } from '@/lib/utils'
-import { useCreateShift } from '@/hooks/api'
+import { useCreateCompanyShift } from '@/hooks/api'
 
 export const Route = createFileRoute('/_layout/company/shifts/create')({
   component: CreateShiftPage,
@@ -77,7 +77,7 @@ function CreateShiftPage() {
   const { addToast } = useToast()
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const createShift = useCreateShift()
+  const createShift = useCreateCompanyShift()
 
   // Form state for each step
   const [basicInfo, setBasicInfo] = useState<BasicInfoData | null>(null)

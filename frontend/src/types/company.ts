@@ -99,3 +99,27 @@ export interface CompanyRating {
   comment?: string
   created_at: string
 }
+
+// Spending record for company spending history
+export interface SpendingRecord {
+  id: number
+  shift_id: number
+  shift_title: string
+  amount: number
+  worker_name: string
+  date: string
+  status: string
+}
+
+// Review given by a company to a worker
+export interface CompanyReview {
+  id: number
+  reviewer_id: number
+  reviewee_id: number
+  shift_id: number
+  rating: number
+  comment?: string
+  created_at: string
+  worker_name?: string
+  shift_title?: string
+}

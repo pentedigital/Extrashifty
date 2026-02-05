@@ -2,7 +2,19 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import agency, applications, auth, company, shifts, staff, users
+from app.api.v1.endpoints import (
+    agency,
+    applications,
+    auth,
+    company,
+    marketplace,
+    notifications,
+    reviews,
+    shifts,
+    staff,
+    users,
+    wallet,
+)
 
 api_router = APIRouter()
 
@@ -13,3 +25,7 @@ api_router.include_router(applications.router, prefix="/applications", tags=["ap
 api_router.include_router(agency.router, prefix="/agency", tags=["agency"])
 api_router.include_router(staff.router, prefix="/staff", tags=["staff"])
 api_router.include_router(company.router, prefix="/company", tags=["company"])
+api_router.include_router(marketplace.router, prefix="/marketplace", tags=["marketplace"])
+api_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(wallet.router, prefix="/wallet", tags=["wallet"])

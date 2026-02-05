@@ -1,8 +1,9 @@
 """Agency endpoints for staff invitations and client management."""
 
 import logging
-from datetime import datetime
-from typing import List, Optional
+from datetime import date, datetime, time
+from decimal import Decimal
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
@@ -11,6 +12,8 @@ from sqlmodel import Session, SQLModel, select, func
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.models.user import UserType
+from app.models.shift import Shift, ShiftStatus
+from app.models.application import Application, ApplicationStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -61,6 +64,49 @@ class AgencyClient(SQLModel, table=True):
     billing_rate_markup: Optional[float] = SQLField(default=None)
     notes: Optional[str] = SQLField(default=None, max_length=2000)
     is_active: bool = SQLField(default=True)
+    created_at: datetime = SQLField(default_factory=datetime.utcnow)
+    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
+
+
+class Invoice(SQLModel, table=True):
+    """Model for client invoices."""
+
+    __tablename__ = "invoices"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    agency_id: int = SQLField(index=True)
+    client_id: int = SQLField(index=True)
+    invoice_number: str = SQLField(max_length=50, unique=True, index=True)
+    status: str = SQLField(default="draft")  # draft, sent, paid, overdue
+    amount: float = SQLField(default=0.0)
+    currency: str = SQLField(default="EUR", max_length=3)
+    period_start: date = SQLField()
+    period_end: date = SQLField()
+    due_date: date = SQLField()
+    paid_date: Optional[date] = SQLField(default=None)
+    notes: Optional[str] = SQLField(default=None, max_length=2000)
+    created_at: datetime = SQLField(default_factory=datetime.utcnow)
+    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
+
+
+class PayrollEntry(SQLModel, table=True):
+    """Model for staff payroll entries."""
+
+    __tablename__ = "payroll_entries"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    agency_id: int = SQLField(index=True)
+    staff_member_id: int = SQLField(index=True)
+    period_start: date = SQLField()
+    period_end: date = SQLField()
+    status: str = SQLField(default="pending")  # pending, approved, paid
+    hours_worked: float = SQLField(default=0.0)
+    gross_amount: float = SQLField(default=0.0)
+    deductions: float = SQLField(default=0.0)
+    net_amount: float = SQLField(default=0.0)
+    currency: str = SQLField(default="EUR", max_length=3)
+    paid_at: Optional[datetime] = SQLField(default=None)
+    notes: Optional[str] = SQLField(default=None, max_length=2000)
     created_at: datetime = SQLField(default_factory=datetime.utcnow)
     updated_at: datetime = SQLField(default_factory=datetime.utcnow)
 
@@ -176,6 +222,278 @@ class AgencyWallet(BaseModel):
     total_revenue: float = 0.0
     total_payroll: float = 0.0
     last_payout_date: datetime | None = None
+
+
+# --- Invoice Schemas ---
+
+
+class InvoiceCreateRequest(BaseModel):
+    """Request schema for creating an invoice."""
+
+    client_id: int
+    period_start: date
+    period_end: date
+    due_date: date
+    amount: float = Field(ge=0)
+    currency: str = Field(default="EUR", max_length=3)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class InvoiceResponse(BaseModel):
+    """Response schema for invoice data."""
+
+    id: int
+    agency_id: int
+    client_id: int
+    invoice_number: str
+    status: str
+    amount: float
+    currency: str
+    period_start: date
+    period_end: date
+    due_date: date
+    paid_date: Optional[date]
+    notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    # Client info (optionally populated)
+    client: Optional[ClientResponse] = None
+
+
+class InvoiceListResponse(BaseModel):
+    """Response schema for invoice list."""
+
+    items: List[InvoiceResponse]
+    total: int
+
+
+# --- Payroll Schemas ---
+
+
+class PayrollEntryCreateRequest(BaseModel):
+    """Request schema for creating a payroll entry."""
+
+    staff_member_id: int
+    period_start: date
+    period_end: date
+    hours_worked: float = Field(ge=0)
+    gross_amount: float = Field(ge=0)
+    deductions: float = Field(default=0, ge=0)
+    currency: str = Field(default="EUR", max_length=3)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class PayrollProcessRequest(BaseModel):
+    """Request schema for processing payroll batch."""
+
+    period_start: date
+    period_end: date
+    staff_member_ids: Optional[List[int]] = Field(default=None)
+
+
+class PayrollEntryResponse(BaseModel):
+    """Response schema for payroll entry data."""
+
+    id: int
+    agency_id: int
+    staff_member_id: int
+    period_start: date
+    period_end: date
+    status: str
+    hours_worked: float
+    gross_amount: float
+    deductions: float
+    net_amount: float
+    currency: str
+    paid_at: Optional[datetime]
+    notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    # Staff member info (optionally populated)
+    staff_member: Optional[StaffMemberResponse] = None
+
+
+class PayrollListResponse(BaseModel):
+    """Response schema for payroll list."""
+
+    items: List[PayrollEntryResponse]
+    total: int
+
+
+class PayrollProcessResponse(BaseModel):
+    """Response schema for payroll processing result."""
+
+    processed: int
+    entries: List[PayrollEntryResponse]
+    message: str
+
+
+# --- New Request/Response Schemas for Staff, Client, and Shift Management ---
+
+
+class StaffAddRequest(BaseModel):
+    """Request schema for adding a staff member to the agency pool."""
+
+    staff_user_id: int
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    is_available: bool = True
+
+
+class StaffUpdateRequest(BaseModel):
+    """Request schema for updating staff member details."""
+
+    status: Optional[str] = Field(default=None, pattern="^(active|inactive|pending)$")
+    is_available: Optional[bool] = None
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class StaffAvailabilityResponse(BaseModel):
+    """Response schema for staff availability."""
+
+    staff_id: int
+    is_available: bool
+    status: str
+    notes: Optional[str] = None
+
+
+class StaffAvailabilityUpdateRequest(BaseModel):
+    """Request schema for updating staff availability."""
+
+    is_available: bool
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ClientUpdateRequest(BaseModel):
+    """Request schema for updating client details."""
+
+    billing_rate_markup: Optional[float] = Field(default=None, ge=0, le=100)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    is_active: Optional[bool] = None
+
+
+class AgencyShiftCreateRequest(BaseModel):
+    """Request schema for creating a shift on behalf of a client."""
+
+    client_id: int
+    title: str = Field(max_length=255)
+    description: Optional[str] = None
+    shift_type: str = Field(max_length=100)
+    date: date
+    start_time: time
+    end_time: time
+    hourly_rate: Decimal = Field(max_digits=10, decimal_places=2)
+    location: str = Field(max_length=255)
+    address: Optional[str] = Field(default=None, max_length=500)
+    city: str = Field(max_length=100)
+    spots_total: int = Field(default=1, ge=1)
+    requirements: Optional[dict[str, Any]] = None
+
+
+class AgencyShiftUpdateRequest(BaseModel):
+    """Request schema for updating a shift."""
+
+    title: Optional[str] = Field(default=None, max_length=255)
+    description: Optional[str] = None
+    shift_type: Optional[str] = Field(default=None, max_length=100)
+    date: Optional[date] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    hourly_rate: Optional[Decimal] = Field(default=None, max_digits=10, decimal_places=2)
+    location: Optional[str] = Field(default=None, max_length=255)
+    address: Optional[str] = Field(default=None, max_length=500)
+    city: Optional[str] = Field(default=None, max_length=100)
+    spots_total: Optional[int] = Field(default=None, ge=1)
+    status: Optional[str] = Field(default=None, pattern="^(draft|open|filled|in_progress|completed|cancelled)$")
+    requirements: Optional[dict[str, Any]] = None
+
+
+class AgencyShiftResponse(BaseModel):
+    """Response schema for agency shift data."""
+
+    id: int
+    title: str
+    description: Optional[str]
+    company_id: int
+    client_id: Optional[int] = None
+    shift_type: str
+    date: date
+    start_time: time
+    end_time: time
+    hourly_rate: Decimal
+    location: str
+    address: Optional[str]
+    city: str
+    spots_total: int
+    spots_filled: int
+    status: str
+    requirements: Optional[dict[str, Any]]
+    created_at: datetime
+    assigned_staff: List[int] = []
+
+
+class StaffAssignmentRequest(BaseModel):
+    """Request schema for assigning staff to a shift."""
+
+    staff_member_id: int
+
+
+class StaffAssignmentResponse(BaseModel):
+    """Response schema for staff assignment."""
+
+    shift_id: int
+    staff_member_id: int
+    assigned_at: datetime
+    message: str
+
+
+class ApplicationResponse(BaseModel):
+    """Response schema for application data."""
+
+    id: int
+    shift_id: int
+    applicant_id: int
+    status: str
+    cover_message: Optional[str]
+    applied_at: datetime
+    applicant_name: Optional[str] = None
+
+
+class ApplicationActionResponse(BaseModel):
+    """Response schema for application accept/reject actions."""
+
+    id: int
+    status: str
+    message: str
+
+
+# --- Agency Shift Assignment Model ---
+
+
+class AgencyShiftAssignment(SQLModel, table=True):
+    """Model for tracking agency staff assignments to shifts."""
+
+    __tablename__ = "agency_shift_assignments"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    agency_id: int = SQLField(index=True)
+    shift_id: int = SQLField(index=True)
+    staff_member_id: int = SQLField(index=True)  # References AgencyStaffMember.id
+    assigned_at: datetime = SQLField(default_factory=datetime.utcnow)
+
+
+# --- Agency Shift Tracking Model ---
+
+
+class AgencyShift(SQLModel, table=True):
+    """Model for tracking shifts posted by agencies for their clients."""
+
+    __tablename__ = "agency_shifts"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    agency_id: int = SQLField(index=True)
+    shift_id: int = SQLField(index=True, unique=True)  # References Shift.id
+    client_id: int = SQLField(index=True)  # References AgencyClient.id
+    created_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
 # --- Helper Functions ---
@@ -614,4 +932,1506 @@ def get_agency_wallet(
         total_revenue=0.0,
         total_payroll=0.0,
         last_payout_date=None,
+    )
+
+
+# --- Staff Management Endpoints ---
+
+
+@router.post("/staff", response_model=StaffMemberResponse, status_code=status.HTTP_201_CREATED)
+def add_staff(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: StaffAddRequest,
+) -> StaffMemberResponse:
+    """
+    Add a staff member to the agency pool.
+
+    Creates a new agency-staff relationship with the specified user.
+    """
+    require_agency_user(current_user)
+
+    # Check if staff member already exists for this agency
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.staff_user_id == request.staff_user_id,
+    )
+    existing = session.exec(statement).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Staff member already exists in agency pool",
+        )
+
+    # Create new staff member
+    staff_member = AgencyStaffMember(
+        agency_id=current_user.id,
+        staff_user_id=request.staff_user_id,
+        notes=request.notes,
+        is_available=request.is_available,
+        status="active",
+    )
+    session.add(staff_member)
+    session.commit()
+    session.refresh(staff_member)
+
+    logger.info(f"Agency {current_user.id} added staff member {request.staff_user_id}")
+
+    return StaffMemberResponse(
+        id=staff_member.id,
+        agency_id=staff_member.agency_id,
+        staff_user_id=staff_member.staff_user_id,
+        status=staff_member.status,
+        is_available=staff_member.is_available,
+        shifts_completed=staff_member.shifts_completed,
+        total_hours=staff_member.total_hours,
+        notes=staff_member.notes,
+        joined_at=staff_member.joined_at,
+        name=f"Staff Member {staff_member.staff_user_id}",
+        email=None,
+        skills=[],
+        rating=0.0,
+    )
+
+
+@router.patch("/staff/{staff_id}", response_model=StaffMemberResponse)
+def update_staff(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    staff_id: int,
+    request: StaffUpdateRequest,
+) -> StaffMemberResponse:
+    """
+    Update staff member details.
+
+    Allows updating status, availability, and notes for a staff member.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.id == staff_id,
+        AgencyStaffMember.agency_id == current_user.id,
+    )
+    staff_member = session.exec(statement).first()
+
+    if not staff_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found",
+        )
+
+    # Update fields if provided
+    if request.status is not None:
+        staff_member.status = request.status
+    if request.is_available is not None:
+        staff_member.is_available = request.is_available
+    if request.notes is not None:
+        staff_member.notes = request.notes
+
+    staff_member.updated_at = datetime.utcnow()
+    session.add(staff_member)
+    session.commit()
+    session.refresh(staff_member)
+
+    logger.info(f"Agency {current_user.id} updated staff member {staff_id}")
+
+    return StaffMemberResponse(
+        id=staff_member.id,
+        agency_id=staff_member.agency_id,
+        staff_user_id=staff_member.staff_user_id,
+        status=staff_member.status,
+        is_available=staff_member.is_available,
+        shifts_completed=staff_member.shifts_completed,
+        total_hours=staff_member.total_hours,
+        notes=staff_member.notes,
+        joined_at=staff_member.joined_at,
+        name=f"Staff Member {staff_member.staff_user_id}",
+        email=None,
+        skills=[],
+        rating=0.0,
+    )
+
+
+@router.get("/staff/{staff_id}/availability", response_model=StaffAvailabilityResponse)
+def get_staff_availability(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    staff_id: int,
+) -> StaffAvailabilityResponse:
+    """
+    Get staff member availability.
+
+    Returns the current availability status of a staff member.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.id == staff_id,
+        AgencyStaffMember.agency_id == current_user.id,
+    )
+    staff_member = session.exec(statement).first()
+
+    if not staff_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found",
+        )
+
+    return StaffAvailabilityResponse(
+        staff_id=staff_member.id,
+        is_available=staff_member.is_available,
+        status=staff_member.status,
+        notes=staff_member.notes,
+    )
+
+
+@router.patch("/staff/{staff_id}/availability", response_model=StaffAvailabilityResponse)
+def update_staff_availability(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    staff_id: int,
+    request: StaffAvailabilityUpdateRequest,
+) -> StaffAvailabilityResponse:
+    """
+    Update staff member availability.
+
+    Allows updating the availability status and notes for a staff member.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.id == staff_id,
+        AgencyStaffMember.agency_id == current_user.id,
+    )
+    staff_member = session.exec(statement).first()
+
+    if not staff_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found",
+        )
+
+    staff_member.is_available = request.is_available
+    if request.notes is not None:
+        staff_member.notes = request.notes
+    staff_member.updated_at = datetime.utcnow()
+
+    session.add(staff_member)
+    session.commit()
+    session.refresh(staff_member)
+
+    logger.info(f"Agency {current_user.id} updated availability for staff member {staff_id}")
+
+    return StaffAvailabilityResponse(
+        staff_id=staff_member.id,
+        is_available=staff_member.is_available,
+        status=staff_member.status,
+        notes=staff_member.notes,
+    )
+
+
+# --- Client Management Endpoints ---
+
+
+@router.patch("/clients/{client_id}", response_model=ClientResponse)
+def update_client(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+    request: ClientUpdateRequest,
+) -> AgencyClient:
+    """
+    Update client details.
+
+    Allows updating billing rate markup, notes, and active status.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyClient).where(
+        AgencyClient.id == client_id,
+        AgencyClient.agency_id == current_user.id,
+    )
+    client = session.exec(statement).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    # Update fields if provided
+    if request.billing_rate_markup is not None:
+        client.billing_rate_markup = request.billing_rate_markup
+    if request.notes is not None:
+        client.notes = request.notes
+    if request.is_active is not None:
+        client.is_active = request.is_active
+
+    client.updated_at = datetime.utcnow()
+    session.add(client)
+    session.commit()
+    session.refresh(client)
+
+    logger.info(f"Agency {current_user.id} updated client {client_id}")
+
+    return client
+
+
+@router.delete("/clients/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_client(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+) -> None:
+    """
+    Remove a client from the agency.
+
+    This sets the client as inactive rather than deleting the record.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyClient).where(
+        AgencyClient.id == client_id,
+        AgencyClient.agency_id == current_user.id,
+    )
+    client = session.exec(statement).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    client.is_active = False
+    client.updated_at = datetime.utcnow()
+    session.add(client)
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} removed client {client_id}")
+
+
+# --- Shift Management Endpoints ---
+
+
+@router.get("/shifts", response_model=List[AgencyShiftResponse])
+def list_agency_shifts(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    client_id: Optional[int] = None,
+) -> List[AgencyShiftResponse]:
+    """
+    List all shifts posted by the agency.
+
+    Optionally filter by status or client_id.
+    """
+    require_agency_user(current_user)
+
+    # Get all agency shifts
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.agency_id == current_user.id
+    )
+
+    if client_id:
+        agency_shift_stmt = agency_shift_stmt.where(AgencyShift.client_id == client_id)
+
+    agency_shifts = session.exec(agency_shift_stmt).all()
+    shift_ids = [as_.shift_id for as_ in agency_shifts]
+
+    if not shift_ids:
+        return []
+
+    # Get the actual shifts
+    shift_stmt = select(Shift).where(Shift.id.in_(shift_ids))
+
+    if status_filter:
+        shift_stmt = shift_stmt.where(Shift.status == status_filter)
+
+    shift_stmt = shift_stmt.offset(skip).limit(limit)
+    shifts = session.exec(shift_stmt).all()
+
+    # Create a mapping of shift_id to client_id
+    shift_client_map = {as_.shift_id: as_.client_id for as_ in agency_shifts}
+
+    # Get assigned staff for each shift
+    result = []
+    for shift in shifts:
+        assignments_stmt = select(AgencyShiftAssignment).where(
+            AgencyShiftAssignment.shift_id == shift.id,
+            AgencyShiftAssignment.agency_id == current_user.id,
+        )
+        assignments = session.exec(assignments_stmt).all()
+        assigned_staff = [a.staff_member_id for a in assignments]
+
+        result.append(AgencyShiftResponse(
+            id=shift.id,
+            title=shift.title,
+            description=shift.description,
+            company_id=shift.company_id,
+            client_id=shift_client_map.get(shift.id),
+            shift_type=shift.shift_type,
+            date=shift.date,
+            start_time=shift.start_time,
+            end_time=shift.end_time,
+            hourly_rate=shift.hourly_rate,
+            location=shift.location,
+            address=shift.address,
+            city=shift.city,
+            spots_total=shift.spots_total,
+            spots_filled=shift.spots_filled,
+            status=shift.status.value if hasattr(shift.status, 'value') else shift.status,
+            requirements=shift.requirements,
+            created_at=shift.created_at,
+            assigned_staff=assigned_staff,
+        ))
+
+    return result
+
+
+@router.post("/shifts", response_model=AgencyShiftResponse, status_code=status.HTTP_201_CREATED)
+def create_agency_shift(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: AgencyShiftCreateRequest,
+) -> AgencyShiftResponse:
+    """
+    Post a shift on behalf of a client.
+
+    Creates a new shift and tracks it as an agency-posted shift.
+    """
+    require_agency_user(current_user)
+
+    # Verify client exists and belongs to agency
+    client_stmt = select(AgencyClient).where(
+        AgencyClient.id == request.client_id,
+        AgencyClient.agency_id == current_user.id,
+        AgencyClient.is_active == True,
+    )
+    client = session.exec(client_stmt).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found or inactive",
+        )
+
+    # Create the shift (agency posts as company_id = agency user id)
+    shift = Shift(
+        title=request.title,
+        description=request.description,
+        company_id=current_user.id,
+        shift_type=request.shift_type,
+        date=request.date,
+        start_time=request.start_time,
+        end_time=request.end_time,
+        hourly_rate=request.hourly_rate,
+        location=request.location,
+        address=request.address,
+        city=request.city,
+        spots_total=request.spots_total,
+        spots_filled=0,
+        status=ShiftStatus.OPEN,
+        requirements=request.requirements,
+    )
+    session.add(shift)
+    session.commit()
+    session.refresh(shift)
+
+    # Track this as an agency shift
+    agency_shift = AgencyShift(
+        agency_id=current_user.id,
+        shift_id=shift.id,
+        client_id=request.client_id,
+    )
+    session.add(agency_shift)
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} created shift {shift.id} for client {request.client_id}")
+
+    return AgencyShiftResponse(
+        id=shift.id,
+        title=shift.title,
+        description=shift.description,
+        company_id=shift.company_id,
+        client_id=request.client_id,
+        shift_type=shift.shift_type,
+        date=shift.date,
+        start_time=shift.start_time,
+        end_time=shift.end_time,
+        hourly_rate=shift.hourly_rate,
+        location=shift.location,
+        address=shift.address,
+        city=shift.city,
+        spots_total=shift.spots_total,
+        spots_filled=shift.spots_filled,
+        status=shift.status.value if hasattr(shift.status, 'value') else shift.status,
+        requirements=shift.requirements,
+        created_at=shift.created_at,
+        assigned_staff=[],
+    )
+
+
+@router.patch("/shifts/{shift_id}", response_model=AgencyShiftResponse)
+def update_agency_shift(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    shift_id: int,
+    request: AgencyShiftUpdateRequest,
+) -> AgencyShiftResponse:
+    """
+    Update a shift posted by the agency.
+
+    Allows updating shift details and status.
+    """
+    require_agency_user(current_user)
+
+    # Verify shift belongs to agency
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.shift_id == shift_id,
+        AgencyShift.agency_id == current_user.id,
+    )
+    agency_shift = session.exec(agency_shift_stmt).first()
+
+    if not agency_shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found or not owned by agency",
+        )
+
+    # Get the actual shift
+    shift = session.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    # Update fields if provided
+    if request.title is not None:
+        shift.title = request.title
+    if request.description is not None:
+        shift.description = request.description
+    if request.shift_type is not None:
+        shift.shift_type = request.shift_type
+    if request.date is not None:
+        shift.date = request.date
+    if request.start_time is not None:
+        shift.start_time = request.start_time
+    if request.end_time is not None:
+        shift.end_time = request.end_time
+    if request.hourly_rate is not None:
+        shift.hourly_rate = request.hourly_rate
+    if request.location is not None:
+        shift.location = request.location
+    if request.address is not None:
+        shift.address = request.address
+    if request.city is not None:
+        shift.city = request.city
+    if request.spots_total is not None:
+        shift.spots_total = request.spots_total
+    if request.status is not None:
+        shift.status = ShiftStatus(request.status)
+    if request.requirements is not None:
+        shift.requirements = request.requirements
+
+    session.add(shift)
+    session.commit()
+    session.refresh(shift)
+
+    # Get assigned staff
+    assignments_stmt = select(AgencyShiftAssignment).where(
+        AgencyShiftAssignment.shift_id == shift.id,
+        AgencyShiftAssignment.agency_id == current_user.id,
+    )
+    assignments = session.exec(assignments_stmt).all()
+    assigned_staff = [a.staff_member_id for a in assignments]
+
+    logger.info(f"Agency {current_user.id} updated shift {shift_id}")
+
+    return AgencyShiftResponse(
+        id=shift.id,
+        title=shift.title,
+        description=shift.description,
+        company_id=shift.company_id,
+        client_id=agency_shift.client_id,
+        shift_type=shift.shift_type,
+        date=shift.date,
+        start_time=shift.start_time,
+        end_time=shift.end_time,
+        hourly_rate=shift.hourly_rate,
+        location=shift.location,
+        address=shift.address,
+        city=shift.city,
+        spots_total=shift.spots_total,
+        spots_filled=shift.spots_filled,
+        status=shift.status.value if hasattr(shift.status, 'value') else shift.status,
+        requirements=shift.requirements,
+        created_at=shift.created_at,
+        assigned_staff=assigned_staff,
+    )
+
+
+@router.delete("/shifts/{shift_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_agency_shift(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    shift_id: int,
+) -> None:
+    """
+    Cancel/delete a shift posted by the agency.
+
+    Sets the shift status to cancelled.
+    """
+    require_agency_user(current_user)
+
+    # Verify shift belongs to agency
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.shift_id == shift_id,
+        AgencyShift.agency_id == current_user.id,
+    )
+    agency_shift = session.exec(agency_shift_stmt).first()
+
+    if not agency_shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found or not owned by agency",
+        )
+
+    # Get the actual shift
+    shift = session.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    shift.status = ShiftStatus.CANCELLED
+    session.add(shift)
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} cancelled shift {shift_id}")
+
+
+@router.post("/shifts/{shift_id}/assign", response_model=StaffAssignmentResponse)
+def assign_staff_to_shift(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    shift_id: int,
+    request: StaffAssignmentRequest,
+) -> StaffAssignmentResponse:
+    """
+    Assign a staff member to a shift.
+
+    Creates an assignment linking an agency staff member to a shift.
+    """
+    require_agency_user(current_user)
+
+    # Verify shift belongs to agency
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.shift_id == shift_id,
+        AgencyShift.agency_id == current_user.id,
+    )
+    agency_shift = session.exec(agency_shift_stmt).first()
+
+    if not agency_shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found or not owned by agency",
+        )
+
+    # Verify staff member belongs to agency
+    staff_stmt = select(AgencyStaffMember).where(
+        AgencyStaffMember.id == request.staff_member_id,
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+    staff_member = session.exec(staff_stmt).first()
+
+    if not staff_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found or inactive",
+        )
+
+    # Check if already assigned
+    existing_stmt = select(AgencyShiftAssignment).where(
+        AgencyShiftAssignment.shift_id == shift_id,
+        AgencyShiftAssignment.staff_member_id == request.staff_member_id,
+        AgencyShiftAssignment.agency_id == current_user.id,
+    )
+    existing = session.exec(existing_stmt).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Staff member already assigned to this shift",
+        )
+
+    # Get the shift to update spots_filled
+    shift = session.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    if shift.spots_filled >= shift.spots_total:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Shift is fully staffed",
+        )
+
+    # Create assignment
+    assignment = AgencyShiftAssignment(
+        agency_id=current_user.id,
+        shift_id=shift_id,
+        staff_member_id=request.staff_member_id,
+    )
+    session.add(assignment)
+
+    # Update shift spots_filled
+    shift.spots_filled += 1
+    if shift.spots_filled >= shift.spots_total:
+        shift.status = ShiftStatus.FILLED
+    session.add(shift)
+
+    session.commit()
+    session.refresh(assignment)
+
+    logger.info(f"Agency {current_user.id} assigned staff {request.staff_member_id} to shift {shift_id}")
+
+    return StaffAssignmentResponse(
+        shift_id=shift_id,
+        staff_member_id=request.staff_member_id,
+        assigned_at=assignment.assigned_at,
+        message="Staff member assigned successfully",
+    )
+
+
+# --- Application Management Endpoints ---
+
+
+@router.get("/applications", response_model=List[ApplicationResponse])
+def list_agency_applications(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    shift_id: Optional[int] = None,
+) -> List[ApplicationResponse]:
+    """
+    List applications to agency shifts.
+
+    Returns all applications for shifts posted by the agency.
+    """
+    require_agency_user(current_user)
+
+    # Get all agency shifts
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.agency_id == current_user.id
+    )
+    agency_shifts = session.exec(agency_shift_stmt).all()
+    shift_ids = [as_.shift_id for as_ in agency_shifts]
+
+    if not shift_ids:
+        return []
+
+    # Get applications for those shifts
+    app_stmt = select(Application).where(Application.shift_id.in_(shift_ids))
+
+    if status_filter:
+        app_stmt = app_stmt.where(Application.status == status_filter)
+    if shift_id:
+        if shift_id in shift_ids:
+            app_stmt = app_stmt.where(Application.shift_id == shift_id)
+        else:
+            return []
+
+    app_stmt = app_stmt.offset(skip).limit(limit)
+    applications = session.exec(app_stmt).all()
+
+    return [
+        ApplicationResponse(
+            id=app.id,
+            shift_id=app.shift_id,
+            applicant_id=app.applicant_id,
+            status=app.status.value if hasattr(app.status, 'value') else app.status,
+            cover_message=app.cover_message,
+            applied_at=app.applied_at,
+            applicant_name=f"Applicant {app.applicant_id}",  # Would come from user lookup
+        )
+        for app in applications
+    ]
+
+
+@router.post("/applications/{application_id}/accept", response_model=ApplicationActionResponse)
+def accept_application(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    application_id: int,
+) -> ApplicationActionResponse:
+    """
+    Accept an application to an agency shift.
+
+    Changes the application status to accepted and updates shift spots.
+    """
+    require_agency_user(current_user)
+
+    # Get the application
+    application = session.get(Application, application_id)
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    # Verify the shift belongs to this agency
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.shift_id == application.shift_id,
+        AgencyShift.agency_id == current_user.id,
+    )
+    agency_shift = session.exec(agency_shift_stmt).first()
+
+    if not agency_shift:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to manage this application",
+        )
+
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Application is already {application.status.value}",
+        )
+
+    # Get the shift
+    shift = session.get(Shift, application.shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    if shift.spots_filled >= shift.spots_total:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Shift is fully staffed",
+        )
+
+    # Accept the application
+    application.status = ApplicationStatus.ACCEPTED
+    session.add(application)
+
+    # Update shift spots
+    shift.spots_filled += 1
+    if shift.spots_filled >= shift.spots_total:
+        shift.status = ShiftStatus.FILLED
+    session.add(shift)
+
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} accepted application {application_id}")
+
+    return ApplicationActionResponse(
+        id=application_id,
+        status="accepted",
+        message="Application accepted successfully",
+    )
+
+
+@router.post("/applications/{application_id}/reject", response_model=ApplicationActionResponse)
+def reject_application(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    application_id: int,
+) -> ApplicationActionResponse:
+    """
+    Reject an application to an agency shift.
+
+    Changes the application status to rejected.
+    """
+    require_agency_user(current_user)
+
+    # Get the application
+    application = session.get(Application, application_id)
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    # Verify the shift belongs to this agency
+    agency_shift_stmt = select(AgencyShift).where(
+        AgencyShift.shift_id == application.shift_id,
+        AgencyShift.agency_id == current_user.id,
+    )
+    agency_shift = session.exec(agency_shift_stmt).first()
+
+    if not agency_shift:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to manage this application",
+        )
+
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Application is already {application.status.value}",
+        )
+
+    # Reject the application
+    application.status = ApplicationStatus.REJECTED
+    session.add(application)
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} rejected application {application_id}")
+
+    return ApplicationActionResponse(
+        id=application_id,
+        status="rejected",
+        message="Application rejected",
+    )
+
+
+# --- Invoice Endpoints ---
+
+
+def generate_invoice_number(agency_id: int, session: SessionDep) -> str:
+    """Generate a unique invoice number."""
+    # Count existing invoices for this agency to create sequential number
+    count_stmt = select(func.count()).select_from(Invoice).where(
+        Invoice.agency_id == agency_id
+    )
+    count = session.exec(count_stmt).one() or 0
+    year = datetime.utcnow().year
+    return f"INV-{agency_id}-{year}-{count + 1:04d}"
+
+
+@router.get("/invoices", response_model=InvoiceListResponse)
+def list_invoices(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    client_id: Optional[int] = None,
+) -> InvoiceListResponse:
+    """
+    List all invoices for the current agency.
+
+    Optionally filter by status (draft, sent, paid, overdue) or client_id.
+    """
+    require_agency_user(current_user)
+
+    statement = select(Invoice).where(Invoice.agency_id == current_user.id)
+
+    if status_filter:
+        statement = statement.where(Invoice.status == status_filter)
+
+    if client_id:
+        statement = statement.where(Invoice.client_id == client_id)
+
+    # Count total before pagination
+    count_stmt = select(func.count()).select_from(Invoice).where(
+        Invoice.agency_id == current_user.id
+    )
+    if status_filter:
+        count_stmt = count_stmt.where(Invoice.status == status_filter)
+    if client_id:
+        count_stmt = count_stmt.where(Invoice.client_id == client_id)
+    total = session.exec(count_stmt).one() or 0
+
+    statement = statement.order_by(Invoice.created_at.desc()).offset(skip).limit(limit)
+    invoices = session.exec(statement).all()
+
+    # Fetch client info for each invoice
+    invoice_responses = []
+    for inv in invoices:
+        client_stmt = select(AgencyClient).where(AgencyClient.id == inv.client_id)
+        client = session.exec(client_stmt).first()
+        client_response = None
+        if client:
+            client_response = ClientResponse(
+                id=client.id,
+                agency_id=client.agency_id,
+                business_email=client.business_email,
+                billing_rate_markup=client.billing_rate_markup,
+                notes=client.notes,
+                is_active=client.is_active,
+                created_at=client.created_at,
+            )
+        invoice_responses.append(
+            InvoiceResponse(
+                id=inv.id,
+                agency_id=inv.agency_id,
+                client_id=inv.client_id,
+                invoice_number=inv.invoice_number,
+                status=inv.status,
+                amount=inv.amount,
+                currency=inv.currency,
+                period_start=inv.period_start,
+                period_end=inv.period_end,
+                due_date=inv.due_date,
+                paid_date=inv.paid_date,
+                notes=inv.notes,
+                created_at=inv.created_at,
+                updated_at=inv.updated_at,
+                client=client_response,
+            )
+        )
+
+    return InvoiceListResponse(items=invoice_responses, total=total)
+
+
+@router.post("/invoices", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
+def create_invoice(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: InvoiceCreateRequest,
+) -> InvoiceResponse:
+    """
+    Create a new invoice for a client.
+
+    The invoice is created in draft status and must be sent separately.
+    """
+    require_agency_user(current_user)
+
+    # Verify client belongs to this agency
+    client_stmt = select(AgencyClient).where(
+        AgencyClient.id == request.client_id,
+        AgencyClient.agency_id == current_user.id,
+    )
+    client = session.exec(client_stmt).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    # Generate invoice number
+    invoice_number = generate_invoice_number(current_user.id, session)
+
+    # Create invoice
+    invoice = Invoice(
+        agency_id=current_user.id,
+        client_id=request.client_id,
+        invoice_number=invoice_number,
+        status="draft",
+        amount=request.amount,
+        currency=request.currency,
+        period_start=request.period_start,
+        period_end=request.period_end,
+        due_date=request.due_date,
+        notes=request.notes,
+    )
+    session.add(invoice)
+    session.commit()
+    session.refresh(invoice)
+
+    logger.info(f"Agency {current_user.id} created invoice {invoice_number}")
+
+    client_response = ClientResponse(
+        id=client.id,
+        agency_id=client.agency_id,
+        business_email=client.business_email,
+        billing_rate_markup=client.billing_rate_markup,
+        notes=client.notes,
+        is_active=client.is_active,
+        created_at=client.created_at,
+    )
+
+    return InvoiceResponse(
+        id=invoice.id,
+        agency_id=invoice.agency_id,
+        client_id=invoice.client_id,
+        invoice_number=invoice.invoice_number,
+        status=invoice.status,
+        amount=invoice.amount,
+        currency=invoice.currency,
+        period_start=invoice.period_start,
+        period_end=invoice.period_end,
+        due_date=invoice.due_date,
+        paid_date=invoice.paid_date,
+        notes=invoice.notes,
+        created_at=invoice.created_at,
+        updated_at=invoice.updated_at,
+        client=client_response,
+    )
+
+
+@router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
+def get_invoice(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    invoice_id: int,
+) -> InvoiceResponse:
+    """Get invoice details by ID."""
+    require_agency_user(current_user)
+
+    statement = select(Invoice).where(
+        Invoice.id == invoice_id,
+        Invoice.agency_id == current_user.id,
+    )
+    invoice = session.exec(statement).first()
+
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found",
+        )
+
+    # Fetch client info
+    client_stmt = select(AgencyClient).where(AgencyClient.id == invoice.client_id)
+    client = session.exec(client_stmt).first()
+    client_response = None
+    if client:
+        client_response = ClientResponse(
+            id=client.id,
+            agency_id=client.agency_id,
+            business_email=client.business_email,
+            billing_rate_markup=client.billing_rate_markup,
+            notes=client.notes,
+            is_active=client.is_active,
+            created_at=client.created_at,
+        )
+
+    return InvoiceResponse(
+        id=invoice.id,
+        agency_id=invoice.agency_id,
+        client_id=invoice.client_id,
+        invoice_number=invoice.invoice_number,
+        status=invoice.status,
+        amount=invoice.amount,
+        currency=invoice.currency,
+        period_start=invoice.period_start,
+        period_end=invoice.period_end,
+        due_date=invoice.due_date,
+        paid_date=invoice.paid_date,
+        notes=invoice.notes,
+        created_at=invoice.created_at,
+        updated_at=invoice.updated_at,
+        client=client_response,
+    )
+
+
+@router.patch("/invoices/{invoice_id}/send", response_model=InvoiceResponse)
+def send_invoice(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    invoice_id: int,
+) -> InvoiceResponse:
+    """
+    Send an invoice to the client.
+
+    Changes invoice status from draft to sent.
+    """
+    require_agency_user(current_user)
+
+    statement = select(Invoice).where(
+        Invoice.id == invoice_id,
+        Invoice.agency_id == current_user.id,
+    )
+    invoice = session.exec(statement).first()
+
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found",
+        )
+
+    if invoice.status != "draft":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot send invoice with status '{invoice.status}'. Only draft invoices can be sent.",
+        )
+
+    invoice.status = "sent"
+    invoice.updated_at = datetime.utcnow()
+    session.add(invoice)
+    session.commit()
+    session.refresh(invoice)
+
+    logger.info(f"Agency {current_user.id} sent invoice {invoice.invoice_number}")
+
+    # Fetch client info
+    client_stmt = select(AgencyClient).where(AgencyClient.id == invoice.client_id)
+    client = session.exec(client_stmt).first()
+    client_response = None
+    if client:
+        client_response = ClientResponse(
+            id=client.id,
+            agency_id=client.agency_id,
+            business_email=client.business_email,
+            billing_rate_markup=client.billing_rate_markup,
+            notes=client.notes,
+            is_active=client.is_active,
+            created_at=client.created_at,
+        )
+
+    return InvoiceResponse(
+        id=invoice.id,
+        agency_id=invoice.agency_id,
+        client_id=invoice.client_id,
+        invoice_number=invoice.invoice_number,
+        status=invoice.status,
+        amount=invoice.amount,
+        currency=invoice.currency,
+        period_start=invoice.period_start,
+        period_end=invoice.period_end,
+        due_date=invoice.due_date,
+        paid_date=invoice.paid_date,
+        notes=invoice.notes,
+        created_at=invoice.created_at,
+        updated_at=invoice.updated_at,
+        client=client_response,
+    )
+
+
+@router.patch("/invoices/{invoice_id}/mark-paid", response_model=InvoiceResponse)
+def mark_invoice_paid(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    invoice_id: int,
+) -> InvoiceResponse:
+    """
+    Mark an invoice as paid.
+
+    Changes invoice status from sent to paid.
+    """
+    require_agency_user(current_user)
+
+    statement = select(Invoice).where(
+        Invoice.id == invoice_id,
+        Invoice.agency_id == current_user.id,
+    )
+    invoice = session.exec(statement).first()
+
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found",
+        )
+
+    if invoice.status not in ("sent", "overdue"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot mark invoice with status '{invoice.status}' as paid. Only sent or overdue invoices can be marked as paid.",
+        )
+
+    invoice.status = "paid"
+    invoice.paid_date = date.today()
+    invoice.updated_at = datetime.utcnow()
+    session.add(invoice)
+    session.commit()
+    session.refresh(invoice)
+
+    logger.info(f"Agency {current_user.id} marked invoice {invoice.invoice_number} as paid")
+
+    # Fetch client info
+    client_stmt = select(AgencyClient).where(AgencyClient.id == invoice.client_id)
+    client = session.exec(client_stmt).first()
+    client_response = None
+    if client:
+        client_response = ClientResponse(
+            id=client.id,
+            agency_id=client.agency_id,
+            business_email=client.business_email,
+            billing_rate_markup=client.billing_rate_markup,
+            notes=client.notes,
+            is_active=client.is_active,
+            created_at=client.created_at,
+        )
+
+    return InvoiceResponse(
+        id=invoice.id,
+        agency_id=invoice.agency_id,
+        client_id=invoice.client_id,
+        invoice_number=invoice.invoice_number,
+        status=invoice.status,
+        amount=invoice.amount,
+        currency=invoice.currency,
+        period_start=invoice.period_start,
+        period_end=invoice.period_end,
+        due_date=invoice.due_date,
+        paid_date=invoice.paid_date,
+        notes=invoice.notes,
+        created_at=invoice.created_at,
+        updated_at=invoice.updated_at,
+        client=client_response,
+    )
+
+
+# --- Payroll Endpoints ---
+
+
+@router.get("/payroll", response_model=PayrollListResponse)
+def list_payroll(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    staff_member_id: Optional[int] = None,
+) -> PayrollListResponse:
+    """
+    List all payroll entries for the current agency.
+
+    Optionally filter by status (pending, approved, paid) or staff_member_id.
+    """
+    require_agency_user(current_user)
+
+    statement = select(PayrollEntry).where(PayrollEntry.agency_id == current_user.id)
+
+    if status_filter:
+        statement = statement.where(PayrollEntry.status == status_filter)
+
+    if staff_member_id:
+        statement = statement.where(PayrollEntry.staff_member_id == staff_member_id)
+
+    # Count total before pagination
+    count_stmt = select(func.count()).select_from(PayrollEntry).where(
+        PayrollEntry.agency_id == current_user.id
+    )
+    if status_filter:
+        count_stmt = count_stmt.where(PayrollEntry.status == status_filter)
+    if staff_member_id:
+        count_stmt = count_stmt.where(PayrollEntry.staff_member_id == staff_member_id)
+    total = session.exec(count_stmt).one() or 0
+
+    statement = statement.order_by(PayrollEntry.created_at.desc()).offset(skip).limit(limit)
+    entries = session.exec(statement).all()
+
+    # Fetch staff member info for each entry
+    payroll_responses = []
+    for entry in entries:
+        staff_stmt = select(AgencyStaffMember).where(AgencyStaffMember.id == entry.staff_member_id)
+        staff = session.exec(staff_stmt).first()
+        staff_response = None
+        if staff:
+            staff_response = StaffMemberResponse(
+                id=staff.id,
+                agency_id=staff.agency_id,
+                staff_user_id=staff.staff_user_id,
+                status=staff.status,
+                is_available=staff.is_available,
+                shifts_completed=staff.shifts_completed,
+                total_hours=staff.total_hours,
+                notes=staff.notes,
+                joined_at=staff.joined_at,
+                name=f"Staff Member {staff.staff_user_id}",
+                email=None,
+                skills=[],
+                rating=0.0,
+            )
+        payroll_responses.append(
+            PayrollEntryResponse(
+                id=entry.id,
+                agency_id=entry.agency_id,
+                staff_member_id=entry.staff_member_id,
+                period_start=entry.period_start,
+                period_end=entry.period_end,
+                status=entry.status,
+                hours_worked=entry.hours_worked,
+                gross_amount=entry.gross_amount,
+                deductions=entry.deductions,
+                net_amount=entry.net_amount,
+                currency=entry.currency,
+                paid_at=entry.paid_at,
+                notes=entry.notes,
+                created_at=entry.created_at,
+                updated_at=entry.updated_at,
+                staff_member=staff_response,
+            )
+        )
+
+    return PayrollListResponse(items=payroll_responses, total=total)
+
+
+@router.post("/payroll/process", response_model=PayrollProcessResponse)
+def process_payroll(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: PayrollProcessRequest,
+) -> PayrollProcessResponse:
+    """
+    Process payroll for a given period.
+
+    Creates payroll entries for all active staff members (or specified staff members)
+    for the given period. In a real implementation, this would calculate hours and amounts
+    based on completed shifts.
+    """
+    require_agency_user(current_user)
+
+    # Get staff members to process
+    staff_stmt = select(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+
+    if request.staff_member_ids:
+        staff_stmt = staff_stmt.where(AgencyStaffMember.id.in_(request.staff_member_ids))
+
+    staff_members = session.exec(staff_stmt).all()
+
+    if not staff_members:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active staff members found to process payroll",
+        )
+
+    created_entries = []
+    for staff in staff_members:
+        # Check if payroll entry already exists for this period
+        existing_stmt = select(PayrollEntry).where(
+            PayrollEntry.agency_id == current_user.id,
+            PayrollEntry.staff_member_id == staff.id,
+            PayrollEntry.period_start == request.period_start,
+            PayrollEntry.period_end == request.period_end,
+        )
+        existing = session.exec(existing_stmt).first()
+
+        if existing:
+            # Skip if already processed
+            continue
+
+        # In a real implementation, calculate hours and amounts from shifts
+        # For now, use placeholder values based on staff record
+        hours_worked = staff.total_hours  # Would be calculated from shifts in period
+        hourly_rate = 15.0  # Would come from staff contract/settings
+        gross_amount = hours_worked * hourly_rate
+        deductions = gross_amount * 0.2  # 20% tax/deductions placeholder
+        net_amount = gross_amount - deductions
+
+        entry = PayrollEntry(
+            agency_id=current_user.id,
+            staff_member_id=staff.id,
+            period_start=request.period_start,
+            period_end=request.period_end,
+            status="pending",
+            hours_worked=hours_worked,
+            gross_amount=gross_amount,
+            deductions=deductions,
+            net_amount=net_amount,
+            currency="EUR",
+        )
+        session.add(entry)
+        created_entries.append((entry, staff))
+
+    session.commit()
+
+    # Build response
+    payroll_responses = []
+    for entry, staff in created_entries:
+        session.refresh(entry)
+        staff_response = StaffMemberResponse(
+            id=staff.id,
+            agency_id=staff.agency_id,
+            staff_user_id=staff.staff_user_id,
+            status=staff.status,
+            is_available=staff.is_available,
+            shifts_completed=staff.shifts_completed,
+            total_hours=staff.total_hours,
+            notes=staff.notes,
+            joined_at=staff.joined_at,
+            name=f"Staff Member {staff.staff_user_id}",
+            email=None,
+            skills=[],
+            rating=0.0,
+        )
+        payroll_responses.append(
+            PayrollEntryResponse(
+                id=entry.id,
+                agency_id=entry.agency_id,
+                staff_member_id=entry.staff_member_id,
+                period_start=entry.period_start,
+                period_end=entry.period_end,
+                status=entry.status,
+                hours_worked=entry.hours_worked,
+                gross_amount=entry.gross_amount,
+                deductions=entry.deductions,
+                net_amount=entry.net_amount,
+                currency=entry.currency,
+                paid_at=entry.paid_at,
+                notes=entry.notes,
+                created_at=entry.created_at,
+                updated_at=entry.updated_at,
+                staff_member=staff_response,
+            )
+        )
+
+    logger.info(
+        f"Agency {current_user.id} processed payroll for {len(created_entries)} staff members"
+    )
+
+    return PayrollProcessResponse(
+        processed=len(created_entries),
+        entries=payroll_responses,
+        message=f"Successfully created {len(created_entries)} payroll entries",
+    )
+
+
+@router.get("/payroll/{payroll_id}", response_model=PayrollEntryResponse)
+def get_payroll_entry(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    payroll_id: int,
+) -> PayrollEntryResponse:
+    """Get payroll entry details by ID."""
+    require_agency_user(current_user)
+
+    statement = select(PayrollEntry).where(
+        PayrollEntry.id == payroll_id,
+        PayrollEntry.agency_id == current_user.id,
+    )
+    entry = session.exec(statement).first()
+
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payroll entry not found",
+        )
+
+    # Fetch staff member info
+    staff_stmt = select(AgencyStaffMember).where(AgencyStaffMember.id == entry.staff_member_id)
+    staff = session.exec(staff_stmt).first()
+    staff_response = None
+    if staff:
+        staff_response = StaffMemberResponse(
+            id=staff.id,
+            agency_id=staff.agency_id,
+            staff_user_id=staff.staff_user_id,
+            status=staff.status,
+            is_available=staff.is_available,
+            shifts_completed=staff.shifts_completed,
+            total_hours=staff.total_hours,
+            notes=staff.notes,
+            joined_at=staff.joined_at,
+            name=f"Staff Member {staff.staff_user_id}",
+            email=None,
+            skills=[],
+            rating=0.0,
+        )
+
+    return PayrollEntryResponse(
+        id=entry.id,
+        agency_id=entry.agency_id,
+        staff_member_id=entry.staff_member_id,
+        period_start=entry.period_start,
+        period_end=entry.period_end,
+        status=entry.status,
+        hours_worked=entry.hours_worked,
+        gross_amount=entry.gross_amount,
+        deductions=entry.deductions,
+        net_amount=entry.net_amount,
+        currency=entry.currency,
+        paid_at=entry.paid_at,
+        notes=entry.notes,
+        created_at=entry.created_at,
+        updated_at=entry.updated_at,
+        staff_member=staff_response,
     )

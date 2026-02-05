@@ -165,3 +165,41 @@ export interface AgencyWallet {
   created_at: string
   updated_at: string
 }
+
+// Agency shift (shift posted by agency on behalf of client)
+export type ShiftStatus = 'draft' | 'open' | 'filled' | 'in_progress' | 'completed' | 'cancelled'
+
+export interface AgencyShift {
+  id: number
+  title: string
+  description?: string
+  company_id: number
+  client_id?: number
+  shift_type: string
+  date: string
+  start_time: string
+  end_time: string
+  hourly_rate: number
+  location: string
+  address?: string
+  city: string
+  spots_total: number
+  spots_filled: number
+  status: ShiftStatus
+  requirements?: Record<string, unknown>
+  created_at: string
+  assigned_staff: number[]
+}
+
+// Agency application (application to agency-posted shift)
+export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+
+export interface AgencyApplication {
+  id: number
+  shift_id: number
+  applicant_id: number
+  status: ApplicationStatus
+  cover_message?: string
+  applied_at: string
+  applicant_name?: string
+}

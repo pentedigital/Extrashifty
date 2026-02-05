@@ -18,3 +18,15 @@ export * from './useCompanyApi'
 
 // Agency hooks
 export * from './useAgencyApi'
+
+// Marketplace hooks
+export * from './useMarketplaceApi'
+
+// Reviews hooks
+export * from './useReviewsApi'
+
+// Notifications hooks
+export * from './useNotificationsApi'
+
+// Wallet hooks
+export * from './useWalletApi'

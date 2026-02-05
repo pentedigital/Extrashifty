@@ -308,6 +308,108 @@ export const api = {
       const query = params ? `?${new URLSearchParams(params)}` : ''
       return baseFetch<{ items: import('@/types/staff').ClockRecord[]; total: number }>(`/staff/clock-records${query}`)
     },
+
+    clockIn: (data: { shift_id: number; notes?: string }) =>
+      baseFetch<{
+        id: number
+        shift_id: number
+        clock_in: string
+        clock_out: string | null
+        status: string
+        message: string
+      }>('/staff/clock-in', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    clockOut: (data: { shift_id: number; notes?: string }) =>
+      baseFetch<{
+        id: number
+        shift_id: number
+        clock_in: string
+        clock_out: string | null
+        status: string
+        message: string
+      }>('/staff/clock-out', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getApplications: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          shift_id: number
+          applicant_id: number
+          status: string
+          cover_message: string | null
+          applied_at: string
+          shift_title: string | null
+          shift_date: string | null
+          company_name: string | null
+        }>
+        total: number
+      }>(`/staff/applications${query}`)
+    },
+
+    createApplication: (data: { shift_id: number; cover_message?: string }) =>
+      baseFetch<{
+        id: number
+        shift_id: number
+        applicant_id: number
+        status: string
+        cover_message: string | null
+        applied_at: string
+        shift_title: string | null
+        shift_date: string | null
+        company_name: string | null
+      }>('/staff/applications', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    withdrawApplication: (applicationId: number) =>
+      baseFetch<{ message: string }>(`/staff/applications/${applicationId}`, {
+        method: 'DELETE',
+      }),
+
+    getEarnings: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          shift_id: number
+          shift_title: string
+          date: string
+          hours_worked: number
+          hourly_rate: number
+          gross_amount: number
+          net_amount: number
+          status: string
+        }>
+        total: number
+        total_gross: number
+        total_net: number
+      }>(`/staff/earnings${query}`)
+    },
+
+    getReviews: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          shift_id: number
+          shift_title: string
+          company_name: string
+          rating: number
+          comment: string | null
+          created_at: string
+        }>
+        total: number
+        average_rating: number
+      }>(`/staff/reviews${query}`)
+    },
   },
 
   company: {
@@ -318,15 +420,6 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
-
-    getShifts: (params?: Record<string, string>) => {
-      const query = params ? `?${new URLSearchParams(params)}` : ''
-      // Company shifts are automatically filtered by the backend based on user type
-      return baseFetch<{ items: import('@/types/shift').Shift[]; total: number; skip: number; limit: number }>(`/shifts${query}`)
-    },
-
-    getApplicants: (shiftId: string) =>
-      baseFetch<import('@/types/application').Application[]>(`/applications?shift_id=${shiftId}`),
 
     getWallet: () => baseFetch<import('@/types/company').CompanyWallet>('/company/wallet'),
 
@@ -344,6 +437,62 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+
+    deleteVenue: (id: string) =>
+      baseFetch<void>(`/company/venues/${id}`, { method: 'DELETE' }),
+
+    // Shifts
+    getShifts: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{ items: import('@/types/shift').Shift[]; total: number; skip: number; limit: number }>(`/company/shifts${query}`)
+    },
+
+    createShift: (data: import('@/types/shift').ShiftFormData) =>
+      baseFetch<import('@/types/shift').Shift>('/company/shifts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateShift: (id: string, data: Partial<import('@/types/shift').ShiftFormData>) =>
+      baseFetch<import('@/types/shift').Shift>(`/company/shifts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    deleteShift: (id: string) =>
+      baseFetch<void>(`/company/shifts/${id}`, { method: 'DELETE' }),
+
+    // Applications
+    getShiftApplications: (shiftId: string) =>
+      baseFetch<{ items: import('@/types/application').Application[]; total: number }>(`/company/shifts/${shiftId}/applications`),
+
+    acceptApplication: (applicationId: string) =>
+      baseFetch<import('@/types/application').Application>(`/company/applications/${applicationId}/accept`, {
+        method: 'POST',
+      }),
+
+    rejectApplication: (applicationId: string) =>
+      baseFetch<import('@/types/application').Application>(`/company/applications/${applicationId}/reject`, {
+        method: 'POST',
+      }),
+
+    // Spending
+    getSpending: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{ items: import('@/types/company').SpendingRecord[]; total: number; total_spent: number }>(`/company/spending${query}`)
+    },
+
+    // Reviews
+    createReview: (data: { shift_id: number; worker_id: number; rating: number; comment?: string }) =>
+      baseFetch<import('@/types/company').CompanyReview>('/company/reviews', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getReviews: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{ items: import('@/types/company').CompanyReview[]; total: number }>(`/company/reviews${query}`)
+    },
   },
 
   agency: {
@@ -378,6 +527,21 @@ export const api = {
         method: 'DELETE',
       }),
 
+    addStaff: (data: { staff_user_id: number; notes?: string; is_available?: boolean }) =>
+      baseFetch<import('@/types/agency').AgencyStaffMember>('/agency/staff', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getStaffAvailability: (staffId: string) =>
+      baseFetch<{ staff_id: number; is_available: boolean; status: string; notes?: string }>(`/agency/staff/${staffId}/availability`),
+
+    updateStaffAvailability: (staffId: string, data: { is_available: boolean; notes?: string }) =>
+      baseFetch<{ staff_id: number; is_available: boolean; status: string; notes?: string }>(`/agency/staff/${staffId}/availability`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
     // Client management
     getClients: (params?: Record<string, string>) => {
       const query = params ? `?${new URLSearchParams(params)}` : ''
@@ -390,10 +554,88 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    updateClient: (id: string, data: Partial<import('@/types/agency').AgencyClient>) =>
+    updateClient: (id: string, data: { billing_rate_markup?: number; notes?: string; is_active?: boolean }) =>
       baseFetch<import('@/types/agency').AgencyClient>(`/agency/clients/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
+      }),
+
+    removeClient: (id: string) =>
+      baseFetch<void>(`/agency/clients/${id}`, {
+        method: 'DELETE',
+      }),
+
+    // Shift management
+    getShifts: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<import('@/types/agency').AgencyShift[]>(`/agency/shifts${query}`)
+    },
+
+    createShift: (data: {
+      client_id: number
+      title: string
+      description?: string
+      shift_type: string
+      date: string
+      start_time: string
+      end_time: string
+      hourly_rate: number
+      location: string
+      address?: string
+      city: string
+      spots_total?: number
+      requirements?: Record<string, unknown>
+    }) =>
+      baseFetch<import('@/types/agency').AgencyShift>('/agency/shifts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateShift: (id: string, data: {
+      title?: string
+      description?: string
+      shift_type?: string
+      date?: string
+      start_time?: string
+      end_time?: string
+      hourly_rate?: number
+      location?: string
+      address?: string
+      city?: string
+      spots_total?: number
+      status?: string
+      requirements?: Record<string, unknown>
+    }) =>
+      baseFetch<import('@/types/agency').AgencyShift>(`/agency/shifts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    deleteShift: (id: string) =>
+      baseFetch<void>(`/agency/shifts/${id}`, {
+        method: 'DELETE',
+      }),
+
+    assignStaffToShift: (shiftId: string, staffMemberId: number) =>
+      baseFetch<{ shift_id: number; staff_member_id: number; assigned_at: string; message: string }>(`/agency/shifts/${shiftId}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ staff_member_id: staffMemberId }),
+      }),
+
+    // Application management
+    getApplications: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<import('@/types/agency').AgencyApplication[]>(`/agency/applications${query}`)
+    },
+
+    acceptApplication: (applicationId: string) =>
+      baseFetch<{ id: number; status: string; message: string }>(`/agency/applications/${applicationId}/accept`, {
+        method: 'POST',
+      }),
+
+    rejectApplication: (applicationId: string) =>
+      baseFetch<{ id: number; status: string; message: string }>(`/agency/applications/${applicationId}/reject`, {
+        method: 'POST',
       }),
 
     // Staff assignments
@@ -414,26 +656,381 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    // Billing
+    // Billing - Invoices
     getInvoices: (params?: Record<string, string>) => {
       const query = params ? `?${new URLSearchParams(params)}` : ''
       return baseFetch<{ items: import('@/types/agency').Invoice[]; total: number }>(`/agency/invoices${query}`)
     },
 
-    createInvoice: (data: { client_id: string; period_start: string; period_end: string }) =>
+    createInvoice: (data: {
+      client_id: number
+      period_start: string
+      period_end: string
+      due_date: string
+      amount: number
+      currency?: string
+      notes?: string
+    }) =>
       baseFetch<import('@/types/agency').Invoice>('/agency/invoices', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
 
+    getInvoice: (id: string) =>
+      baseFetch<import('@/types/agency').Invoice>(`/agency/invoices/${id}`),
+
+    sendInvoice: (id: string) =>
+      baseFetch<import('@/types/agency').Invoice>(`/agency/invoices/${id}/send`, {
+        method: 'PATCH',
+      }),
+
+    markInvoicePaid: (id: string) =>
+      baseFetch<import('@/types/agency').Invoice>(`/agency/invoices/${id}/mark-paid`, {
+        method: 'PATCH',
+      }),
+
+    // Billing - Payroll
     getPayroll: (params?: Record<string, string>) => {
       const query = params ? `?${new URLSearchParams(params)}` : ''
       return baseFetch<{ items: import('@/types/agency').PayrollEntry[]; total: number }>(`/agency/payroll${query}`)
     },
 
+    processPayroll: (data: {
+      period_start: string
+      period_end: string
+      staff_member_ids?: number[]
+    }) =>
+      baseFetch<{
+        processed: number
+        entries: import('@/types/agency').PayrollEntry[]
+        message: string
+      }>('/agency/payroll/process', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getPayrollEntry: (id: string) =>
+      baseFetch<import('@/types/agency').PayrollEntry>(`/agency/payroll/${id}`),
+
     getWallet: () => baseFetch<import('@/types/agency').AgencyWallet>('/agency/wallet'),
 
     // Stats
     getStats: () => baseFetch<import('@/types/agency').AgencyStats>('/agency/stats'),
+  },
+
+  marketplace: {
+    listShifts: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: import('@/types/shift').Shift[]
+        total: number
+        skip: number
+        limit: number
+      }>(`/marketplace/shifts${query}`)
+    },
+
+    searchShifts: (params?: {
+      location?: string
+      job_type?: string
+      min_pay?: number
+      max_pay?: number
+      date_from?: string
+      date_to?: string
+      skills?: string
+      search?: string
+      skip?: number
+      limit?: number
+    }) => {
+      const searchParams = new URLSearchParams()
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            searchParams.set(key, String(value))
+          }
+        })
+      }
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+      return baseFetch<{
+        items: import('@/types/shift').Shift[]
+        total: number
+        skip: number
+        limit: number
+      }>(`/marketplace/shifts/search${query}`)
+    },
+
+    getShift: (id: string) =>
+      baseFetch<import('@/types/shift').Shift>(`/marketplace/shifts/${id}`),
+
+    getStats: () =>
+      baseFetch<{
+        total_shifts: number
+        total_companies: number
+        avg_hourly_rate: number
+      }>('/marketplace/stats'),
+  },
+
+  reviews: {
+    create: (data: {
+      reviewee_id: number
+      shift_id: number
+      rating: number
+      comment?: string
+      review_type: 'staff_to_company' | 'company_to_staff'
+    }) =>
+      baseFetch<{
+        id: number
+        reviewer_id: number
+        reviewee_id: number
+        shift_id: number
+        rating: number
+        comment: string | null
+        review_type: string
+        created_at: string
+        reviewer_name: string | null
+        reviewee_name: string | null
+      }>('/reviews', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getStaffReviews: (staffId: string, params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          reviewer_id: number
+          reviewee_id: number
+          shift_id: number
+          rating: number
+          comment: string | null
+          review_type: string
+          created_at: string
+          reviewer_name: string | null
+          reviewee_name: string | null
+        }>
+        total: number
+        average_rating: number | null
+      }>(`/reviews/staff/${staffId}${query}`)
+    },
+
+    getCompanyReviews: (companyId: string, params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          reviewer_id: number
+          reviewee_id: number
+          shift_id: number
+          rating: number
+          comment: string | null
+          review_type: string
+          created_at: string
+          reviewer_name: string | null
+          reviewee_name: string | null
+        }>
+        total: number
+        average_rating: number | null
+      }>(`/reviews/company/${companyId}${query}`)
+    },
+
+    getShiftReviews: (shiftId: string, params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          reviewer_id: number
+          reviewee_id: number
+          shift_id: number
+          rating: number
+          comment: string | null
+          review_type: string
+          created_at: string
+          reviewer_name: string | null
+          reviewee_name: string | null
+        }>
+        total: number
+        average_rating: number | null
+      }>(`/reviews/shift/${shiftId}${query}`)
+    },
+  },
+
+  notifications: {
+    list: (params?: { skip?: number; limit?: number; unread_only?: boolean }) => {
+      const searchParams = new URLSearchParams()
+      if (params?.skip !== undefined) searchParams.set('skip', String(params.skip))
+      if (params?.limit !== undefined) searchParams.set('limit', String(params.limit))
+      if (params?.unread_only !== undefined) searchParams.set('unread_only', String(params.unread_only))
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          user_id: number
+          type: string
+          title: string
+          message: string
+          is_read: boolean
+          data: Record<string, unknown> | null
+          created_at: string
+        }>
+        total: number
+        unread_count: number
+      }>(`/notifications${query}`)
+    },
+
+    markAsRead: (notificationId: number) =>
+      baseFetch<{
+        id: number
+        user_id: number
+        type: string
+        title: string
+        message: string
+        is_read: boolean
+        data: Record<string, unknown> | null
+        created_at: string
+      }>(`/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+      }),
+
+    markAllAsRead: () =>
+      baseFetch<{ message: string; count: number }>('/notifications/read-all', {
+        method: 'PATCH',
+      }),
+
+    delete: (notificationId: number) =>
+      baseFetch<void>(`/notifications/${notificationId}`, {
+        method: 'DELETE',
+      }),
+
+    getPreferences: () =>
+      baseFetch<{
+        id: number
+        user_id: number
+        email_enabled: boolean
+        push_enabled: boolean
+        shift_updates: boolean
+        payment_updates: boolean
+        marketing: boolean
+      }>('/notifications/preferences'),
+
+    updatePreferences: (data: {
+      email_enabled?: boolean
+      push_enabled?: boolean
+      shift_updates?: boolean
+      payment_updates?: boolean
+      marketing?: boolean
+    }) =>
+      baseFetch<{
+        id: number
+        user_id: number
+        email_enabled: boolean
+        push_enabled: boolean
+        shift_updates: boolean
+        payment_updates: boolean
+        marketing: boolean
+      }>('/notifications/preferences', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  wallet: {
+    getBalance: () =>
+      baseFetch<{
+        id: number
+        user_id: number
+        balance: number
+        currency: string
+        created_at: string
+        updated_at: string
+      }>('/wallet/balance'),
+
+    getTransactions: (params?: {
+      skip?: number
+      limit?: number
+      type?: 'earning' | 'withdrawal' | 'top_up' | 'payment'
+      status?: 'pending' | 'completed' | 'failed'
+    }) => {
+      const searchParams = new URLSearchParams()
+      if (params?.skip !== undefined) searchParams.set('skip', String(params.skip))
+      if (params?.limit !== undefined) searchParams.set('limit', String(params.limit))
+      if (params?.type) searchParams.set('type', params.type)
+      if (params?.status) searchParams.set('status', params.status)
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : ''
+      return baseFetch<{
+        items: Array<{
+          id: number
+          wallet_id: number
+          type: 'earning' | 'withdrawal' | 'top_up' | 'payment'
+          amount: number
+          description: string
+          status: 'pending' | 'completed' | 'failed'
+          reference_id: string | null
+          created_at: string
+        }>
+        total: number
+      }>(`/wallet/transactions${query}`)
+    },
+
+    withdraw: (data: { amount: number; payment_method_id: number }) =>
+      baseFetch<{
+        transaction_id: number
+        amount: number
+        status: 'pending' | 'completed' | 'failed'
+        message: string
+      }>('/wallet/withdraw', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    topUp: (data: { amount: number; payment_method_id: number }) =>
+      baseFetch<{
+        transaction_id: number
+        amount: number
+        status: 'pending' | 'completed' | 'failed'
+        new_balance: number
+        message: string
+      }>('/wallet/top-up', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getPaymentMethods: () =>
+      baseFetch<{
+        items: Array<{
+          id: number
+          user_id: number
+          type: 'card' | 'bank_account'
+          last_four: string
+          brand: string | null
+          is_default: boolean
+          created_at: string
+        }>
+        total: number
+      }>('/wallet/payment-methods'),
+
+    addPaymentMethod: (data: {
+      type: 'card' | 'bank_account'
+      last_four: string
+      brand?: string
+      is_default?: boolean
+      external_id?: string
+    }) =>
+      baseFetch<{
+        id: number
+        user_id: number
+        type: 'card' | 'bank_account'
+        last_four: string
+        brand: string | null
+        is_default: boolean
+        created_at: string
+      }>('/wallet/payment-methods', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    removePaymentMethod: (paymentMethodId: number) =>
+      baseFetch<void>(`/wallet/payment-methods/${paymentMethodId}`, {
+        method: 'DELETE',
+      }),
   },
 }
