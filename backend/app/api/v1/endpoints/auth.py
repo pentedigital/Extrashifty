@@ -1,10 +1,13 @@
 """Authentication endpoints."""
 
-from datetime import timedelta
-from typing import Annotated
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.core.config import settings
@@ -17,15 +20,130 @@ from app.core.rate_limit import (
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    get_password_hash,
     verify_password,
     verify_refresh_token,
 )
 from app.crud import user as user_crud
+from app.email import send_verification_email
+from app.email.send import send_password_reset_email
 from app.models.user import User
-from app.schemas.token import RefreshTokenRequest, Token
+from app.schemas.token import (
+    AuthResponse,
+    Message,
+    PasswordResetRequest,
+    RefreshTokenRequest,
+    Token,
+    UserInfo,
+)
 from app.schemas.user import UserCreate, UserRead
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Token type for email verification
+TOKEN_TYPE_VERIFICATION = "email_verification"
+# Token type for password reset
+TOKEN_TYPE_PASSWORD_RESET = "password_reset"
+# Password reset token expiry (1 hour)
+PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1
+
+
+class LogoutResponse(BaseModel):
+    """Response model for logout endpoint."""
+
+    message: str
+
+
+class VerifyEmailResponse(BaseModel):
+    """Response model for email verification endpoint."""
+
+    message: str
+    verified: bool
+
+
+def create_verification_token(user_id: int, email: str) -> str:
+    """
+    Create a JWT token for email verification.
+
+    Args:
+        user_id: The user's ID.
+        email: The user's email address.
+
+    Returns:
+        Encoded JWT verification token.
+    """
+    expire = datetime.now(UTC) + timedelta(hours=24)
+    to_encode = {
+        "exp": expire,
+        "sub": str(user_id),
+        "email": email,
+        "type": TOKEN_TYPE_VERIFICATION,
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_verification_token(token: str) -> dict[str, Any] | None:
+    """
+    Verify an email verification token and return its payload.
+
+    Args:
+        token: The verification token to verify.
+
+    Returns:
+        Token payload dict if valid, None otherwise.
+    """
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        if payload.get("type") != TOKEN_TYPE_VERIFICATION:
+            return None
+        return payload
+    except jwt.InvalidTokenError:
+        return None
+
+
+def create_password_reset_token(user_id: int, email: str) -> str:
+    """
+    Create a JWT token for password reset.
+
+    Args:
+        user_id: The user's ID.
+        email: The user's email address.
+
+    Returns:
+        Encoded JWT password reset token.
+    """
+    expire = datetime.now(UTC) + timedelta(hours=PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
+    to_encode = {
+        "exp": expire,
+        "sub": str(user_id),
+        "email": email,
+        "type": TOKEN_TYPE_PASSWORD_RESET,
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_password_reset_token(token: str) -> dict[str, Any] | None:
+    """
+    Verify a password reset token and return its payload.
+
+    Args:
+        token: The password reset token to verify.
+
+    Returns:
+        Token payload dict if valid, None otherwise.
+    """
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        if payload.get("type") != TOKEN_TYPE_PASSWORD_RESET:
+            return None
+        return payload
+    except jwt.InvalidTokenError:
+        return None
 
 
 def create_tokens(user_id: int) -> Token:
@@ -47,13 +165,19 @@ def create_tokens(user_id: int) -> Token:
     )
 
 
-@router.post("/login", response_model=Token)
+class LoginResponse(Token):
+    """Response model for login endpoint with optional warning."""
+
+    warning: str | None = None
+
+
+@router.post("/login", response_model=LoginResponse)
 @limiter.limit(LOGIN_RATE_LIMIT)
 def login(
     request: Request,
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
+) -> LoginResponse:
     """Login and get access and refresh tokens."""
     user = user_crud.get_by_email(session, email=form_data.username)
     if not user:
@@ -74,7 +198,20 @@ def login(
             detail="Inactive user",
         )
 
-    return create_tokens(user.id)
+    tokens = create_tokens(user.id)
+
+    # Warn if user email is not verified (but allow login)
+    warning = None
+    if not user.is_verified:
+        logger.warning(f"Unverified user logged in: {user.email}")
+        warning = "Please verify your email address to access all features."
+
+    return LoginResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        warning=warning,
+    )
 
 
 @router.post("/refresh", response_model=Token)
@@ -118,14 +255,14 @@ def refresh_token(
     return create_tokens(user.id)
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(REGISTER_RATE_LIMIT)
 def register(
     request: Request,
     session: SessionDep,
     user_in: UserCreate,
-) -> User:
-    """Register a new user."""
+) -> AuthResponse:
+    """Register a new user and return tokens with user data."""
     existing_user = user_crud.get_by_email(session, email=user_in.email)
     if existing_user:
         raise HTTPException(
@@ -133,10 +270,227 @@ def register(
             detail="Email already registered",
         )
     user = user_crud.create(session, obj_in=user_in)
-    return user
+
+    # Send verification email
+    verification_token = create_verification_token(user.id, user.email)
+    email_sent = send_verification_email(
+        email_to=user.email,
+        verification_token=verification_token,
+        full_name=user.full_name,
+    )
+    if not email_sent:
+        logger.warning(f"Failed to send verification email to {user.email}")
+
+    # Generate tokens for immediate login after registration
+    tokens = create_tokens(user.id)
+
+    # Build user info for response
+    user_info = UserInfo(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        user_type=user.user_type,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_superuser=user.is_superuser,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+    return AuthResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        user=user_info,
+    )
 
 
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: ActiveUserDep) -> User:
     """Get current user."""
     return current_user
+
+
+@router.post("/logout", response_model=LogoutResponse)
+def logout() -> LogoutResponse:
+    """
+    Logout the current user.
+
+    This endpoint acknowledges the logout request. Since we use JWT tokens,
+    the actual token invalidation is handled client-side by removing the tokens.
+    For enhanced security, implement token blacklisting if needed.
+    """
+    return LogoutResponse(message="Successfully logged out")
+
+
+@router.post("/verify-email/{token}", response_model=VerifyEmailResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
+def verify_email(
+    request: Request,
+    session: SessionDep,
+    token: str,
+) -> VerifyEmailResponse:
+    """
+    Verify user's email address using the verification token.
+
+    Args:
+        token: The email verification token sent to the user's email.
+
+    Returns:
+        Success message and verification status.
+    """
+    payload = verify_verification_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token",
+        )
+
+    user_id = payload.get("sub")
+    email = payload.get("email")
+
+    if not user_id or not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token payload",
+        )
+
+    user = user_crud.get(session, id=int(user_id))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Verify the email matches
+    if user.email != email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token does not match user email",
+        )
+
+    # Check if already verified
+    if user.is_verified:
+        return VerifyEmailResponse(
+            message="Email is already verified",
+            verified=True,
+        )
+
+    # Update user verification status
+    user.is_verified = True
+    session.add(user)
+    session.commit()
+
+    logger.info(f"Email verified for user: {user.email}")
+
+    return VerifyEmailResponse(
+        message="Email successfully verified",
+        verified=True,
+    )
+
+
+@router.post("/password-recovery/{email}", response_model=Message)
+@limiter.limit(AUTH_RATE_LIMIT)
+def request_password_recovery(
+    request: Request,
+    session: SessionDep,
+    email: str,
+) -> Message:
+    """
+    Request password recovery for a user.
+
+    Generates a password reset token and sends it to the user's email.
+    For security reasons, always returns success even if the email is not found.
+    """
+    user = user_crud.get_by_email(session, email=email)
+
+    if user:
+        # Generate password reset token
+        reset_token = create_password_reset_token(user.id, user.email)
+
+        # Send password reset email
+        email_sent = send_password_reset_email(
+            email_to=user.email,
+            reset_token=reset_token,
+            full_name=user.full_name,
+        )
+        if email_sent:
+            logger.info(f"Password reset email sent to: {user.email}")
+        else:
+            logger.warning(f"Failed to send password reset email to: {user.email}")
+    else:
+        # Log for security monitoring but don't reveal to client
+        logger.info(f"Password recovery requested for non-existent email: {email}")
+
+    # Always return success to prevent email enumeration
+    return Message(
+        message="If an account with that email exists, a password reset link has been sent."
+    )
+
+
+@router.post("/reset-password", response_model=Message)
+@limiter.limit(AUTH_RATE_LIMIT)
+def reset_password(
+    request: Request,
+    session: SessionDep,
+    reset_request: PasswordResetRequest,
+) -> Message:
+    """
+    Reset user password using a valid reset token.
+
+    Args:
+        reset_request: Contains the reset token and new password.
+
+    Returns:
+        Success message if password was reset.
+
+    Raises:
+        HTTPException: If token is invalid, expired, or user not found.
+    """
+    # Verify the reset token
+    payload = verify_password_reset_token(reset_request.token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
+
+    user_id = payload.get("sub")
+    email = payload.get("email")
+
+    if not user_id or not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token payload",
+        )
+
+    # Fetch the user
+    user = user_crud.get(session, id=int(user_id))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Verify the email matches (additional security check)
+    if user.email != email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token does not match user",
+        )
+
+    # Check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+        )
+
+    # Update the password
+    user.hashed_password = get_password_hash(reset_request.new_password)
+    session.add(user)
+    session.commit()
+
+    logger.info(f"Password reset successful for user: {user.email}")
+
+    return Message(message="Password has been reset successfully")

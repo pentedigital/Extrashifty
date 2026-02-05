@@ -3,7 +3,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+from ..models.user import UserType
 
 
 class Token(BaseModel):
@@ -26,3 +28,47 @@ class RefreshTokenRequest(BaseModel):
     """Schema for refresh token request."""
 
     refresh_token: str
+
+
+class UserInfo(BaseModel):
+    """Minimal user info returned with registration."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: EmailStr
+    full_name: str
+    user_type: UserType
+    is_active: bool
+    is_verified: bool
+    is_superuser: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AuthResponse(BaseModel):
+    """Schema for auth response with tokens and user data."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserInfo
+
+
+class PasswordRecoveryRequest(BaseModel):
+    """Schema for password recovery request."""
+
+    email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    """Schema for password reset request."""
+
+    token: str
+    new_password: str
+
+
+class Message(BaseModel):
+    """Generic message response."""
+
+    message: str

@@ -64,6 +64,7 @@ import { Route as LayoutCompanyShiftsShiftIdIndexRouteImport } from './routes/_l
 import { Route as LayoutAgencyClientsClientIdIndexRouteImport } from './routes/_layout/agency/clients/$clientId/index'
 import { Route as LayoutCompanyShiftsShiftIdEditRouteImport } from './routes/_layout/company/shifts/$shiftId/edit'
 import { Route as LayoutCompanyShiftsShiftIdApplicantsRouteImport } from './routes/_layout/company/shifts/$shiftId/applicants'
+import { Route as LayoutAgencyShiftsShiftIdAssignRouteImport } from './routes/_layout/agency/shifts/$shiftId/assign'
 import { Route as LayoutAgencyClientsClientIdShiftsRouteImport } from './routes/_layout/agency/clients/$clientId/shifts'
 
 const SignupRoute = SignupRouteImport.update({
@@ -355,6 +356,12 @@ const LayoutCompanyShiftsShiftIdApplicantsRoute =
     path: '/company/shifts/$shiftId/applicants',
     getParentRoute: () => LayoutRoute,
   } as any)
+const LayoutAgencyShiftsShiftIdAssignRoute =
+  LayoutAgencyShiftsShiftIdAssignRouteImport.update({
+    id: '/agency/shifts/$shiftId/assign',
+    path: '/agency/shifts/$shiftId/assign',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutAgencyClientsClientIdShiftsRoute =
   LayoutAgencyClientsClientIdShiftsRouteImport.update({
     id: '/agency/clients/$clientId/shifts',
@@ -414,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/agency/staff/': typeof LayoutAgencyStaffIndexRoute
   '/company/shifts/': typeof LayoutCompanyShiftsIndexRoute
   '/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
+  '/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
   '/company/shifts/$shiftId/edit': typeof LayoutCompanyShiftsShiftIdEditRoute
   '/agency/clients/$clientId/': typeof LayoutAgencyClientsClientIdIndexRoute
@@ -471,6 +479,7 @@ export interface FileRoutesByTo {
   '/agency/staff': typeof LayoutAgencyStaffIndexRoute
   '/company/shifts': typeof LayoutCompanyShiftsIndexRoute
   '/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
+  '/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
   '/company/shifts/$shiftId/edit': typeof LayoutCompanyShiftsShiftIdEditRoute
   '/agency/clients/$clientId': typeof LayoutAgencyClientsClientIdIndexRoute
@@ -530,6 +539,7 @@ export interface FileRoutesById {
   '/_layout/agency/staff/': typeof LayoutAgencyStaffIndexRoute
   '/_layout/company/shifts/': typeof LayoutCompanyShiftsIndexRoute
   '/_layout/agency/clients/$clientId/shifts': typeof LayoutAgencyClientsClientIdShiftsRoute
+  '/_layout/agency/shifts/$shiftId/assign': typeof LayoutAgencyShiftsShiftIdAssignRoute
   '/_layout/company/shifts/$shiftId/applicants': typeof LayoutCompanyShiftsShiftIdApplicantsRoute
   '/_layout/company/shifts/$shiftId/edit': typeof LayoutCompanyShiftsShiftIdEditRoute
   '/_layout/agency/clients/$clientId/': typeof LayoutAgencyClientsClientIdIndexRoute
@@ -589,6 +599,7 @@ export interface FileRouteTypes {
     | '/agency/staff/'
     | '/company/shifts/'
     | '/agency/clients/$clientId/shifts'
+    | '/agency/shifts/$shiftId/assign'
     | '/company/shifts/$shiftId/applicants'
     | '/company/shifts/$shiftId/edit'
     | '/agency/clients/$clientId/'
@@ -646,6 +657,7 @@ export interface FileRouteTypes {
     | '/agency/staff'
     | '/company/shifts'
     | '/agency/clients/$clientId/shifts'
+    | '/agency/shifts/$shiftId/assign'
     | '/company/shifts/$shiftId/applicants'
     | '/company/shifts/$shiftId/edit'
     | '/agency/clients/$clientId'
@@ -704,6 +716,7 @@ export interface FileRouteTypes {
     | '/_layout/agency/staff/'
     | '/_layout/company/shifts/'
     | '/_layout/agency/clients/$clientId/shifts'
+    | '/_layout/agency/shifts/$shiftId/assign'
     | '/_layout/company/shifts/$shiftId/applicants'
     | '/_layout/company/shifts/$shiftId/edit'
     | '/_layout/agency/clients/$clientId/'
@@ -1115,6 +1128,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutCompanyShiftsShiftIdApplicantsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/agency/shifts/$shiftId/assign': {
+      id: '/_layout/agency/shifts/$shiftId/assign'
+      path: '/agency/shifts/$shiftId/assign'
+      fullPath: '/agency/shifts/$shiftId/assign'
+      preLoaderRoute: typeof LayoutAgencyShiftsShiftIdAssignRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/agency/clients/$clientId/shifts': {
       id: '/_layout/agency/clients/$clientId/shifts'
       path: '/agency/clients/$clientId/shifts'
@@ -1163,6 +1183,7 @@ interface LayoutRouteChildren {
   LayoutAgencyStaffIndexRoute: typeof LayoutAgencyStaffIndexRoute
   LayoutCompanyShiftsIndexRoute: typeof LayoutCompanyShiftsIndexRoute
   LayoutAgencyClientsClientIdShiftsRoute: typeof LayoutAgencyClientsClientIdShiftsRoute
+  LayoutAgencyShiftsShiftIdAssignRoute: typeof LayoutAgencyShiftsShiftIdAssignRoute
   LayoutCompanyShiftsShiftIdApplicantsRoute: typeof LayoutCompanyShiftsShiftIdApplicantsRoute
   LayoutCompanyShiftsShiftIdEditRoute: typeof LayoutCompanyShiftsShiftIdEditRoute
   LayoutAgencyClientsClientIdIndexRoute: typeof LayoutAgencyClientsClientIdIndexRoute
@@ -1208,6 +1229,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutCompanyShiftsIndexRoute: LayoutCompanyShiftsIndexRoute,
   LayoutAgencyClientsClientIdShiftsRoute:
     LayoutAgencyClientsClientIdShiftsRoute,
+  LayoutAgencyShiftsShiftIdAssignRoute: LayoutAgencyShiftsShiftIdAssignRoute,
   LayoutCompanyShiftsShiftIdApplicantsRoute:
     LayoutCompanyShiftsShiftIdApplicantsRoute,
   LayoutCompanyShiftsShiftIdEditRoute: LayoutCompanyShiftsShiftIdEditRoute,

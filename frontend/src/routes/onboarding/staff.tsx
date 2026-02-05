@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/toast'
 
 const staffOnboardingSchema = z.object({
   display_name: z.string().min(2, 'Display name is required'),
@@ -46,6 +48,7 @@ export const Route = createFileRoute('/onboarding/staff')({
 
 function StaffOnboardingPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
 
@@ -68,13 +71,33 @@ function StaffOnboardingPage() {
     )
   }
 
-  const onSubmit = async (_data: StaffOnboardingData) => {
+  const onSubmit = async (data: StaffOnboardingData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Call API to save staff profile
-      navigate({ to: '/' })
-    } catch {
-      // Error handled silently
+      // Call API to save staff profile
+      await api.staff.updateProfile({
+        display_name: data.display_name,
+        bio: data.bio,
+        skills: selectedSkills,
+        experience_years: data.experience_years,
+        city: data.city,
+        hourly_rate_min: data.hourly_rate_min,
+        hourly_rate_max: data.hourly_rate_max,
+      })
+
+      addToast({
+        type: 'success',
+        title: 'Profile completed',
+        description: 'Your profile has been set up successfully.',
+      })
+
+      navigate({ to: '/dashboard' })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Profile update failed',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+      })
     } finally {
       setIsSubmitting(false)
     }

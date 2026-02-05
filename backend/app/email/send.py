@@ -160,3 +160,22 @@ def send_shift_assigned_email(
             "location": location,
         },
     )
+
+
+def send_verification_email(
+    email_to: str, verification_token: str, full_name: str
+) -> bool:
+    """Send email verification link to new user."""
+    verification_link = (
+        f"https://extrashifty.com/verify-email?token={verification_token}"
+    )
+    return send_email(
+        email_to=email_to,
+        subject=f"Verify your email - {settings.PROJECT_NAME}",
+        template_name="verify_email",
+        context={
+            "full_name": full_name,
+            "verification_link": verification_link,
+            "valid_hours": 24,
+        },
+    )

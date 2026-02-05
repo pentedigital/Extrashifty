@@ -37,7 +37,7 @@ def test_login_nonexistent_user(client: TestClient):
 
 
 def test_register_success(client: TestClient):
-    """Test successful user registration."""
+    """Test successful user registration returns tokens and user data."""
     response = client.post(
         f"{settings.API_V1_STR}/auth/register",
         json={
@@ -48,9 +48,15 @@ def test_register_success(client: TestClient):
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["email"] == "newuser@example.com"
-    assert data["full_name"] == "New User"
-    assert "hashed_password" not in data
+    # Verify tokens are returned
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+    # Verify user data is included
+    assert "user" in data
+    assert data["user"]["email"] == "newuser@example.com"
+    assert data["user"]["full_name"] == "New User"
+    assert "hashed_password" not in data["user"]
 
 
 def test_register_duplicate_email(client: TestClient, test_user: User):

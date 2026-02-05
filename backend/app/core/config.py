@@ -1,9 +1,12 @@
 """Application configuration using pydantic-settings."""
 
-from typing import Annotated, Any
+import logging
+from typing import Annotated, Any, Self
 
-from pydantic import BeforeValidator, computed_field
+from pydantic import BeforeValidator, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -71,6 +74,39 @@ class Settings(BaseSettings):
     # First superuser
     FIRST_SUPERUSER_EMAIL: str = "admin@extrashifty.com"
     FIRST_SUPERUSER_PASSWORD: str = "changeme"
+
+    @model_validator(mode="after")
+    def warn_default_secrets(self) -> Self:
+        """
+        Log warnings if default/insecure secrets are being used.
+
+        This validator runs after model initialization and logs warnings
+        for any secrets that contain 'changeme', indicating they haven't
+        been properly configured for production use.
+        """
+        warnings_issued = []
+
+        if "changeme" in self.SECRET_KEY.lower():
+            warnings_issued.append("SECRET_KEY")
+
+        if "changeme" in self.REFRESH_SECRET_KEY.lower():
+            warnings_issued.append("REFRESH_SECRET_KEY")
+
+        if "changeme" in self.FIRST_SUPERUSER_PASSWORD.lower():
+            warnings_issued.append("FIRST_SUPERUSER_PASSWORD")
+
+        if warnings_issued:
+            logger.warning(
+                "=" * 60 + "\n"
+                "SECURITY WARNING: Default secrets detected!\n"
+                "The following settings contain 'changeme' and MUST be updated:\n"
+                f"  - {', '.join(warnings_issued)}\n"
+                "These default values are NOT secure for production use.\n"
+                "Generate secure secrets using: openssl rand -hex 32\n"
+                + "=" * 60
+            )
+
+        return self
 
 
 settings = Settings()

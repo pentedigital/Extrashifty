@@ -1,16 +1,83 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { AppSidebar } from '@/components/Sidebar/AppSidebar'
 import { AppHeader } from '@/components/Header/AppHeader'
-import { useSidebarCollapsed } from '@/stores/app'
+import { useSidebarCollapsed, useAppStore } from '@/stores/app'
 import { cn } from '@/lib/utils'
-import { tokenManager } from '@/lib/api'
+import { tokenManager, api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import type { UserType } from '@/types/user'
+
+/**
+ * Route access configuration mapping route prefixes to allowed user types.
+ * Routes not listed here are accessible by all authenticated users.
+ */
+const ROUTE_ACCESS_CONFIG: Record<string, UserType[]> = {
+  '/admin': ['admin', 'super_admin'],
+  '/company': ['company'],
+  '/agency': ['agency'],
+  '/shifts': ['staff'],
+}
+
+/**
+ * Get the default dashboard route for a user type.
+ */
+function getDefaultDashboard(userType: UserType | null): string {
+  switch (userType) {
+    case 'admin':
+    case 'super_admin':
+      return '/admin'
+    case 'company':
+      return '/company'
+    case 'agency':
+      return '/agency'
+    case 'staff':
+      return '/shifts'
+    default:
+      return '/marketplace'
+  }
+}
+
+/**
+ * Check if a user type has access to a specific route path.
+ */
+function hasRouteAccess(pathname: string, userType: UserType | null): boolean {
+  // Check each protected route prefix
+  for (const [routePrefix, allowedTypes] of Object.entries(ROUTE_ACCESS_CONFIG)) {
+    if (pathname.startsWith(routePrefix)) {
+      return userType !== null && allowedTypes.includes(userType)
+    }
+  }
+  // Routes not in config are accessible by all authenticated users
+  return true
+}
 
 export const Route = createFileRoute('/_layout')({
-  beforeLoad: () => {
+  beforeLoad: async ({ location }) => {
     // Check if user is authenticated
     if (!tokenManager.hasTokens()) {
       throw redirect({ to: '/login' })
+    }
+
+    // Get user from store or fetch from API
+    let user = useAppStore.getState().user
+
+    if (!user) {
+      try {
+        user = await api.auth.me()
+        useAppStore.getState().setUser(user)
+      } catch {
+        // Token is invalid, clear and redirect to login
+        tokenManager.clearTokens()
+        throw redirect({ to: '/login' })
+      }
+    }
+
+    const userType = user?.user_type ?? null
+
+    // Check role-based access for the current route
+    if (!hasRouteAccess(location.pathname, userType)) {
+      // Redirect to user's default dashboard
+      throw redirect({ to: getDefaultDashboard(userType) })
     }
   },
   component: LayoutComponent,

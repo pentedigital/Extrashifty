@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -13,6 +13,7 @@ export const Route = createFileRoute('/_layout/profile/')({
 })
 
 function ProfilePage() {
+  const navigate = useNavigate()
   const { user, userType } = useAuth()
 
   const initials = user?.full_name
@@ -66,7 +67,7 @@ function ProfilePage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Profile</h1>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => navigate({ to: '/settings' })}>
           <Edit className="mr-2 h-4 w-4" />
           Edit Profile
         </Button>

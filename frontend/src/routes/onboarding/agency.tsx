@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/toast'
 import type { AgencyMode } from '@/types/agency'
 
 const agencyOnboardingSchema = z.object({
@@ -43,6 +45,7 @@ export const Route = createFileRoute('/onboarding/agency')({
 
 function AgencyOnboardingPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedMode, setSelectedMode] = useState<AgencyMode>('staff_provider')
 
@@ -54,13 +57,34 @@ function AgencyOnboardingPage() {
     resolver: zodResolver(agencyOnboardingSchema),
   })
 
-  const onSubmit = async (_data: AgencyOnboardingData) => {
+  const onSubmit = async (data: AgencyOnboardingData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Call API to save agency profile
-      navigate({ to: '/' })
-    } catch {
-      // Error handled silently
+      // Call API to save agency profile
+      await api.agency.updateProfile({
+        agency_name: data.agency_name,
+        mode: selectedMode,
+        description: data.description,
+        address: data.address,
+        city: data.city,
+        contact_email: data.contact_email,
+        contact_phone: data.contact_phone,
+        website: data.website || undefined,
+      })
+
+      addToast({
+        type: 'success',
+        title: 'Agency setup complete',
+        description: 'Your agency profile has been set up successfully.',
+      })
+
+      navigate({ to: '/dashboard' })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Setup failed',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+      })
     } finally {
       setIsSubmitting(false)
     }

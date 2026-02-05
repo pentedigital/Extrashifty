@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { StaffDashboard } from '@/components/Staff/StaffDashboard'
 import { CompanyDashboard } from '@/components/Company/CompanyDashboard'
 import { AgencyDashboard } from '@/components/Agency/AgencyDashboard'
+import { AdminDashboard } from '@/components/Admin/AdminDashboard'
 
 export const Route = createFileRoute('/_layout/dashboard')({
   component: DashboardPage,
@@ -31,8 +32,7 @@ function DashboardPage() {
       return <AgencyDashboard />
     case 'admin':
     case 'super_admin':
-      // TODO: Admin dashboard
-      return <StaffDashboard />
+      return <AdminDashboard />
     default:
       return <StaffDashboard />
   }

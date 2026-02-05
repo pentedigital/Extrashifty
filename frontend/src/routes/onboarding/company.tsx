@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/toast'
 
 const companyOnboardingSchema = z.object({
   company_name: z.string().min(2, 'Company name is required'),
@@ -39,6 +41,7 @@ export const Route = createFileRoute('/onboarding/company')({
 
 function CompanyOnboardingPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
@@ -49,13 +52,33 @@ function CompanyOnboardingPage() {
     resolver: zodResolver(companyOnboardingSchema),
   })
 
-  const onSubmit = async (_data: CompanyOnboardingData) => {
+  const onSubmit = async (data: CompanyOnboardingData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Call API to save company profile
-      navigate({ to: '/' })
-    } catch {
-      // Error handled silently
+      // Call API to save company profile
+      await api.company.updateProfile({
+        company_name: data.company_name,
+        company_type: data.company_type,
+        description: data.description,
+        address: data.address,
+        city: data.city,
+        phone: data.phone,
+        website: data.website || undefined,
+      })
+
+      addToast({
+        type: 'success',
+        title: 'Company setup complete',
+        description: 'Your company profile has been set up successfully.',
+      })
+
+      navigate({ to: '/dashboard' })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Setup failed',
+        description: error instanceof Error ? error.message : 'Please try again later.',
+      })
     } finally {
       setIsSubmitting(false)
     }

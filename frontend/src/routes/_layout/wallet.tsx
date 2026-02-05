@@ -24,7 +24,9 @@ import {
   CreditCard,
   RefreshCw,
   Loader2,
+  Receipt,
 } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
 import { mockApi } from '@/lib/mockApi'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -226,9 +228,11 @@ function WalletPage() {
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No transactions yet
-            </p>
+            <EmptyState
+              icon={Receipt}
+              title="No transactions yet"
+              description="Your transaction history will appear here once you start earning or making withdrawals."
+            />
           ) : (
             <div className="space-y-4">
               {transactions.slice(0, 5).map((transaction) => (
