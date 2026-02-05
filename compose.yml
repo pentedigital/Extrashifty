@@ -126,6 +126,21 @@ services:
     profiles:
       - dev
 
+  # Mailcatcher - Email testing for development
+  # Web UI: http://localhost:1080
+  # SMTP: localhost:1025
+  mailcatcher:
+    image: schickling/mailcatcher:latest
+    container_name: extrashifty-mailcatcher
+    restart: unless-stopped
+    ports:
+      - "1080:1080"  # Web UI
+      - "1025:1025"  # SMTP
+    networks:
+      - extrashifty-network
+    profiles:
+      - dev
+
 volumes:
   postgres_data:
     driver: local
