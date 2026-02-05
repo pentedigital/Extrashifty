@@ -135,6 +135,49 @@ class AgencyStatsResponse(BaseModel):
     pending_payroll: int
 
 
+class AgencyProfile(BaseModel):
+    """Agency profile response schema."""
+
+    id: int
+    email: str
+    agency_name: str
+    description: str | None = None
+    logo_url: str | None = None
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    is_verified: bool = False
+    average_rating: float = 0.0
+    staff_count: int = 0
+    client_count: int = 0
+    created_at: datetime
+
+
+class AgencyProfileUpdate(BaseModel):
+    """Agency profile update schema."""
+
+    agency_name: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    website: str | None = None
+
+
+class AgencyWallet(BaseModel):
+    """Agency wallet response schema."""
+
+    balance: float = 0.0
+    pending_payments: float = 0.0
+    pending_receivables: float = 0.0
+    currency: str = "EUR"
+    total_revenue: float = 0.0
+    total_payroll: float = 0.0
+    last_payout_date: datetime | None = None
+
+
 # --- Helper Functions ---
 
 
@@ -465,4 +508,110 @@ def get_stats(
         revenue_this_week=revenue_this_week,
         pending_invoices=pending_invoices,
         pending_payroll=pending_payroll,
+    )
+
+
+@router.get("/profile", response_model=AgencyProfile)
+def get_agency_profile(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> AgencyProfile:
+    """Get current agency's profile."""
+    require_agency_user(current_user)
+
+    # Count staff and clients for profile
+    staff_count_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+    staff_count = session.exec(staff_count_stmt).one() or 0
+
+    client_count_stmt = select(func.count()).select_from(AgencyClient).where(
+        AgencyClient.agency_id == current_user.id,
+        AgencyClient.is_active == True,
+    )
+    client_count = session.exec(client_count_stmt).one() or 0
+
+    return AgencyProfile(
+        id=current_user.id,
+        email=current_user.email,
+        agency_name=current_user.full_name,
+        description=None,
+        logo_url=None,
+        address=None,
+        city=None,
+        phone=None,
+        website=None,
+        is_verified=current_user.is_verified,
+        average_rating=0.0,
+        staff_count=staff_count,
+        client_count=client_count,
+        created_at=current_user.created_at,
+    )
+
+
+@router.patch("/profile", response_model=AgencyProfile)
+def update_agency_profile(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    profile_update: AgencyProfileUpdate,
+) -> AgencyProfile:
+    """Update current agency's profile."""
+    require_agency_user(current_user)
+
+    # Update agency name if provided
+    if profile_update.agency_name is not None:
+        current_user.full_name = profile_update.agency_name
+
+    current_user.updated_at = datetime.utcnow()
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+
+    # Get counts for response
+    staff_count_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+    staff_count = session.exec(staff_count_stmt).one() or 0
+
+    client_count_stmt = select(func.count()).select_from(AgencyClient).where(
+        AgencyClient.agency_id == current_user.id,
+        AgencyClient.is_active == True,
+    )
+    client_count = session.exec(client_count_stmt).one() or 0
+
+    return AgencyProfile(
+        id=current_user.id,
+        email=current_user.email,
+        agency_name=current_user.full_name,
+        description=None,
+        logo_url=None,
+        address=None,
+        city=None,
+        phone=None,
+        website=None,
+        is_verified=current_user.is_verified,
+        average_rating=0.0,
+        staff_count=staff_count,
+        client_count=client_count,
+        created_at=current_user.created_at,
+    )
+
+
+@router.get("/wallet", response_model=AgencyWallet)
+def get_agency_wallet(
+    current_user: ActiveUserDep,
+) -> AgencyWallet:
+    """Get current agency's wallet information."""
+    require_agency_user(current_user)
+
+    return AgencyWallet(
+        balance=0.0,
+        pending_payments=0.0,
+        pending_receivables=0.0,
+        currency="EUR",
+        total_revenue=0.0,
+        total_payroll=0.0,
+        last_payout_date=None,
     )
