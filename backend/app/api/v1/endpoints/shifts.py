@@ -272,3 +272,153 @@ def apply_to_shift(
         session, shift_id=shift_id, applicant_id=current_user.id
     )
     return {"id": application.id, "status": application.status.value, "message": "Application submitted successfully"}
+
+
+@router.post("/{shift_id}/clock-in", response_model=dict)
+def clock_in(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    shift_id: int,
+) -> dict:
+    """
+    Clock in to a shift (staff only).
+
+    Records the actual start time for the worker.
+    Updates shift status to IN_PROGRESS if not already.
+    """
+    from datetime import datetime
+
+    if current_user.user_type != UserType.STAFF:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only staff can clock in to shifts",
+        )
+
+    shift = shift_crud.get(session, id=shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    # Verify user is assigned to this shift
+    application = application_crud.get_by_shift_and_applicant(
+        session, shift_id=shift_id, applicant_id=current_user.id
+    )
+    if not application or application.status != ApplicationStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not assigned to this shift",
+        )
+
+    # Check if already clocked in
+    if shift.clock_in_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Already clocked in at {shift.clock_in_at.isoformat()}",
+        )
+
+    # Validate shift status
+    if shift.status not in [ShiftStatus.FILLED, ShiftStatus.IN_PROGRESS]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot clock in to shift with status: {shift.status.value}",
+        )
+
+    # Record clock in
+    now = datetime.utcnow()
+    shift.clock_in_at = now
+    shift.status = ShiftStatus.IN_PROGRESS
+    session.add(shift)
+    session.commit()
+    session.refresh(shift)
+
+    return {
+        "shift_id": shift.id,
+        "clock_in_at": shift.clock_in_at.isoformat(),
+        "status": shift.status.value,
+        "message": "Successfully clocked in",
+    }
+
+
+@router.post("/{shift_id}/clock-out", response_model=dict)
+def clock_out(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    shift_id: int,
+) -> dict:
+    """
+    Clock out from a shift (staff only).
+
+    Records the actual end time and calculates actual hours worked.
+    Updates shift status to COMPLETED.
+    Auto-approve timer starts from this clock-out time.
+    """
+    from datetime import datetime
+
+    if current_user.user_type != UserType.STAFF:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only staff can clock out from shifts",
+        )
+
+    shift = shift_crud.get(session, id=shift_id)
+    if not shift:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift not found",
+        )
+
+    # Verify user is assigned to this shift
+    application = application_crud.get_by_shift_and_applicant(
+        session, shift_id=shift_id, applicant_id=current_user.id
+    )
+    if not application or application.status != ApplicationStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not assigned to this shift",
+        )
+
+    # Check if clocked in
+    if shift.clock_in_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must clock in before clocking out",
+        )
+
+    # Check if already clocked out
+    if shift.clock_out_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Already clocked out at {shift.clock_out_at.isoformat()}",
+        )
+
+    # Validate shift status
+    if shift.status != ShiftStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot clock out from shift with status: {shift.status.value}",
+        )
+
+    # Record clock out and calculate hours worked
+    now = datetime.utcnow()
+    shift.clock_out_at = now
+
+    # Calculate actual hours worked
+    time_diff = now - shift.clock_in_at
+    hours_worked = Decimal(str(time_diff.total_seconds() / 3600))
+    shift.actual_hours_worked = hours_worked.quantize(Decimal("0.01"))
+
+    shift.status = ShiftStatus.COMPLETED
+    session.add(shift)
+    session.commit()
+    session.refresh(shift)
+
+    return {
+        "shift_id": shift.id,
+        "clock_in_at": shift.clock_in_at.isoformat(),
+        "clock_out_at": shift.clock_out_at.isoformat(),
+        "actual_hours_worked": float(shift.actual_hours_worked),
+        "status": shift.status.value,
+        "message": "Successfully clocked out",
+    }

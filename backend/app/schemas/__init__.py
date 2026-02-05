@@ -1,5 +1,17 @@
 """Pydantic schemas for ExtraShifty."""
 
+from .appeal import (
+    AdminPendingAppealsResponse,
+    AppealCreate,
+    AppealListResponse,
+    AppealResponse,
+    AppealReviewRequest,
+    AppealReviewResponse,
+    AppealWithdrawResponse,
+    EmergencyWaiverStatusResponse,
+    SuspensionListResponse,
+    SuspensionResponse,
+)
 from .agency import (
     AgencyClientForShift,
     AgencyClientListForShifts,
@@ -105,8 +117,36 @@ from .wallet import (
     WithdrawRequest,
     WithdrawResponse,
 )
+from .penalty import (
+    AdminPenaltySummaryResponse,
+    AppealResponse as PenaltyAppealResponse,
+    AppealReviewRequest as PenaltyAppealReviewRequest,
+    AppealReviewResponse as PenaltyAppealReviewResponse,
+    LiftSuspensionRequest,
+    NegativeBalanceResponse,
+    PenaltyAppealRequest,
+    PenaltyHistoryItem,
+    PenaltyHistoryResponse,
+    PenaltyListResponse,
+    PenaltyResponse,
+    PenaltySummaryResponse,
+    StrikeListResponse,
+    StrikeResponse,
+    SuspensionResponse as PenaltySuspensionResponse,
+)
 
 __all__ = [
+    # Appeal
+    "AdminPendingAppealsResponse",
+    "AppealCreate",
+    "AppealListResponse",
+    "AppealResponse",
+    "AppealReviewRequest",
+    "AppealReviewResponse",
+    "AppealWithdrawResponse",
+    "EmergencyWaiverStatusResponse",
+    "SuspensionListResponse",
+    "SuspensionResponse",
     # Agency
     "AgencyClientForShift",
     "AgencyClientListForShifts",
@@ -220,4 +260,20 @@ __all__ = [
     "DeletionRequestListResponse",
     "DeletionRequestResponse",
     "DeletionStatusResponse",
+    # Penalty (No-Show)
+    "AdminPenaltySummaryResponse",
+    "LiftSuspensionRequest",
+    "NegativeBalanceResponse",
+    "PenaltyAppealRequest",
+    "PenaltyAppealResponse",
+    "PenaltyAppealReviewRequest",
+    "PenaltyAppealReviewResponse",
+    "PenaltyHistoryItem",
+    "PenaltyHistoryResponse",
+    "PenaltyListResponse",
+    "PenaltyResponse",
+    "PenaltySummaryResponse",
+    "PenaltySuspensionResponse",
+    "StrikeListResponse",
+    "StrikeResponse",
 ]

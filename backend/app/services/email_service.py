@@ -229,6 +229,251 @@ class EmailService:
             html_content=html_content,
         )
 
+    # =========================================================================
+    # Appeal-related email notifications
+    # =========================================================================
+
+    async def send_appeal_submitted_confirmation(
+        self,
+        user_id: int,
+        appeal_type: str,
+        appeal_id: int,
+    ) -> bool:
+        """
+        Send confirmation that appeal has been submitted.
+
+        Includes expected review timeline (3 business days).
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send appeal confirmation: user {user_id} not found")
+            return False
+
+        context = {
+            "user_name": user.full_name,
+            "appeal_type": appeal_type,
+            "appeal_id": appeal_id,
+            "review_timeline": "3 business days",
+            "appeals_url": f"{self.base_url}/dashboard/appeals/{appeal_id}",
+        }
+
+        # Simple HTML template inline for now
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Appeal Submitted - ExtraShifty</h2>
+            <p>Hi {context['user_name']},</p>
+            <p>Your appeal for the <strong>{context['appeal_type']}</strong> has been submitted successfully.</p>
+            <p><strong>Appeal ID:</strong> {context['appeal_id']}</p>
+            <p><strong>Expected Review Time:</strong> {context['review_timeline']}</p>
+            <p>We will review your appeal and notify you of the decision. You can track the status of your appeal in your dashboard.</p>
+            <p><a href="{context['appeals_url']}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">View Appeal Status</a></p>
+            <p>Thank you,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject=f"Appeal Submitted - {appeal_type.title()} #{appeal_id}",
+            html_content=html_content,
+        )
+
+    async def send_appeal_approved(
+        self,
+        user_id: int,
+        appeal_type: str,
+        appeal_id: int,
+        reviewer_notes: str,
+        emergency_waiver_used: bool = False,
+    ) -> bool:
+        """
+        Send appeal approved notification.
+
+        Notifies user their appeal was successful.
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send appeal approved notice: user {user_id} not found")
+            return False
+
+        waiver_note = ""
+        if emergency_waiver_used:
+            waiver_note = "<p><em>Note: Your annual emergency waiver has been used for this appeal.</em></p>"
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4CAF50;">Appeal Approved - ExtraShifty</h2>
+            <p>Hi {user.full_name},</p>
+            <p>Great news! Your appeal for the <strong>{appeal_type}</strong> has been <strong style="color: #4CAF50;">approved</strong>.</p>
+            <p><strong>Appeal ID:</strong> {appeal_id}</p>
+            <p><strong>Decision:</strong> Approved</p>
+            <p><strong>Notes:</strong> {reviewer_notes}</p>
+            {waiver_note}
+            <p>The {appeal_type} has been removed from your record.</p>
+            <p>Thank you for using ExtraShifty,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject=f"Appeal Approved - {appeal_type.title()} #{appeal_id}",
+            html_content=html_content,
+        )
+
+    async def send_appeal_denied(
+        self,
+        user_id: int,
+        appeal_type: str,
+        appeal_id: int,
+        reviewer_notes: str,
+        frivolous_fee_charged: bool = False,
+    ) -> bool:
+        """
+        Send appeal denied notification.
+
+        Notifies user their appeal was rejected.
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send appeal denied notice: user {user_id} not found")
+            return False
+
+        fee_note = ""
+        if frivolous_fee_charged:
+            fee_note = """
+            <p style="color: #dc3545;"><strong>Note:</strong> A $25 frivolous appeal fee has been charged
+            to your account as this appeal was determined to be without merit.</p>
+            """
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #dc3545;">Appeal Denied - ExtraShifty</h2>
+            <p>Hi {user.full_name},</p>
+            <p>We regret to inform you that your appeal for the <strong>{appeal_type}</strong> has been <strong style="color: #dc3545;">denied</strong>.</p>
+            <p><strong>Appeal ID:</strong> {appeal_id}</p>
+            <p><strong>Decision:</strong> Denied</p>
+            <p><strong>Reason:</strong> {reviewer_notes}</p>
+            {fee_note}
+            <p>The {appeal_type} will remain on your record.</p>
+            <p>If you have questions, please contact support.</p>
+            <p>Thank you,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject=f"Appeal Denied - {appeal_type.title()} #{appeal_id}",
+            html_content=html_content,
+        )
+
+    async def send_suspension_notice_with_appeal_rights(
+        self,
+        user_id: int,
+        suspension_reason: str,
+        suspension_ends_at: datetime,
+        appeal_deadline: datetime,
+    ) -> bool:
+        """
+        Send 30-day suspension notice with appeal rights information.
+
+        Includes:
+        - Suspension reason and duration
+        - Appeal window (72 hours)
+        - Reinstatement information
+        - Probation warning
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send suspension notice: user {user_id} not found")
+            return False
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #dc3545;">Account Suspended - ExtraShifty</h2>
+            <p>Hi {user.full_name},</p>
+            <p>Your ExtraShifty account has been <strong>suspended for 30 days</strong> due to repeated policy violations.</p>
+
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Reason:</strong> {suspension_reason}</p>
+                <p><strong>Suspension Ends:</strong> {suspension_ends_at.strftime("%B %d, %Y at %H:%M UTC")}</p>
+            </div>
+
+            <h3>Your Appeal Rights</h3>
+            <p>You have the right to appeal this suspension within <strong>72 hours</strong>.</p>
+            <p><strong>Appeal Deadline:</strong> {appeal_deadline.strftime("%B %d, %Y at %H:%M UTC")}</p>
+
+            <p><a href="{self.base_url}/dashboard/appeals/new?type=suspension" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Submit Appeal</a></p>
+
+            <h3>Reinstatement</h3>
+            <p>Your account will be automatically reinstated after 30 days if there are no new violations.</p>
+            <p>Upon reinstatement:</p>
+            <ul>
+                <li>All strikes will be cleared</li>
+                <li>You will be on a <strong>90-day probation period</strong></li>
+                <li>Any no-show during probation will result in <strong>permanent ban</strong></li>
+            </ul>
+
+            <p>If you have questions, please contact support.</p>
+            <p>Thank you,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject="IMPORTANT: Account Suspended - Appeal Within 72 Hours",
+            html_content=html_content,
+        )
+
+    async def send_suspension_lifted(
+        self,
+        user_id: int,
+        probation_ends_at: datetime,
+    ) -> bool:
+        """
+        Send suspension lifted notification (via appeal approval).
+
+        Includes probation warning.
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send suspension lifted notice: user {user_id} not found")
+            return False
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4CAF50;">Suspension Lifted - ExtraShifty</h2>
+            <p>Hi {user.full_name},</p>
+            <p>Your appeal has been approved and your account suspension has been <strong style="color: #4CAF50;">lifted</strong>.</p>
+
+            <p>Your account is now active and you can resume using ExtraShifty.</p>
+
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                <h4 style="margin-top: 0;">Important: Probation Period</h4>
+                <p>You are now on a <strong>90-day probation period</strong> until {probation_ends_at.strftime("%B %d, %Y")}.</p>
+                <p style="color: #dc3545; margin-bottom: 0;"><strong>Warning:</strong> Any no-show during this period will result in a <strong>permanent ban</strong>.</p>
+            </div>
+
+            <p><a href="{self.base_url}/dashboard" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Go to Dashboard</a></p>
+
+            <p>Thank you for your continued use of ExtraShifty,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject="Account Suspension Lifted - ExtraShifty",
+            html_content=html_content,
+        )
+
 
 # Singleton instance for use without database context
 email_service = EmailService()

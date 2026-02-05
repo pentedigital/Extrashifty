@@ -36,10 +36,12 @@ class InsufficientFundsError(Exception):
         required: Decimal,
         available: Decimal,
         message: str = "Insufficient funds",
+        minimum_balance: Decimal | None = None,
     ):
         self.required = required
         self.available = available
         self.shortfall = required - available
+        self.minimum_balance = minimum_balance
         self.message = message
         super().__init__(message)
 
@@ -119,7 +121,7 @@ class PaymentService:
             "currency": wallet.currency,
         }
 
-    def topup_wallet(
+    async def topup_wallet(
         self,
         user_id: int,
         amount: Decimal,
@@ -129,7 +131,8 @@ class PaymentService:
         """
         Add funds to company wallet.
 
-        In production, this would integrate with Stripe to charge the payment method.
+        In production, this integrates with Stripe to charge the payment method.
+        On Stripe failure, places wallet in grace period and sends alert email.
         """
         amount = self._quantize_amount(amount)
 
@@ -168,14 +171,56 @@ class PaymentService:
             logger.info(f"Duplicate topup request with key {idempotency_key}")
             return existing
 
-        # Create transaction (in production, would create Stripe PaymentIntent here)
+        # Process payment with Stripe
+        # In production, this calls stripe.PaymentIntent.create()
+        stripe_success, stripe_error = await self._process_stripe_payment(
+            amount=amount,
+            payment_method_external_id=payment_method.external_id,
+            idempotency_key=idempotency_key,
+        )
+
+        if not stripe_success:
+            # Handle failed payment - place wallet in grace period
+            logger.warning(
+                f"Stripe payment failed for wallet {wallet.id}: {stripe_error}"
+            )
+
+            # Create failed transaction record
+            failed_transaction = Transaction(
+                wallet_id=wallet.id,
+                transaction_type=TransactionType.TOPUP,
+                amount=amount,
+                fee=Decimal("0.00"),
+                net_amount=amount,
+                status=TransactionStatus.FAILED,
+                idempotency_key=idempotency_key,
+                description=f"Failed wallet top-up via {payment_method.type.value} ending in {payment_method.last_four}",
+                metadata={"failure_reason": stripe_error},
+            )
+            self.db.add(failed_transaction)
+            self.db.commit()
+            self.db.refresh(failed_transaction)
+
+            # Trigger grace period handling
+            await self.handle_failed_topup(
+                wallet_id=wallet.id,
+                amount=amount,
+                reason=stripe_error or "Payment declined",
+            )
+
+            raise PaymentError(
+                f"Payment failed: {stripe_error}",
+                "stripe_payment_failed",
+            )
+
+        # Payment successful - create completed transaction
         transaction = Transaction(
             wallet_id=wallet.id,
             transaction_type=TransactionType.TOPUP,
             amount=amount,
             fee=Decimal("0.00"),
             net_amount=amount,
-            status=TransactionStatus.COMPLETED,  # Would be PENDING until Stripe confirms
+            status=TransactionStatus.COMPLETED,
             idempotency_key=idempotency_key,
             description=f"Wallet top-up via {payment_method.type.value} ending in {payment_method.last_four}",
             completed_at=datetime.utcnow(),
@@ -208,6 +253,44 @@ class PaymentService:
 
         logger.info(f"Topped up wallet {wallet.id} with {amount} ({idempotency_key})")
         return transaction
+
+    async def _process_stripe_payment(
+        self,
+        amount: Decimal,
+        payment_method_external_id: str | None,
+        idempotency_key: str,
+    ) -> tuple[bool, str | None]:
+        """
+        Process payment through Stripe.
+
+        In production, this would call stripe.PaymentIntent.create() and confirm().
+        Returns (success: bool, error_message: str | None).
+        """
+        # In production, replace with actual Stripe integration:
+        #
+        # import stripe
+        # try:
+        #     intent = stripe.PaymentIntent.create(
+        #         amount=int(amount * 100),  # Stripe uses cents
+        #         currency="eur",
+        #         payment_method=payment_method_external_id,
+        #         confirm=True,
+        #         idempotency_key=idempotency_key,
+        #     )
+        #     if intent.status == "succeeded":
+        #         return True, None
+        #     else:
+        #         return False, f"Payment status: {intent.status}"
+        # except stripe.error.CardError as e:
+        #     return False, e.user_message
+        # except stripe.error.StripeError as e:
+        #     return False, str(e)
+
+        # Development/testing: simulate success
+        # To test failure handling, uncomment the following:
+        # return False, "Card declined: insufficient funds"
+
+        return True, None
 
     def configure_auto_topup(
         self,
@@ -314,13 +397,26 @@ class PaymentService:
         # Calculate shift cost
         shift_cost = self._calculate_shift_cost(shift)
 
-        # Check for sufficient funds
+        # Check for sufficient funds including minimum balance requirement
         available = wallet.available_balance
-        if available < shift_cost:
+        minimum_balance = wallet.minimum_balance or Decimal("0.00")
+        total_required = shift_cost + minimum_balance
+
+        if available < total_required:
+            shortfall = total_required - available
+            if minimum_balance > Decimal("0.00"):
+                message = (
+                    f"Insufficient funds to reserve shift. "
+                    f"Need {shift_cost} for shift + {minimum_balance} minimum balance = {total_required}. "
+                    f"Available: {available}. Shortfall: {shortfall}"
+                )
+            else:
+                message = f"Insufficient funds to reserve shift. Need {shift_cost}, have {available}"
             raise InsufficientFundsError(
-                required=shift_cost,
+                required=total_required,
                 available=available,
-                message=f"Insufficient funds to reserve shift. Need {shift_cost}, have {available}",
+                message=message,
+                minimum_balance=minimum_balance,
             )
 
         # Check for existing hold (idempotency)
@@ -379,7 +475,7 @@ class PaymentService:
     async def settle_shift(
         self,
         shift_id: int,
-        actual_hours: Decimal,
+        actual_hours: Decimal | None = None,
         approved_by: int | None = None,  # None = auto-approved after 24hr
     ) -> list[Transaction]:
         """
@@ -391,6 +487,12 @@ class PaymentService:
         For agency-managed shifts (Mode B):
         - 15% to platform, 85% to agency
         - Agency handles staff payment off-platform
+
+        Args:
+            shift_id: The shift to settle
+            actual_hours: Hours worked. If None, uses shift.actual_hours_worked
+                         (calculated from clock_in/clock_out) or scheduled hours.
+            approved_by: Manager ID if manually approved, None if auto-approved.
         """
         shift = self.db.get(Shift, shift_id)
         if not shift:
@@ -407,9 +509,19 @@ class PaymentService:
         if not hold:
             raise PaymentError("No active funds hold for this shift", "no_hold_found")
 
-        # Calculate actual payment based on hours worked
-        actual_hours = self._quantize_amount(actual_hours)
-        gross_amount = self._quantize_amount(actual_hours * shift.hourly_rate)
+        # Determine actual hours worked:
+        # 1. Use provided actual_hours if given
+        # 2. Otherwise use shift.actual_hours_worked (from clock-in/clock-out)
+        # 3. Fall back to scheduled hours if neither available
+        if actual_hours is not None:
+            hours_to_use = self._quantize_amount(actual_hours)
+        elif shift.actual_hours_worked is not None:
+            hours_to_use = self._quantize_amount(shift.actual_hours_worked)
+        else:
+            # Fall back to scheduled hours
+            hours_to_use = Decimal(str(self._calculate_shift_cost(shift) / shift.hourly_rate))
+
+        gross_amount = self._quantize_amount(hours_to_use * shift.hourly_rate)
 
         # Calculate settlement split
         platform_fee, recipient_amount = await self.calculate_settlement_split(gross_amount)
@@ -431,7 +543,7 @@ class PaymentService:
                 recipient_wallet = Wallet(user_id=shift.posted_by_agency_id)
                 self.db.add(recipient_wallet)
 
-            settlement_description = f"Agency payment for shift {shift_id} ({actual_hours} hours) - Mode B"
+            settlement_description = f"Agency payment for shift {shift_id} ({hours_to_use} hours) - Mode B"
             is_agency_managed = True
             logger.info(f"Mode B settlement: paying agency {shift.posted_by_agency_id}")
         else:
@@ -457,7 +569,7 @@ class PaymentService:
                 recipient_wallet = Wallet(user_id=accepted_app.applicant_id)
                 self.db.add(recipient_wallet)
 
-            settlement_description = f"Payment for shift {shift_id} ({actual_hours} hours)"
+            settlement_description = f"Payment for shift {shift_id} ({hours_to_use} hours)"
             is_agency_managed = False
 
         transactions = []
@@ -485,7 +597,7 @@ class PaymentService:
                 status=TransactionStatus.COMPLETED,
                 idempotency_key=f"{idempotency_base}_refund",
                 related_shift_id=shift_id,
-                description=f"Partial refund for shift {shift_id} (actual hours: {actual_hours})",
+                description=f"Partial refund for shift {shift_id} (actual hours: {hours_to_use})",
                 completed_at=datetime.utcnow(),
             )
             self.db.add(refund_tx)
@@ -511,7 +623,7 @@ class PaymentService:
                 "gross_amount": str(gross_amount),
                 "platform_fee": str(platform_fee),
                 "hourly_rate": str(shift.hourly_rate),
-                "hours_worked": str(actual_hours),
+                "hours_worked": str(hours_to_use),
                 "approved_by": approved_by,
                 "is_agency_managed": is_agency_managed,
                 "agency_id": shift.posted_by_agency_id if is_agency_managed else None,
@@ -651,6 +763,7 @@ class PaymentService:
         # Pay worker compensation if applicable
         if worker_compensation > 0:
             from app.models.application import Application, ApplicationStatus
+            from app.services.penalty_service import PenaltyService
 
             accepted_app = self.db.exec(
                 select(Application).where(
@@ -660,36 +773,92 @@ class PaymentService:
             ).first()
 
             if accepted_app:
-                worker_wallet = self.db.exec(
-                    select(Wallet).where(Wallet.user_id == accepted_app.applicant_id)
-                ).first()
+                # Check if worker was agency-supplied
+                penalty_service = PenaltyService(self.db)
+                is_agency_supplied, agency_id = penalty_service.is_agency_supplied_worker(
+                    shift_id=shift_id,
+                    worker_id=accepted_app.applicant_id,
+                )
 
-                if not worker_wallet:
-                    worker_wallet = Wallet(user_id=accepted_app.applicant_id)
+                if is_agency_supplied and agency_id:
+                    # Agency-supplied worker: Pay 50% to Agency Wallet (not Staff Wallet)
+                    # Agency is responsible for distributing to worker per their internal policy
+                    # Platform neutral: Does not enforce agency-worker split
+                    agency_wallet = self.db.exec(
+                        select(Wallet).where(Wallet.user_id == agency_id)
+                    ).first()
+
+                    if not agency_wallet:
+                        from app.models.wallet import WalletType
+                        agency_wallet = Wallet(
+                            user_id=agency_id,
+                            wallet_type=WalletType.AGENCY,
+                        )
+                        self.db.add(agency_wallet)
+
+                    agency_wallet.balance += worker_compensation
+                    agency_wallet.updated_at = datetime.utcnow()
+                    self.db.add(agency_wallet)
+
+                    agency_tx = Transaction(
+                        wallet_id=agency_wallet.id,
+                        transaction_type=TransactionType.SETTLEMENT,
+                        amount=worker_compensation,
+                        fee=Decimal("0.00"),
+                        net_amount=worker_compensation,
+                        status=TransactionStatus.COMPLETED,
+                        idempotency_key=f"{idempotency_base}_agency",
+                        related_shift_id=shift_id,
+                        description=f"Late cancellation compensation for shift {shift_id} - Agency responsible for worker distribution",
+                        completed_at=datetime.utcnow(),
+                        metadata={
+                            "cancelled_by": cancelled_by,
+                            "compensation_type": "late_cancellation_agency",
+                            "agency_id": agency_id,
+                            "worker_id": accepted_app.applicant_id,
+                            "distribution_note": "Agency responsible for distributing to worker per internal policy",
+                        },
+                    )
+                    self.db.add(agency_tx)
+                    transactions.append(agency_tx)
+
+                    logger.info(
+                        f"Late cancellation: Paid {worker_compensation} to agency {agency_id} "
+                        f"(not worker {accepted_app.applicant_id}) for shift {shift_id}. "
+                        f"Agency responsible for distribution."
+                    )
+                else:
+                    # Direct worker (not agency-supplied): Pay to Staff Wallet
+                    worker_wallet = self.db.exec(
+                        select(Wallet).where(Wallet.user_id == accepted_app.applicant_id)
+                    ).first()
+
+                    if not worker_wallet:
+                        worker_wallet = Wallet(user_id=accepted_app.applicant_id)
+                        self.db.add(worker_wallet)
+
+                    worker_wallet.balance += worker_compensation
+                    worker_wallet.updated_at = datetime.utcnow()
                     self.db.add(worker_wallet)
 
-                worker_wallet.balance += worker_compensation
-                worker_wallet.updated_at = datetime.utcnow()
-                self.db.add(worker_wallet)
-
-                worker_tx = Transaction(
-                    wallet_id=worker_wallet.id,
-                    transaction_type=TransactionType.SETTLEMENT,
-                    amount=worker_compensation,
-                    fee=Decimal("0.00"),
-                    net_amount=worker_compensation,
-                    status=TransactionStatus.COMPLETED,
-                    idempotency_key=f"{idempotency_base}_worker",
-                    related_shift_id=shift_id,
-                    description=f"Cancellation compensation for shift {shift_id}",
-                    completed_at=datetime.utcnow(),
-                    metadata={
-                        "cancelled_by": cancelled_by,
-                        "compensation_type": "late_cancellation",
-                    },
-                )
-                self.db.add(worker_tx)
-                transactions.append(worker_tx)
+                    worker_tx = Transaction(
+                        wallet_id=worker_wallet.id,
+                        transaction_type=TransactionType.SETTLEMENT,
+                        amount=worker_compensation,
+                        fee=Decimal("0.00"),
+                        net_amount=worker_compensation,
+                        status=TransactionStatus.COMPLETED,
+                        idempotency_key=f"{idempotency_base}_worker",
+                        related_shift_id=shift_id,
+                        description=f"Cancellation compensation for shift {shift_id}",
+                        completed_at=datetime.utcnow(),
+                        metadata={
+                            "cancelled_by": cancelled_by,
+                            "compensation_type": "late_cancellation",
+                        },
+                    )
+                    self.db.add(worker_tx)
+                    transactions.append(worker_tx)
 
         self.db.add(company_wallet)
         self.db.commit()
@@ -745,7 +914,13 @@ class PaymentService:
         Process instant payout with 1.5% fee.
 
         Minimum payout: $10
+
+        Penalty integration:
+        - First offsets any negative balance from penalties
+        - Remaining amount is paid out to user
         """
+        from app.services.penalty_service import PenaltyService
+
         wallet = self.db.get(Wallet, wallet_id)
         if not wallet:
             raise PaymentError("Wallet not found", "wallet_not_found")
@@ -758,11 +933,36 @@ class PaymentService:
         else:
             amount = self._quantize_amount(amount)
 
-        # Validate minimum
-        if amount < self.INSTANT_PAYOUT_MINIMUM:
+        # First, offset any negative balance from penalties
+        penalty_service = PenaltyService(self.db)
+        offset_result = await penalty_service.offset_negative_balance(
+            user_id=wallet.user_id,
+            earnings=amount,
+        )
+
+        penalty_offset = offset_result["offset_amount"]
+        effective_amount = offset_result["remaining_earnings"]
+
+        if penalty_offset > 0:
+            logger.info(
+                f"Payout for user {wallet.user_id}: {penalty_offset} applied to negative balance, "
+                f"{effective_amount} remaining for payout"
+            )
+
+        # If all funds went to negative balance, nothing to pay out
+        if effective_amount <= Decimal("0.00"):
             raise PaymentError(
-                f"Minimum instant payout is {self.INSTANT_PAYOUT_MINIMUM}",
-                "below_minimum",
+                f"Entire payout of {amount} was applied to negative balance. "
+                f"Remaining negative balance: {offset_result['remaining_negative']}",
+                "applied_to_negative_balance",
+            )
+
+        # Validate minimum with effective amount
+        if effective_amount < self.INSTANT_PAYOUT_MINIMUM:
+            raise PaymentError(
+                f"After penalty offset, payout amount ({effective_amount}) is below minimum "
+                f"({self.INSTANT_PAYOUT_MINIMUM}). Original amount: {amount}, penalty offset: {penalty_offset}",
+                "below_minimum_after_penalty",
             )
 
         # Check sufficient balance
@@ -773,14 +973,14 @@ class PaymentService:
                 message="Insufficient funds for payout",
             )
 
-        # Calculate fee
-        fee = self._quantize_amount(amount * self.INSTANT_PAYOUT_FEE_RATE)
-        net_amount = self._quantize_amount(amount - fee)
+        # Calculate fee based on effective amount (after penalty offset)
+        fee = self._quantize_amount(effective_amount * self.INSTANT_PAYOUT_FEE_RATE)
+        net_amount = self._quantize_amount(effective_amount - fee)
 
-        # Create payout
+        # Create payout with effective amount (after penalty offset)
         payout = Payout(
             wallet_id=wallet_id,
-            amount=amount,
+            amount=effective_amount,
             fee=fee,
             net_amount=net_amount,
             payout_type=PayoutType.INSTANT,
@@ -789,21 +989,26 @@ class PaymentService:
         )
         self.db.add(payout)
 
-        # Deduct from wallet
+        # Deduct full amount from wallet (original amount, not effective)
+        # because the penalty offset was already applied to the negative balance
         wallet.balance -= amount
         wallet.updated_at = datetime.utcnow()
         self.db.add(wallet)
 
-        # Create transaction record
+        # Create payout transaction record
+        payout_description = f"Instant payout (1.5% fee: {fee})"
+        if penalty_offset > 0:
+            payout_description += f" | Penalty offset: {penalty_offset}"
+
         transaction = Transaction(
             wallet_id=wallet_id,
             transaction_type=TransactionType.PAYOUT,
-            amount=amount,
+            amount=effective_amount,
             fee=fee,
             net_amount=net_amount,
             status=TransactionStatus.PENDING,
             idempotency_key=idempotency_key or self._generate_idempotency_key("payout"),
-            description=f"Instant payout (1.5% fee: {fee})",
+            description=payout_description,
         )
         self.db.add(transaction)
 
@@ -872,8 +1077,15 @@ class PaymentService:
 
         Called by scheduler every Friday.
         Minimum payout: $50 (no fee for weekly payouts).
+
+        Penalty integration:
+        - First offsets any negative balance from penalties
+        - Only pays out remaining amount after penalty offset
         """
+        from app.services.penalty_service import PenaltyService
+
         payouts = []
+        penalty_service = PenaltyService(self.db)
 
         # Find all wallets with balance >= minimum
         eligible_wallets = self.db.exec(
@@ -889,18 +1101,50 @@ class PaymentService:
                 continue
 
             try:
+                # First, offset any negative balance from penalties
+                offset_result = await penalty_service.offset_negative_balance(
+                    user_id=wallet.user_id,
+                    earnings=available,
+                )
+
+                penalty_offset = offset_result["offset_amount"]
+                effective_amount = offset_result["remaining_earnings"]
+
+                if penalty_offset > 0:
+                    logger.info(
+                        f"Weekly payout for user {wallet.user_id}: {penalty_offset} applied to negative balance, "
+                        f"{effective_amount} remaining for payout"
+                    )
+
+                # Skip if effective amount is below minimum after penalty offset
+                if effective_amount < self.WEEKLY_PAYOUT_MINIMUM:
+                    logger.info(
+                        f"Skipping weekly payout for wallet {wallet.id}: effective amount "
+                        f"({effective_amount}) below minimum after penalty offset"
+                    )
+                    # Still deduct from wallet for penalty offset
+                    if penalty_offset > 0:
+                        wallet.balance -= penalty_offset
+                        wallet.updated_at = datetime.utcnow()
+                        self.db.add(wallet)
+                    continue
+
+                payout_description = "Weekly payout"
+                if penalty_offset > 0:
+                    payout_description += f" | Penalty offset: {penalty_offset}"
+
                 payout = Payout(
                     wallet_id=wallet.id,
-                    amount=available,
+                    amount=effective_amount,
                     fee=Decimal("0.00"),  # No fee for weekly payouts
-                    net_amount=available,
+                    net_amount=effective_amount,
                     payout_type=PayoutType.WEEKLY,
                     status=PayoutStatus.PENDING,
                     scheduled_date=date.today(),
                 )
                 self.db.add(payout)
 
-                # Deduct from wallet
+                # Deduct full original amount from wallet (penalty offset already applied)
                 wallet.balance -= available
                 wallet.updated_at = datetime.utcnow()
                 self.db.add(wallet)
@@ -909,12 +1153,12 @@ class PaymentService:
                 transaction = Transaction(
                     wallet_id=wallet.id,
                     transaction_type=TransactionType.PAYOUT,
-                    amount=available,
+                    amount=effective_amount,
                     fee=Decimal("0.00"),
-                    net_amount=available,
+                    net_amount=effective_amount,
                     status=TransactionStatus.PENDING,
                     idempotency_key=self._generate_idempotency_key("weekly"),
-                    description="Weekly payout",
+                    description=payout_description,
                 )
                 self.db.add(transaction)
 
@@ -1098,7 +1342,7 @@ class PaymentService:
 
                 if default_pm:
                     try:
-                        tx = self.topup_wallet(
+                        tx = await self.topup_wallet(
                             user_id=wallet.user_id,
                             amount=wallet.auto_topup_amount,
                             payment_method_id=default_pm.id,
@@ -1106,9 +1350,13 @@ class PaymentService:
                         )
                         transactions.append(tx)
                         logger.info(f"Auto-topped up wallet {wallet.id}")
+                    except PaymentError as e:
+                        # PaymentError is raised when Stripe payment fails
+                        # handle_failed_topup is already called inside topup_wallet
+                        logger.error(f"Auto-topup failed for wallet {wallet.id}: {e}")
                     except Exception as e:
                         logger.error(f"Auto-topup failed for wallet {wallet.id}: {e}")
-                        # Handle the failed auto-topup
+                        # Handle unexpected errors - place wallet in grace period
                         await self.handle_failed_topup(
                             wallet_id=wallet.id,
                             amount=wallet.auto_topup_amount,

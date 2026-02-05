@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     agency,
+    appeals,
     applications,
     auth,
     company,
@@ -13,6 +14,7 @@ from app.api.v1.endpoints import (
     marketplace,
     notifications,
     payments,
+    penalties,
     reviews,
     shifts,
     staff,
@@ -42,6 +44,8 @@ api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"]
 api_router.include_router(stripe_webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(verification.router, prefix="/verification", tags=["verification"])
 api_router.include_router(disputes.router, prefix="/disputes", tags=["disputes"])
+api_router.include_router(appeals.router, prefix="/appeals", tags=["appeals"])
 api_router.include_router(tax.router, prefix="/tax", tags=["tax"])
 api_router.include_router(gdpr.router, prefix="/gdpr", tags=["gdpr"])
+api_router.include_router(penalties.router, prefix="/penalties", tags=["penalties"])
 api_router.include_router(websocket.router, tags=["websocket"])

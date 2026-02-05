@@ -16,6 +16,7 @@ from sqlmodel import Session
 
 from app.core.db import engine
 from app.services.payment_service import PaymentService
+from app.services.penalty_service import PenaltyService
 
 logger = logging.getLogger(__name__)
 
@@ -530,6 +531,228 @@ async def cleanup_expired_exports_job() -> None:
             logger.error(f"Cleanup expired exports job failed: {e}", exc_info=True)
 
 
+async def monthly_agency_invoice_generation_job() -> None:
+    """
+    Generate monthly invoices for Mode B (FULL_INTERMEDIARY) agency clients.
+
+    Runs on the 1st of each month to generate invoices for the previous month.
+    Only generates invoices for agencies operating in Mode B with active clients
+    that have completed shifts during the period.
+    """
+    from sqlmodel import select
+
+    from app.models.agency import AgencyMode, AgencyProfile
+    from app.services.agency_billing_service import AgencyBillingService
+
+    # Check if it's the 1st of the month
+    today = datetime.utcnow()
+    if today.day != 1:
+        logger.debug("Skipping monthly invoice generation - not the 1st of the month")
+        return
+
+    # Calculate the previous month's period
+    if today.month == 1:
+        year = today.year - 1
+        month = 12
+    else:
+        year = today.year
+        month = today.month - 1
+
+    logger.info(f"Starting monthly invoice generation for {year}-{month:02d}")
+
+    with Session(engine) as session:
+        try:
+            # Find all agencies in FULL_INTERMEDIARY mode
+            mode_b_agencies = session.exec(
+                select(AgencyProfile).where(
+                    AgencyProfile.mode == AgencyMode.FULL_INTERMEDIARY
+                )
+            ).all()
+
+            if not mode_b_agencies:
+                logger.debug("No Mode B agencies found for monthly invoice generation")
+                return
+
+            total_invoices = 0
+            total_skipped = 0
+
+            for agency_profile in mode_b_agencies:
+                try:
+                    billing_service = AgencyBillingService(session)
+                    created_invoices = await billing_service.generate_monthly_invoices(
+                        agency_id=agency_profile.user_id,
+                        year=year,
+                        month=month,
+                        auto_send=False,  # Create as draft, agency sends manually
+                    )
+
+                    total_invoices += len(created_invoices)
+                    logger.info(
+                        f"Agency {agency_profile.user_id}: Generated {len(created_invoices)} "
+                        f"invoices for {year}-{month:02d}"
+                    )
+
+                except Exception as e:
+                    total_skipped += 1
+                    logger.error(
+                        f"Failed to generate invoices for agency {agency_profile.user_id}: {e}"
+                    )
+
+            logger.info(
+                f"Monthly invoice generation completed: "
+                f"{total_invoices} invoices generated, {total_skipped} agencies skipped"
+            )
+
+        except Exception as e:
+            logger.error(f"Monthly invoice generation job failed: {e}", exc_info=True)
+
+
+async def check_noshow_job() -> None:
+    """
+    Check for no-shows and process penalties.
+
+    Runs every 15 minutes to find shifts that:
+    - Started 30+ minutes ago
+    - Have an accepted worker
+    - Worker has not clocked in (shift still FILLED, not IN_PROGRESS)
+
+    For each no-show found:
+    - Apply first-offense leniency if applicable (warning only)
+    - Calculate 50% penalty of shift value
+    - Add strike (with same-day cap check)
+    - Check for 3-strike suspension threshold
+    - Process 100% refund to company
+    """
+    with Session(engine) as session:
+        penalty_service = PenaltyService(session)
+
+        try:
+            # Find shifts that need no-show checking
+            shifts_to_check = penalty_service.get_shifts_needing_noshow_check()
+
+            if not shifts_to_check:
+                logger.debug("No shifts found for no-show check")
+                return
+
+            logger.info(f"Checking {len(shifts_to_check)} shifts for no-shows")
+
+            processed = 0
+            first_offense = 0
+            penalties_applied = 0
+            suspensions = 0
+
+            for shift in shifts_to_check:
+                try:
+                    result = await penalty_service.process_noshow(shift.id)
+                    if result:
+                        processed += 1
+                        if result.get("is_first_offense"):
+                            first_offense += 1
+                        else:
+                            penalties_applied += 1
+                        if result.get("suspended"):
+                            suspensions += 1
+                except Exception as e:
+                    logger.error(f"Error processing no-show for shift {shift.id}: {e}")
+
+            logger.info(
+                f"No-show check completed: {processed} processed, "
+                f"{first_offense} first-offense warnings, {penalties_applied} penalties, "
+                f"{suspensions} suspensions"
+            )
+
+        except Exception as e:
+            logger.error(f"No-show check job failed: {e}", exc_info=True)
+
+
+async def check_strike_expiry_job() -> None:
+    """
+    Expire strikes past their 90-day expiration date.
+
+    Runs daily to mark expired strikes as inactive.
+    """
+    with Session(engine) as session:
+        penalty_service = PenaltyService(session)
+
+        try:
+            expired_count = penalty_service.expire_old_strikes()
+            if expired_count > 0:
+                logger.info(f"Expired {expired_count} strikes past 90-day window")
+            else:
+                logger.debug("No strikes to expire")
+        except Exception as e:
+            logger.error(f"Strike expiry job failed: {e}", exc_info=True)
+
+
+async def check_inactivity_writeoffs_job() -> None:
+    """
+    Check for negative balances past 6 months of inactivity.
+
+    Runs daily to:
+    - Write off negative balances for users inactive 6+ months
+    - Suspend affected accounts
+    - Mark pending penalties as WRITTEN_OFF
+    """
+    with Session(engine) as session:
+        penalty_service = PenaltyService(session)
+
+        try:
+            affected_user_ids = await penalty_service.check_inactivity_writeoffs()
+            if affected_user_ids:
+                logger.warning(
+                    f"Wrote off negative balances for {len(affected_user_ids)} inactive users: "
+                    f"{affected_user_ids}"
+                )
+            else:
+                logger.debug("No inactive accounts for negative balance write-off")
+        except Exception as e:
+            logger.error(f"Inactivity writeoff job failed: {e}", exc_info=True)
+
+
+async def mark_overdue_invoices_job() -> None:
+    """
+    Mark agency client invoices that are past due date as overdue.
+
+    Runs daily to update invoice statuses for better tracking.
+    """
+    from sqlmodel import select
+
+    from app.api.v1.endpoints.agency import AgencyClientInvoice
+    from app.models.agency import AgencyMode, AgencyProfile
+    from app.services.agency_billing_service import AgencyBillingService
+
+    with Session(engine) as session:
+        try:
+            # Find all agencies in FULL_INTERMEDIARY mode
+            mode_b_agencies = session.exec(
+                select(AgencyProfile).where(
+                    AgencyProfile.mode == AgencyMode.FULL_INTERMEDIARY
+                )
+            ).all()
+
+            total_marked = 0
+            for agency_profile in mode_b_agencies:
+                try:
+                    billing_service = AgencyBillingService(session)
+                    marked_ids = billing_service.mark_overdue_invoices(
+                        agency_id=agency_profile.user_id
+                    )
+                    total_marked += len(marked_ids)
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to mark overdue invoices for agency {agency_profile.user_id}: {e}"
+                    )
+
+            if total_marked > 0:
+                logger.info(f"Marked {total_marked} invoices as overdue")
+            else:
+                logger.debug("No invoices to mark as overdue")
+
+        except Exception as e:
+            logger.error(f"Mark overdue invoices job failed: {e}", exc_info=True)
+
+
 # ==================== Scheduler Setup ====================
 
 
@@ -619,6 +842,51 @@ def create_scheduler() -> Scheduler:
     scheduler.add_task(
         name="cleanup_expired_exports",
         func=cleanup_expired_exports_job,
+        interval_seconds=86400,  # 24 hours
+        run_on_startup=False,
+    )
+
+    # Monthly agency invoice generation job - runs daily, only processes on 1st
+    # Generates invoices for Mode B agencies for the previous month
+    scheduler.add_task(
+        name="monthly_agency_invoice_generation",
+        func=monthly_agency_invoice_generation_job,
+        interval_seconds=86400,  # 24 hours (checks if it's the 1st)
+        run_on_startup=False,
+    )
+
+    # Mark overdue invoices job - runs daily
+    # Updates invoice status for invoices past due date
+    scheduler.add_task(
+        name="mark_overdue_invoices",
+        func=mark_overdue_invoices_job,
+        interval_seconds=86400,  # 24 hours
+        run_on_startup=False,
+    )
+
+    # No-show check job - runs every 15 minutes
+    # Finds shifts 30+ minutes past start with no clock-in and processes penalties
+    scheduler.add_task(
+        name="check_noshow",
+        func=check_noshow_job,
+        interval_seconds=900,  # 15 minutes
+        run_on_startup=False,
+    )
+
+    # Strike expiry job - runs daily
+    # Expires strikes past their 90-day window
+    scheduler.add_task(
+        name="check_strike_expiry",
+        func=check_strike_expiry_job,
+        interval_seconds=86400,  # 24 hours
+        run_on_startup=False,
+    )
+
+    # Inactivity writeoff job - runs daily
+    # Writes off negative balances for users inactive 6+ months
+    scheduler.add_task(
+        name="check_inactivity_writeoffs",
+        func=check_inactivity_writeoffs_job,
         interval_seconds=86400,  # 24 hours
         run_on_startup=False,
     )

@@ -108,6 +108,25 @@ class InsufficientFundsResponse(BaseModel):
     required_amount: Decimal
     available_amount: Decimal
     shortfall: Decimal
+    minimum_balance: Decimal | None = None
+    message: str
+
+
+class MinimumBalanceRequest(BaseModel):
+    """Request schema for setting minimum balance."""
+
+    minimum_balance: Decimal = Field(
+        ge=0,
+        description="Minimum balance that must remain after accepting a shift",
+    )
+
+
+class MinimumBalanceResponse(BaseModel):
+    """Response schema for minimum balance update."""
+
+    wallet_id: int
+    minimum_balance: Decimal
+    available_balance: Decimal
     message: str
 
 

@@ -27,8 +27,11 @@ class VerificationService:
         """
         Auto-approve shifts that have been pending for more than 24 hours.
 
-        Called by scheduler hourly. Finds shifts with clock_out_time > 24hrs ago
-        and status = "pending_approval", then processes payment for each.
+        Called by scheduler hourly. Finds shifts with clock_out_at > 24hrs ago
+        and status = "completed", then processes payment for each.
+
+        Only shifts with an actual clock_out_at timestamp are eligible for
+        auto-approval. Shifts without clock_out_at must be manually approved.
 
         Args:
             db: Database session
@@ -38,12 +41,12 @@ class VerificationService:
         """
         cutoff_time = datetime.utcnow() - timedelta(hours=self.AUTO_APPROVE_HOURS)
 
-        # Find shifts that are completed and past the auto-approve window
-        # In this implementation, we use ShiftStatus.COMPLETED as the pending state
-        # and check if they've been in that state long enough
+        # Find shifts that are completed, have clock_out_at set, and are past the auto-approve window
+        # Only auto-approve shifts where the worker actually clocked out
         statement = select(Shift).where(
             Shift.status == ShiftStatus.COMPLETED,
-            Shift.created_at <= cutoff_time,  # Proxy for completion time
+            Shift.clock_out_at.isnot(None),  # Must have explicit clock-out time
+            Shift.clock_out_at <= cutoff_time,  # 24 hours since clock-out
         )
 
         pending_shifts = list(db.exec(statement).all())
@@ -262,19 +265,24 @@ class VerificationService:
             scheduled_hours = self._calculate_scheduled_hours(shift)
             total_amount = shift.hourly_rate * scheduled_hours
 
-            # Calculate auto-approve time
-            # Using created_at as proxy for clock_out_time
-            auto_approve_at = shift.created_at + timedelta(hours=self.AUTO_APPROVE_HOURS)
-            hours_since = (datetime.utcnow() - shift.created_at).total_seconds() / 3600
+            # Calculate auto-approve time based on clock_out_at
+            # Only shifts with clock_out_at will have an auto-approve time
+            if shift.clock_out_at:
+                auto_approve_at = shift.clock_out_at + timedelta(hours=self.AUTO_APPROVE_HOURS)
+                hours_since = (datetime.utcnow() - shift.clock_out_at).total_seconds() / 3600
+            else:
+                # No clock-out time yet, no auto-approve scheduled
+                auto_approve_at = None
+                hours_since = None
 
             result.append({
                 "id": shift.id,
                 "title": shift.title,
                 "date": shift.date,
                 "scheduled_hours": scheduled_hours,
-                "clock_in_time": None,  # Would come from time tracking
-                "clock_out_time": None,  # Would come from time tracking
-                "actual_hours": None,  # Would come from time tracking
+                "clock_in_time": shift.clock_in_at,
+                "clock_out_time": shift.clock_out_at,
+                "actual_hours": shift.actual_hours_worked,
                 "hourly_rate": shift.hourly_rate,
                 "total_amount": total_amount,
                 "worker_id": worker_id,
@@ -367,9 +375,12 @@ class VerificationService:
         Returns:
             Settlement result
         """
-        # Calculate amounts
+        # Calculate amounts - prefer actual_hours_worked from shift if available
         if actual_hours is None:
-            actual_hours = self._calculate_scheduled_hours(shift)
+            if shift.actual_hours_worked is not None:
+                actual_hours = shift.actual_hours_worked
+            else:
+                actual_hours = self._calculate_scheduled_hours(shift)
 
         gross_amount = shift.hourly_rate * actual_hours
 

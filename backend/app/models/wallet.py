@@ -58,6 +58,7 @@ class Wallet(SQLModel, table=True):
     auto_topup_enabled: bool = Field(default=False)
     auto_topup_threshold: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
     auto_topup_amount: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
+    minimum_balance: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)  # Required buffer for accepting shifts
     stripe_onboarding_complete: bool = Field(default=False)
     last_failed_topup_at: datetime | None = Field(default=None)
     grace_period_ends_at: datetime | None = Field(default=None)

@@ -17,6 +17,8 @@ from app.schemas.payment import (
     CancellationResponse,
     CancellationPolicy,
     InsufficientFundsResponse,
+    MinimumBalanceRequest,
+    MinimumBalanceResponse,
     PayoutHistoryItem,
     PayoutHistoryResponse,
     PayoutRequest,
@@ -44,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/wallets/topup", response_model=TopupResponse)
-def topup_wallet(
+async def topup_wallet(
     session: SessionDep,
     current_user: CompanyUserDep,
     request: TopupRequest,
@@ -54,11 +56,14 @@ def topup_wallet(
 
     Requires company user role. In production, this integrates with Stripe
     to charge the specified payment method.
+
+    On payment failure, the wallet is placed in a 48-hour grace period.
+    If not resolved, the wallet will be suspended and cannot accept new shifts.
     """
     payment_service = PaymentService(session)
 
     try:
-        transaction = payment_service.topup_wallet(
+        transaction = await payment_service.topup_wallet(
             user_id=current_user.id,
             amount=request.amount,
             payment_method_id=request.payment_method_id,
@@ -133,6 +138,44 @@ def get_wallet_balance(
     balance_data = payment_service.get_wallet_balance(current_user.id)
 
     return BalanceResponse(**balance_data)
+
+
+@router.patch("/wallets/minimum-balance", response_model=MinimumBalanceResponse)
+def update_minimum_balance(
+    session: SessionDep,
+    current_user: CompanyUserDep,
+    request: MinimumBalanceRequest,
+) -> MinimumBalanceResponse:
+    """
+    Set or update the minimum balance requirement for a company wallet.
+
+    The minimum balance is a buffer that must remain in the wallet after
+    accepting a shift. When accepting shifts, the system checks:
+    available_balance >= shift_cost + minimum_balance
+
+    This helps companies ensure they always have enough funds for operations.
+    """
+    from datetime import datetime
+
+    wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
+
+    # Update the minimum balance
+    wallet.minimum_balance = request.minimum_balance
+    wallet.updated_at = datetime.utcnow()
+    session.add(wallet)
+    session.commit()
+    session.refresh(wallet)
+
+    logger.info(
+        f"Updated minimum balance for wallet {wallet.id} to {request.minimum_balance}"
+    )
+
+    return MinimumBalanceResponse(
+        wallet_id=wallet.id,
+        minimum_balance=wallet.minimum_balance,
+        available_balance=wallet.available_balance,
+        message=f"Minimum balance updated to {request.minimum_balance}",
+    )
 
 
 @router.get("/wallets/status")
@@ -291,6 +334,7 @@ async def reserve_shift_funds(
                 required_amount=e.required,
                 available_amount=e.available,
                 shortfall=e.shortfall,
+                minimum_balance=e.minimum_balance,
                 message=e.message,
             ).model_dump(mode="json"),
         )

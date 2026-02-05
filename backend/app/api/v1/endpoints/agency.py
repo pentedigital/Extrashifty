@@ -267,6 +267,69 @@ class InvoiceListResponse(BaseModel):
     total: int
 
 
+class InvoiceGenerateRequest(BaseModel):
+    """Request schema for generating an invoice from completed shifts."""
+
+    period_start: date
+    period_end: date
+    include_markup: bool = Field(default=True, description="Apply agency markup to invoice")
+    custom_due_date: Optional[date] = Field(default=None, description="Custom due date (default: period_end + 30 days)")
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class InvoiceGenerateResponse(BaseModel):
+    """Response schema for generated invoice with shift details."""
+
+    invoice_id: int
+    invoice_number: str
+    agency_id: int
+    client_id: int
+    client_email: str
+    status: str
+    period_start: str
+    period_end: str
+    due_date: str
+    currency: str
+    subtotal: float
+    markup_rate: float
+    markup_amount: float
+    total_amount: float
+    total_hours: float
+    shift_count: int
+    shift_details: List[dict]
+    notes: Optional[str] = None
+
+
+class ClientBillingSummaryResponse(BaseModel):
+    """Response schema for client billing summary."""
+
+    agency_id: int
+    client_id: int
+    client_email: str
+    total_invoiced: float
+    paid_amount: float
+    outstanding_amount: float
+    overdue_amount: float
+    draft_amount: float
+    uninvoiced_amount: float
+    uninvoiced_shift_count: int
+    invoice_count: int
+    invoice_count_by_status: dict
+    recent_invoices: List[dict]
+
+
+class UnbilledShiftResponse(BaseModel):
+    """Response schema for unbilled shift."""
+
+    shift_id: int
+    date: str
+    title: str
+    location: str
+    hours: float
+    hourly_rate: float
+    amount: float
+
+
 # --- Payroll Schemas ---
 
 
@@ -2164,6 +2227,206 @@ def mark_invoice_paid(
         updated_at=invoice.updated_at,
         client=client_response,
     )
+
+
+# --- Client Invoice Generation Endpoints (Mode B) ---
+
+
+@router.post("/clients/{client_id}/invoices/generate", response_model=InvoiceGenerateResponse, status_code=status.HTTP_201_CREATED)
+async def generate_client_invoice(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+    request: InvoiceGenerateRequest,
+) -> InvoiceGenerateResponse:
+    """
+    Generate an invoice for a client based on completed shifts in the period.
+
+    For Mode B (FULL_INTERMEDIARY) agencies:
+    - Finds all completed shifts for this client in the specified period
+    - Calculates total including agency markup (if configured)
+    - Creates an invoice record for off-platform billing reference
+
+    The invoice is created in 'draft' status and must be sent separately.
+    """
+    require_agency_user(current_user)
+
+    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+
+    billing_service = AgencyBillingService(session)
+
+    try:
+        invoice_data = await billing_service.create_client_invoice(
+            agency_id=current_user.id,
+            client_id=client_id,
+            period_start=request.period_start,
+            period_end=request.period_end,
+            include_markup=request.include_markup,
+            custom_due_date=request.custom_due_date,
+            notes=request.notes,
+        )
+
+        return InvoiceGenerateResponse(**invoice_data)
+
+    except AgencyBillingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+
+@router.get("/clients/{client_id}/invoices", response_model=InvoiceListResponse)
+def list_client_invoices(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+) -> InvoiceListResponse:
+    """
+    List all invoices for a specific client.
+
+    Optionally filter by status (draft, sent, paid, overdue).
+    """
+    require_agency_user(current_user)
+
+    # Verify client belongs to this agency
+    client_stmt = select(AgencyClient).where(
+        AgencyClient.id == client_id,
+        AgencyClient.agency_id == current_user.id,
+    )
+    client = session.exec(client_stmt).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    statement = select(AgencyClientInvoice).where(
+        AgencyClientInvoice.agency_id == current_user.id,
+        AgencyClientInvoice.client_id == client_id,
+    )
+
+    if status_filter:
+        statement = statement.where(AgencyClientInvoice.status == status_filter)
+
+    # Count total before pagination
+    count_stmt = select(func.count()).select_from(AgencyClientInvoice).where(
+        AgencyClientInvoice.agency_id == current_user.id,
+        AgencyClientInvoice.client_id == client_id,
+    )
+    if status_filter:
+        count_stmt = count_stmt.where(AgencyClientInvoice.status == status_filter)
+    total = session.exec(count_stmt).one() or 0
+
+    statement = statement.order_by(AgencyClientInvoice.created_at.desc()).offset(skip).limit(limit)
+    invoices = session.exec(statement).all()
+
+    # Build responses with client info
+    client_response = ClientResponse(
+        id=client.id,
+        agency_id=client.agency_id,
+        business_email=client.business_email,
+        billing_rate_markup=client.billing_rate_markup,
+        notes=client.notes,
+        is_active=client.is_active,
+        created_at=client.created_at,
+    )
+
+    invoice_responses = [
+        InvoiceResponse(
+            id=inv.id,
+            agency_id=inv.agency_id,
+            client_id=inv.client_id,
+            invoice_number=inv.invoice_number,
+            status=inv.status,
+            amount=inv.amount,
+            currency=inv.currency,
+            period_start=inv.period_start,
+            period_end=inv.period_end,
+            due_date=inv.due_date,
+            paid_date=inv.paid_date,
+            notes=inv.notes,
+            created_at=inv.created_at,
+            updated_at=inv.updated_at,
+            client=client_response,
+        )
+        for inv in invoices
+    ]
+
+    return InvoiceListResponse(items=invoice_responses, total=total)
+
+
+@router.get("/clients/{client_id}/billing-summary", response_model=ClientBillingSummaryResponse)
+def get_client_billing_summary(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+) -> ClientBillingSummaryResponse:
+    """
+    Get billing summary for a client including outstanding and paid amounts.
+
+    Returns:
+    - Total invoiced amount
+    - Paid amount
+    - Outstanding amount
+    - Overdue amount
+    - Uninvoiced shifts count and amount
+    - Invoice breakdown by status
+    """
+    require_agency_user(current_user)
+
+    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+
+    billing_service = AgencyBillingService(session)
+
+    try:
+        summary = billing_service.get_client_invoice_summary(
+            agency_id=current_user.id,
+            client_id=client_id,
+        )
+
+        return ClientBillingSummaryResponse(**summary)
+
+    except AgencyBillingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+
+@router.get("/clients/{client_id}/unbilled-shifts", response_model=List[UnbilledShiftResponse])
+def get_client_unbilled_shifts(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+) -> List[UnbilledShiftResponse]:
+    """
+    Get all completed shifts for a client that haven't been invoiced yet.
+
+    Use this to see what shifts are available to be included in the next invoice.
+    """
+    require_agency_user(current_user)
+
+    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+
+    billing_service = AgencyBillingService(session)
+
+    try:
+        unbilled_shifts = billing_service.get_client_unbilled_shifts(
+            agency_id=current_user.id,
+            client_id=client_id,
+        )
+
+        return [UnbilledShiftResponse(**shift) for shift in unbilled_shifts]
+
+    except AgencyBillingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
 
 
 # --- Payroll Endpoints ---

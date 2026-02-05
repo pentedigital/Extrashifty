@@ -24,6 +24,7 @@ class TransactionType(str, Enum):
     PAYOUT = "payout"                    # Withdrawal to bank account
     REFUND = "refund"                    # Refund to company wallet
     CANCELLATION_FEE = "cancellation_fee"  # Fee for late cancellation
+    PENALTY = "penalty"                  # Penalty deduction (e.g., no-show by agency worker)
 
 
 class TransactionStatus(str, Enum):

@@ -1,6 +1,13 @@
 """Database models for ExtraShifty."""
 
 from .agency import AgencyMode, AgencyModeChangeRequest, AgencyProfile
+from .appeal import (
+    Appeal,
+    AppealStatus,
+    AppealType,
+    EmergencyType,
+    EmergencyWaiver,
+)
 from .application import Application, ApplicationStatus
 from .gdpr import DeletionRequest, DeletionRequestStatus
 from .invoice import Invoice, InvoiceStatus, InvoiceType
@@ -27,12 +34,27 @@ from .wallet import (
     Wallet,
     WalletType,
 )
+from .penalty import (
+    AppealStatus as PenaltyAppealStatus,
+    NegativeBalance,
+    Penalty,
+    PenaltyAppeal,
+    PenaltyStatus,
+    Strike,
+    UserSuspension,
+)
 
 __all__ = [
     # Agency
     "AgencyMode",
     "AgencyModeChangeRequest",
     "AgencyProfile",
+    # Appeal
+    "Appeal",
+    "AppealStatus",
+    "AppealType",
+    "EmergencyType",
+    "EmergencyWaiver",
     # User
     "User",
     "UserType",
@@ -76,4 +98,12 @@ __all__ = [
     "TaxDocument",
     "TaxFormType",
     "TaxFormStatus",
+    # Penalty
+    "Penalty",
+    "PenaltyStatus",
+    "PenaltyAppealStatus",
+    "PenaltyAppeal",
+    "Strike",
+    "UserSuspension",
+    "NegativeBalance",
 ]

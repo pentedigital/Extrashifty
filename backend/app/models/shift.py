@@ -46,6 +46,11 @@ class Shift(SQLModel, table=True):
     requirements: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Time tracking fields for actual work hours
+    clock_in_at: datetime | None = Field(default=None, index=True)
+    clock_out_at: datetime | None = Field(default=None, index=True)
+    actual_hours_worked: Decimal | None = Field(default=None, max_digits=5, decimal_places=2)
+
     # Agency Mode B (Full Intermediary) fields
     # If agency posted for a client, this is the agency's user ID
     posted_by_agency_id: int | None = Field(default=None, foreign_key="users.id", index=True)

@@ -86,6 +86,11 @@ class ShiftRead(BaseModel):
     created_at: datetime
     company: Optional[UserRead] = None
 
+    # Time tracking fields
+    clock_in_at: Optional[datetime] = None
+    clock_out_at: Optional[datetime] = None
+    actual_hours_worked: Optional[Decimal] = None
+
     # Agency Mode B fields
     posted_by_agency_id: Optional[int] = None
     client_company_id: Optional[int] = None
