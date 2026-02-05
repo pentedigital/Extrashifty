@@ -110,11 +110,11 @@ function AboutPage() {
                 <p className="text-sm text-muted-foreground mt-1">Businesses</p>
               </div>
               <div>
-                <p className="text-3xl md:text-4xl font-bold text-brand-600">94%</p>
+                <p className="text-3xl md:text-4xl font-bold text-brand-600">95%</p>
                 <p className="text-sm text-muted-foreground mt-1">Fill rate</p>
               </div>
               <div>
-                <p className="text-3xl md:text-4xl font-bold text-brand-600">1.8s</p>
+                <p className="text-3xl md:text-4xl font-bold text-brand-600">&lt;2min</p>
                 <p className="text-sm text-muted-foreground mt-1">Avg match time</p>
               </div>
             </div>

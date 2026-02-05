@@ -9,14 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as LayoutRouteImport } from './routes/_layout'
@@ -87,11 +84,6 @@ import { Route as LayoutAgencyBillingPayrollProcessRouteImport } from './routes/
 import { Route as LayoutAgencyBillingInvoicesCreateRouteImport } from './routes/_layout/agency/billing/invoices/create'
 import { Route as LayoutAgencyBillingInvoicesInvoiceIdRouteImport } from './routes/_layout/agency/billing/invoices/$invoiceId'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -107,11 +99,6 @@ const RecoverPasswordRoute = RecoverPasswordRouteImport.update({
   path: '/recover-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -120,11 +107,6 @@ const PricingRoute = PricingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CookiesRoute = CookiesRouteImport.update({
-  id: '/cookies',
-  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -506,14 +488,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
-  '/privacy': typeof PrivacyRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/terms': typeof TermsRoute
   '/dashboard': typeof LayoutDashboardRoute
   '/settings': typeof LayoutSettingsRouteWithChildren
   '/wallet': typeof LayoutWalletRouteWithChildren
@@ -584,14 +563,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
-  '/privacy': typeof PrivacyRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/terms': typeof TermsRoute
   '/dashboard': typeof LayoutDashboardRoute
   '/settings': typeof LayoutSettingsRouteWithChildren
   '/legal/cookies': typeof LegalCookiesRoute
@@ -663,14 +639,11 @@ export interface FileRoutesById {
   '/_layout': typeof LayoutRouteWithChildren
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
-  '/privacy': typeof PrivacyRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/terms': typeof TermsRoute
   '/_layout/dashboard': typeof LayoutDashboardRoute
   '/_layout/settings': typeof LayoutSettingsRouteWithChildren
   '/_layout/wallet': typeof LayoutWalletRouteWithChildren
@@ -743,14 +716,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
-    | '/cookies'
     | '/login'
     | '/pricing'
-    | '/privacy'
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/terms'
     | '/dashboard'
     | '/settings'
     | '/wallet'
@@ -821,14 +791,11 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/contact'
-    | '/cookies'
     | '/login'
     | '/pricing'
-    | '/privacy'
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/terms'
     | '/dashboard'
     | '/settings'
     | '/legal/cookies'
@@ -899,14 +866,11 @@ export interface FileRouteTypes {
     | '/_layout'
     | '/about'
     | '/contact'
-    | '/cookies'
     | '/login'
     | '/pricing'
-    | '/privacy'
     | '/recover-password'
     | '/reset-password'
     | '/signup'
-    | '/terms'
     | '/_layout/dashboard'
     | '/_layout/settings'
     | '/_layout/wallet'
@@ -979,14 +943,11 @@ export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
-  CookiesRoute: typeof CookiesRoute
   LoginRoute: typeof LoginRoute
   PricingRoute: typeof PricingRoute
-  PrivacyRoute: typeof PrivacyRoute
   RecoverPasswordRoute: typeof RecoverPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
-  TermsRoute: typeof TermsRoute
   LegalCookiesRoute: typeof LegalCookiesRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
@@ -997,13 +958,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -1025,13 +979,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecoverPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
@@ -1044,13 +991,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cookies': {
-      id: '/cookies'
-      path: '/cookies'
-      fullPath: '/cookies'
-      preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -1721,14 +1661,11 @@ const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
-  CookiesRoute: CookiesRoute,
   LoginRoute: LoginRoute,
   PricingRoute: PricingRoute,
-  PrivacyRoute: PrivacyRoute,
   RecoverPasswordRoute: RecoverPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
-  TermsRoute: TermsRoute,
   LegalCookiesRoute: LegalCookiesRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,

@@ -13,7 +13,6 @@ import {
   Lock,
   ArrowRight,
   Briefcase,
-  Calendar,
   Star,
   Quote,
   Menu,
