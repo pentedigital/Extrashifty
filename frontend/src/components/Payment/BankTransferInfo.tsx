@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Building, Copy, Check, Info } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 
 interface BankTransferInfoProps {
   amount: number
@@ -35,13 +35,6 @@ export function BankTransferInfo({
   onComplete,
 }: BankTransferInfoProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-
-  const formatCurrency = (amt: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amt)
-  }
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -75,7 +68,7 @@ export function BankTransferInfo({
         <CardContent className="pt-6">
           <div className="text-center">
             <p className="text-sm text-muted-foreground mb-1">Transfer Amount</p>
-            <p className="text-3xl font-bold text-brand-600">{formatCurrency(amount)}</p>
+            <p className="text-3xl font-bold text-brand-600">{formatCurrency(amount, currency)}</p>
           </div>
         </CardContent>
       </Card>

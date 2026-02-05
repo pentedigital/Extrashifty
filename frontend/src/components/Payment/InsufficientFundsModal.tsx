@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Wallet, ArrowRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 
 interface InsufficientFundsModalProps {
   open: boolean
@@ -34,13 +34,6 @@ export function InsufficientFundsModal({
   shiftTitle,
   onTopUp,
 }: InsufficientFundsModalProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amount)
-  }
-
   const shortfall = requiredAmount - currentBalance
 
   return (
@@ -62,12 +55,12 @@ export function InsufficientFundsModal({
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
               <span className="text-muted-foreground">Current Balance</span>
-              <span className="font-semibold">{formatCurrency(currentBalance)}</span>
+              <span className="font-semibold">{formatCurrency(currentBalance, currency)}</span>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
               <span className="text-muted-foreground">Shift Cost</span>
-              <span className="font-semibold">{formatCurrency(requiredAmount)}</span>
+              <span className="font-semibold">{formatCurrency(requiredAmount, currency)}</span>
             </div>
 
             <div className={cn(
@@ -76,14 +69,14 @@ export function InsufficientFundsModal({
             )}>
               <span className="text-red-700 font-medium">Shortfall</span>
               <span className="text-lg font-bold text-red-600">
-                {formatCurrency(shortfall)}
+                {formatCurrency(shortfall, currency)}
               </span>
             </div>
           </div>
 
           {/* Helpful message */}
           <p className="text-sm text-muted-foreground mt-4">
-            Top up at least {formatCurrency(shortfall)} to accept this worker.
+            Top up at least {formatCurrency(shortfall, currency)} to accept this worker.
             We recommend adding a buffer to cover future shifts.
           </p>
         </div>
@@ -131,13 +124,6 @@ export function InsufficientFundsWarning({
   currency?: string
   className?: string
 }) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amount)
-  }
-
   const shortfall = requiredAmount - currentBalance
   const hasSufficientFunds = currentBalance >= requiredAmount
 
@@ -152,7 +138,7 @@ export function InsufficientFundsWarning({
           <span className="font-medium">Sufficient funds available</span>
         </div>
         <p className="text-sm text-green-600 mt-1">
-          {formatCurrency(requiredAmount)} will be used for this shift
+          {formatCurrency(requiredAmount, currency)} will be used for this shift
         </p>
       </div>
     )
@@ -168,16 +154,16 @@ export function InsufficientFundsWarning({
         <span className="font-medium">Insufficient funds</span>
       </div>
       <p className="text-sm text-red-600 mt-1">
-        You need {formatCurrency(shortfall)} more to accept this worker
+        You need {formatCurrency(shortfall, currency)} more to accept this worker
       </p>
       <div className="mt-2 text-xs text-red-600 space-y-0.5">
         <div className="flex justify-between">
           <span>Current balance:</span>
-          <span className="font-medium">{formatCurrency(currentBalance)}</span>
+          <span className="font-medium">{formatCurrency(currentBalance, currency)}</span>
         </div>
         <div className="flex justify-between">
           <span>Shift cost:</span>
-          <span className="font-medium">{formatCurrency(requiredAmount)}</span>
+          <span className="font-medium">{formatCurrency(requiredAmount, currency)}</span>
         </div>
       </div>
     </div>

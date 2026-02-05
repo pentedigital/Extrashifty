@@ -1,4 +1,18 @@
 // =============================================================================
+// Re-export payment types to avoid duplicates
+// =============================================================================
+
+// Import authoritative payment types from payment.ts
+import type {
+  TransactionType,
+  TransactionStatus,
+  PayoutStatus,
+} from './payment'
+
+// Re-export for backwards compatibility
+export type { TransactionType, TransactionStatus, PayoutStatus }
+
+// =============================================================================
 // Notifications
 // =============================================================================
 
@@ -94,17 +108,18 @@ export interface MFAVerification {
 // Payments/Transactions
 // =============================================================================
 
-export type TransactionType = 'deposit' | 'withdrawal' | 'transfer' | 'payment' | 'refund' | 'escrow_hold' | 'escrow_release'
-export type TransactionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
-export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed'
+// TransactionType, TransactionStatus, and PayoutStatus are imported from payment.ts above.
+// The payment.ts definitions are authoritative as they match the backend schemas.
 
-export interface Transaction {
-  id: number
-  wallet_id: number
-  type: TransactionType
+// Extended transaction interface for feature-specific use cases (e.g., mock API)
+// This extends the base Transaction with additional fields needed by frontend features.
+export interface FeatureTransaction {
+  id: number | string
+  wallet_id: number | string
+  type: TransactionType | 'deposit' | 'withdrawal' | 'transfer' | 'payment' | 'escrow_hold' | 'escrow_release'
   amount: number
   currency: string
-  status: TransactionStatus
+  status: TransactionStatus | 'processing'
   reference?: string
   description?: string
   metadata?: Record<string, unknown>
@@ -112,12 +127,12 @@ export interface Transaction {
   completed_at?: string
 }
 
-export interface Payout {
-  id: number
-  user_id: number
+export interface FeaturePayout {
+  id: number | string
+  user_id: number | string
   amount: number
   currency: string
-  status: PayoutStatus
+  status: PayoutStatus | 'processing'
   bank_account_last4?: string
   created_at: string
   processed_at?: string

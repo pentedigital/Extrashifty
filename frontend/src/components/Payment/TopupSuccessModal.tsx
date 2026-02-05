@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Check, Wallet, Receipt, ArrowRight } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 interface TopupSuccessModalProps {
   open: boolean
@@ -33,13 +34,6 @@ export function TopupSuccessModal({
   onContinue,
   showViewTransactions = true,
 }: TopupSuccessModalProps) {
-  const formatCurrency = (amt: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amt)
-  }
-
   const handleContinue = () => {
     onOpenChange(false)
     onContinue?.()
@@ -67,7 +61,7 @@ export function TopupSuccessModal({
           <div className="text-center mb-6">
             <p className="text-sm text-muted-foreground mb-1">Amount Added</p>
             <p className="text-3xl font-bold text-green-600">
-              +{formatCurrency(amount)}
+              +{formatCurrency(amount, currency)}
             </p>
           </div>
 
@@ -79,7 +73,7 @@ export function TopupSuccessModal({
                 <span className="font-medium">New Balance</span>
               </div>
               <span className="text-xl font-bold text-brand-600">
-                {formatCurrency(newBalance)}
+                {formatCurrency(newBalance, currency)}
               </span>
             </div>
           </div>
@@ -119,13 +113,6 @@ export function TopupSuccessMessage({
   currency?: string
   onDismiss?: () => void
 }) {
-  const formatCurrency = (amt: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amt)
-  }
-
   return (
     <div className="p-6 rounded-lg border border-green-200 bg-green-50">
       <div className="flex flex-col items-center text-center">
@@ -137,14 +124,14 @@ export function TopupSuccessMessage({
           Top-Up Successful!
         </h3>
         <p className="text-sm text-green-700 mb-4">
-          {formatCurrency(amount)} has been added to your wallet
+          {formatCurrency(amount, currency)} has been added to your wallet
         </p>
 
         <div className="w-full p-3 rounded-lg bg-white border border-green-200">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">New Balance</span>
             <span className="font-bold text-green-600">
-              {formatCurrency(newBalance)}
+              {formatCurrency(newBalance, currency)}
             </span>
           </div>
         </div>
@@ -180,13 +167,6 @@ export function FundsReservedConfirmation({
   currency?: string
   onClose?: () => void
 }) {
-  const formatCurrency = (amt: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amt)
-  }
-
   return (
     <div className="p-6 rounded-lg border border-green-200 bg-green-50">
       <div className="flex flex-col items-center text-center">
@@ -205,7 +185,7 @@ export function FundsReservedConfirmation({
           <div className="flex items-center justify-between mb-2">
             <span className="text-muted-foreground">Shift Cost</span>
             <span className="font-bold text-amber-600">
-              {formatCurrency(amount)}
+              {formatCurrency(amount, currency)}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">

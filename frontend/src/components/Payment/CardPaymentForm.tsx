@@ -6,6 +6,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { Button } from '@/components/ui/button'
 import { Loader2, CreditCard, Lock } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 interface CardPaymentFormProps {
   amount: number
@@ -72,13 +73,6 @@ export function CardPaymentForm({
     }
   }
 
-  const formatAmount = (amt: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amt)
-  }
-
   const isLoading = isSubmitting || isProcessing || !stripe || !elements
 
   return (
@@ -105,7 +99,7 @@ export function CardPaymentForm({
       <div className="pt-4 border-t">
         <div className="flex items-center justify-between mb-4">
           <span className="text-muted-foreground">Amount to pay</span>
-          <span className="text-xl font-bold">{formatAmount(amount)}</span>
+          <span className="text-xl font-bold">{formatCurrency(amount, currency)}</span>
         </div>
 
         <Button
@@ -122,7 +116,7 @@ export function CardPaymentForm({
           ) : (
             <>
               <Lock className="mr-2 h-4 w-4" />
-              {submitLabel} {formatAmount(amount)}
+              {submitLabel} {formatCurrency(amount, currency)}
             </>
           )}
         </Button>

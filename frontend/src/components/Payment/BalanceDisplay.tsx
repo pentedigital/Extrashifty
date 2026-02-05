@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { Link } from '@tanstack/react-router'
 
 interface BalanceDisplayProps {
@@ -33,13 +33,6 @@ export function BalanceDisplay({
   compact = false,
   className,
 }: BalanceDisplayProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amount)
-  }
-
   const isLowBalance = available < lowBalanceThreshold
 
   if (isLoading) {
@@ -70,7 +63,7 @@ export function BalanceDisplay({
               'text-lg font-bold',
               isLowBalance ? 'text-red-600' : 'text-green-600'
             )}>
-              {formatCurrency(available)}
+              {formatCurrency(available, currency)}
             </p>
           </div>
         </div>
@@ -113,7 +106,7 @@ export function BalanceDisplay({
               'text-3xl font-bold',
               isLowBalance ? 'text-red-600' : 'text-green-600'
             )}>
-              {formatCurrency(available)}
+              {formatCurrency(available, currency)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Funds ready to use
@@ -128,13 +121,13 @@ export function BalanceDisplay({
                 Pending
               </p>
               <p className="text-xl font-semibold text-amber-600">
-                {formatCurrency(reserved)}
+                {formatCurrency(reserved, currency)}
               </p>
             </div>
             <div className="pt-3 border-t">
               <p className="text-sm text-muted-foreground mb-1">Total</p>
               <p className="text-lg font-medium">
-                {formatCurrency(total)}
+                {formatCurrency(total, currency)}
               </p>
             </div>
           </div>
@@ -169,13 +162,6 @@ export function LowBalanceWarning({
   currency?: string
   className?: string
 }) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amount)
-  }
-
   const shortfall = threshold - balance
 
   return (
@@ -188,8 +174,8 @@ export function LowBalanceWarning({
         <div>
           <p className="font-medium text-amber-900">Low Balance Warning</p>
           <p className="text-sm text-amber-800">
-            Your balance ({formatCurrency(balance)}) is below the recommended threshold
-            of {formatCurrency(threshold)}. Top up {formatCurrency(shortfall)} or more
+            Your balance ({formatCurrency(balance, currency)}) is below the recommended threshold
+            of {formatCurrency(threshold, currency)}. Top up {formatCurrency(shortfall, currency)} or more
             to continue accepting workers smoothly.
           </p>
         </div>
@@ -215,13 +201,6 @@ export function BalanceIndicator({
   currency?: string
   isLow?: boolean
 }) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-    }).format(amount)
-  }
-
   return (
     <Link to="/company/wallet">
       <div className={cn(
@@ -231,7 +210,7 @@ export function BalanceIndicator({
           : 'bg-green-100 text-green-700 hover:bg-green-200'
       )}>
         <Wallet className="h-4 w-4" />
-        {formatCurrency(balance)}
+        {formatCurrency(balance, currency)}
         {isLow && <AlertTriangle className="h-3 w-3" />}
       </div>
     </Link>

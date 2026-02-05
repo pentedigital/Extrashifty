@@ -3,10 +3,12 @@
 import logging
 import uuid
 from datetime import date, datetime, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
+
+from app.core.utils import quantize_amount
 
 from app.models.payment import (
     Dispute,
@@ -80,10 +82,6 @@ class PaymentService:
         """Generate a unique idempotency key."""
         return f"{prefix}_{uuid.uuid4().hex}"
 
-    def _quantize_amount(self, amount: Decimal) -> Decimal:
-        """Ensure amount has exactly 2 decimal places."""
-        return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
     # ==================== Wallet Operations ====================
 
     def get_wallet_balance(self, user_id: int) -> dict:
@@ -114,10 +112,10 @@ class PaymentService:
 
         return {
             "wallet_id": wallet.id,
-            "available": self._quantize_amount(wallet.available_balance),
-            "reserved": self._quantize_amount(wallet.reserved_balance),
-            "pending_payout": self._quantize_amount(pending_payout),
-            "total": self._quantize_amount(wallet.balance),
+            "available": quantize_amount(wallet.available_balance),
+            "reserved": quantize_amount(wallet.reserved_balance),
+            "pending_payout": quantize_amount(pending_payout),
+            "total": quantize_amount(wallet.balance),
             "currency": wallet.currency,
         }
 
@@ -134,7 +132,7 @@ class PaymentService:
         In production, this integrates with Stripe to charge the payment method.
         On Stripe failure, places wallet in grace period and sends alert email.
         """
-        amount = self._quantize_amount(amount)
+        amount = quantize_amount(amount)
 
         # Get or create wallet
         wallet = self.db.exec(
@@ -327,8 +325,8 @@ class PaymentService:
                 raise PaymentError("Payment method not found", "invalid_payment_method")
 
             wallet.auto_topup_enabled = True
-            wallet.auto_topup_threshold = self._quantize_amount(threshold)
-            wallet.auto_topup_amount = self._quantize_amount(topup_amount)
+            wallet.auto_topup_threshold = quantize_amount(threshold)
+            wallet.auto_topup_amount = quantize_amount(topup_amount)
         else:
             wallet.auto_topup_enabled = False
 
@@ -514,14 +512,14 @@ class PaymentService:
         # 2. Otherwise use shift.actual_hours_worked (from clock-in/clock-out)
         # 3. Fall back to scheduled hours if neither available
         if actual_hours is not None:
-            hours_to_use = self._quantize_amount(actual_hours)
+            hours_to_use = quantize_amount(actual_hours)
         elif shift.actual_hours_worked is not None:
-            hours_to_use = self._quantize_amount(shift.actual_hours_worked)
+            hours_to_use = quantize_amount(shift.actual_hours_worked)
         else:
             # Fall back to scheduled hours
             hours_to_use = Decimal(str(self._calculate_shift_cost(shift) / shift.hourly_rate))
 
-        gross_amount = self._quantize_amount(hours_to_use * shift.hourly_rate)
+        gross_amount = quantize_amount(hours_to_use * shift.hourly_rate)
 
         # Calculate settlement split
         platform_fee, recipient_amount = await self.calculate_settlement_split(gross_amount)
@@ -720,10 +718,10 @@ class PaymentService:
             refund_amount = hold.amount
         elif hours_until_shift >= self.PARTIAL_REFUND_HOURS:
             # 24-48 hours: 50% refund
-            refund_amount = self._quantize_amount(hold.amount * Decimal("0.50"))
+            refund_amount = quantize_amount(hold.amount * Decimal("0.50"))
         else:
             # < 24 hours company cancellation: worker gets 2 hours pay
-            worker_compensation = self._quantize_amount(
+            worker_compensation = quantize_amount(
                 shift.hourly_rate * Decimal("2.00") * (1 - self.PLATFORM_COMMISSION_RATE)
             )
             refund_amount = hold.amount - (shift.hourly_rate * Decimal("2.00"))
@@ -881,8 +879,8 @@ class PaymentService:
 
         Returns (platform_fee, worker_amount).
         """
-        platform_fee = self._quantize_amount(gross_amount * self.PLATFORM_COMMISSION_RATE)
-        worker_amount = self._quantize_amount(gross_amount - platform_fee)
+        platform_fee = quantize_amount(gross_amount * self.PLATFORM_COMMISSION_RATE)
+        worker_amount = quantize_amount(gross_amount - platform_fee)
         return platform_fee, worker_amount
 
     def _calculate_shift_cost(self, shift: Shift) -> Decimal:
@@ -900,7 +898,7 @@ class PaymentService:
             end += timedelta(days=1)
 
         hours = Decimal(str((end - start).total_seconds() / 3600))
-        return self._quantize_amount(hours * shift.hourly_rate)
+        return quantize_amount(hours * shift.hourly_rate)
 
     # ==================== Payout Operations ====================
 
@@ -931,7 +929,7 @@ class PaymentService:
         if amount is None:
             amount = available
         else:
-            amount = self._quantize_amount(amount)
+            amount = quantize_amount(amount)
 
         # First, offset any negative balance from penalties
         penalty_service = PenaltyService(self.db)
@@ -974,8 +972,8 @@ class PaymentService:
             )
 
         # Calculate fee based on effective amount (after penalty offset)
-        fee = self._quantize_amount(effective_amount * self.INSTANT_PAYOUT_FEE_RATE)
-        net_amount = self._quantize_amount(effective_amount - fee)
+        fee = quantize_amount(effective_amount * self.INSTANT_PAYOUT_FEE_RATE)
+        net_amount = quantize_amount(effective_amount - fee)
 
         # Create payout with effective amount (after penalty offset)
         payout = Payout(

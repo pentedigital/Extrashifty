@@ -15,14 +15,9 @@ import {
 } from '@/components/ui/dialog'
 import {
   Wallet,
-  ArrowDownToLine,
   ArrowUpFromLine,
-  Clock,
   Check,
-  X,
   History,
-  CreditCard,
-  RefreshCw,
   Loader2,
   Receipt,
 } from 'lucide-react'
@@ -30,6 +25,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useWalletBalance, useWalletTransactions, useWithdraw } from '@/hooks/api/useWalletApi'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getTransactionIcon, getTransactionColor } from '@/lib/transactionUtils'
+import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 
 export const Route = createFileRoute('/_layout/wallet')({
   component: WalletPage,
@@ -91,63 +88,6 @@ function WalletPage() {
         },
       }
     )
-  }
-
-  const getTransactionIcon = (type: Transaction['type']) => {
-    switch (type) {
-      case 'payment':
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      case 'withdrawal':
-        return <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-      case 'refund':
-        return <RefreshCw className="h-4 w-4 text-blue-600" />
-      case 'deposit':
-        return <CreditCard className="h-4 w-4 text-green-600" />
-      default:
-        return <Wallet className="h-4 w-4 text-gray-600" />
-    }
-  }
-
-  const getStatusBadge = (status: Transaction['status']) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Completed
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'processing':
-        return (
-          <Badge variant="secondary" className="gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Processing
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <X className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      case 'cancelled':
-        return (
-          <Badge variant="outline" className="gap-1">
-            <X className="h-3 w-3" />
-            Cancelled
-          </Badge>
-        )
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
   }
 
   if (isLoading) {
@@ -224,40 +164,45 @@ function WalletPage() {
             />
           ) : (
             <div className="space-y-4">
-              {transactions.slice(0, 5).map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-muted rounded-full">
-                      {getTransactionIcon(transaction.type)}
+              {transactions.slice(0, 5).map((transaction) => {
+                const TransactionIcon = getTransactionIcon(transaction.type)
+                const transactionColor = getTransactionColor(transaction.type)
+                const statusBadge = getTransactionStatusBadge(transaction.status)
+                return (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-muted rounded-full">
+                        <TransactionIcon className={`h-4 w-4 ${transactionColor}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium capitalize">
+                          {transaction.type.replace('_', ' ')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {transaction.description || 'No description'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(transaction.created_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium capitalize">
-                        {transaction.type.replace('_', ' ')}
+                    <div className="flex items-center gap-4">
+                      <p
+                        className={`font-semibold ${
+                          transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {transaction.amount >= 0 ? '+' : ''}
+                        {formatCurrency(transaction.amount, transaction.currency)}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {transaction.description || 'No description'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(transaction.created_at)}
-                      </p>
+                      <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <p
-                      className={`font-semibold ${
-                        transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {transaction.amount >= 0 ? '+' : ''}
-                      {formatCurrency(transaction.amount, transaction.currency)}
-                    </p>
-                    {getStatusBadge(transaction.status)}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

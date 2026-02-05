@@ -80,6 +80,34 @@ def get_current_admin_user(current_user: ActiveUserDep) -> User:
 AdminUserDep = Annotated[User, Depends(get_current_admin_user)]
 
 
+async def get_staff_user(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> User:
+    """Require current user to be staff or admin."""
+    if current_user.user_type not in [UserType.STAFF, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff access required",
+        )
+    return current_user
+
+
+async def get_agency_user(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> User:
+    """Require current user to be agency or admin."""
+    if current_user.user_type not in [UserType.AGENCY, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Agency access required",
+        )
+    return current_user
+
+
+StaffUserDep = Annotated[User, Depends(get_staff_user)]
+AgencyUserDep = Annotated[User, Depends(get_agency_user)]
+
+
 def get_current_company_user(current_user: ActiveUserDep) -> User:
     """Get current company user."""
     if current_user.user_type not in (UserType.COMPANY, UserType.ADMIN):

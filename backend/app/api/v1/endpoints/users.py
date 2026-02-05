@@ -3,10 +3,11 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.errors import raise_bad_request, raise_forbidden, require_found, require_permission
 from app.core.security import get_password_hash, verify_password
 from app.crud import user as user_crud
 from app.models.user import User, UserType
@@ -86,19 +87,13 @@ def update_my_profile(
     update_data = request.model_dump(exclude_unset=True)
 
     if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No fields to update",
-        )
+        raise_bad_request("No fields to update")
 
     # Check if email is being changed and if it's already taken
     if "email" in update_data and update_data["email"] != current_user.email:
         existing_user = user_crud.get_by_email(session, email=update_data["email"])
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
+            raise_bad_request("Email already registered")
 
     # Apply updates
     for field, value in update_data.items():
@@ -143,17 +138,11 @@ def update_my_password(
     """
     # Verify current password
     if not verify_password(request.current_password, current_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
+        raise_bad_request("Current password is incorrect")
 
     # Ensure new password is different
     if request.current_password == request.new_password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from current password",
-        )
+        raise_bad_request("New password must be different from current password")
 
     # Update password
     current_user.hashed_password = get_password_hash(request.new_password)
@@ -204,10 +193,7 @@ def get_my_stats(
     from app.models.wallet import Wallet
 
     if current_user.user_type != UserType.STAFF:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Stats are currently only available for staff users",
-        )
+        raise_forbidden("Stats are currently only available for staff users")
 
     # Count pending applications
     pending_applications = len(
@@ -325,16 +311,9 @@ def get_user_public_profile(
     Requires authentication but does not require admin or ownership.
     """
     user = user_crud.get(session, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    require_found(user, "User")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        require_found(None, "User")
     return PublicUserProfile(
         id=user.id,
         full_name=user.full_name,
@@ -352,17 +331,11 @@ def get_user(
 ) -> User:
     """Get user by ID."""
     user = user_crud.get(session, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    require_found(user, "User")
     # Users can only view their own profile unless they are admin
-    if current_user.user_type != UserType.ADMIN and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    require_permission(
+        current_user.user_type == UserType.ADMIN or current_user.id == user_id
+    )
     return user
 
 
@@ -375,16 +348,10 @@ def update_user(
 ) -> User:
     """Update user."""
     user = user_crud.get(session, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    require_found(user, "User")
     # Users can only update their own profile unless they are admin
-    if current_user.user_type != UserType.ADMIN and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
-        )
+    require_permission(
+        current_user.user_type == UserType.ADMIN or current_user.id == user_id
+    )
     user = user_crud.update(session, db_obj=user, obj_in=user_in)
     return user

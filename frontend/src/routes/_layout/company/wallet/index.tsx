@@ -4,16 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
-  Wallet,
   Plus,
   History,
   Settings,
   RefreshCw,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   Clock,
   Check,
-  X,
   Loader2,
   AlertTriangle,
   CreditCard,
@@ -21,6 +17,8 @@ import {
   Building,
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getTransactionIcon, getTransactionColor } from '@/lib/transactionUtils'
+import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 import {
   useCompanyWalletBalance,
   useTransactionHistory,
@@ -42,52 +40,6 @@ function CompanyWalletPage() {
   const transactions = transactionsData?.items ?? []
   const isLowBalance = walletData?.is_low_balance ?? false
   const lowBalanceThreshold = walletData?.low_balance_threshold ?? 100
-
-  // Transaction icon and color helpers
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'top_up':
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      case 'payment':
-        return <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-      case 'reserve':
-        return <Clock className="h-4 w-4 text-amber-600" />
-      case 'release':
-        return <RefreshCw className="h-4 w-4 text-blue-600" />
-      case 'refund':
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      default:
-        return <Wallet className="h-4 w-4 text-gray-600" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Completed
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <X className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
 
   const formatTransactionDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-IE', {
@@ -340,6 +292,9 @@ function CompanyWalletPage() {
             <div className="space-y-3">
               {transactions.map((transaction) => {
                 const displayAmount = getTransactionAmount(transaction.type, transaction.amount)
+                const TransactionIcon = getTransactionIcon(transaction.type)
+                const transactionColor = getTransactionColor(transaction.type)
+                const statusBadge = getTransactionStatusBadge(transaction.status)
                 return (
                   <div
                     key={transaction.id}
@@ -347,7 +302,7 @@ function CompanyWalletPage() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="p-2 bg-muted rounded-full">
-                        {getTransactionIcon(transaction.type)}
+                        <TransactionIcon className={`h-4 w-4 ${transactionColor}`} />
                       </div>
                       <div>
                         <p className="font-medium capitalize">
@@ -370,7 +325,7 @@ function CompanyWalletPage() {
                         {displayAmount >= 0 ? '+' : ''}
                         {formatCurrency(displayAmount, currency)}
                       </p>
-                      {getStatusBadge(transaction.status)}
+                      <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
                     </div>
                   </div>
                 )

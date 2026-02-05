@@ -1,13 +1,30 @@
+/**
+ * Error Boundary - Single source of truth for error handling components
+ *
+ * This module provides:
+ * - ErrorBoundary: React error boundary wrapper (uses react-error-boundary)
+ * - ErrorFallback: Reusable fallback component for generic error boundaries
+ * - useErrorBoundary: Hook for programmatic error boundary control
+ *
+ * For TanStack Router specific error components, see:
+ * - RouteErrorBoundary: Full-page error for route definitions
+ * - LayoutErrorBoundary: Minimal error for authenticated layouts
+ */
+
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
-interface FallbackProps {
+export interface ErrorFallbackProps {
   error: Error
   resetErrorBoundary: () => void
 }
 
-function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+/**
+ * Reusable error fallback component for React error boundaries.
+ * Shows error message with retry option and dev-only stack trace.
+ */
+export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
   return (
     <div className="flex min-h-[400px] flex-col items-center justify-center p-8 text-center">
       <div className="rounded-full bg-destructive/10 p-4 mb-4">
@@ -35,13 +52,20 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   )
 }
 
-interface ErrorBoundaryProps {
+export interface ErrorBoundaryProps {
   children: React.ReactNode
+  /** Custom fallback element to render on error */
   fallback?: React.ReactNode
+  /** Callback when error boundary resets */
   onReset?: () => void
+  /** Callback when an error is caught */
   onError?: (error: Error, info: React.ErrorInfo) => void
 }
 
+/**
+ * React Error Boundary wrapper component.
+ * Catches JavaScript errors in child component tree and displays fallback UI.
+ */
 export function ErrorBoundary({
   children,
   fallback,
@@ -59,5 +83,5 @@ export function ErrorBoundary({
   )
 }
 
-// Re-export for convenience
+// Re-export hook from react-error-boundary for programmatic control
 export { useErrorBoundary } from 'react-error-boundary'

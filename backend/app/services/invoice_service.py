@@ -3,12 +3,14 @@
 import logging
 import os
 from datetime import date, datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader
 from sqlmodel import Session, func, select
+
+from app.core.utils import quantize_amount
 
 from app.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from app.models.payment import Payout, Transaction
@@ -53,10 +55,6 @@ class InvoiceService:
             loader=FileSystemLoader(str(TEMPLATE_DIR)),
             autoescape=True,
         )
-
-    def _quantize_amount(self, amount: Decimal) -> Decimal:
-        """Ensure amount has exactly 2 decimal places."""
-        return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def generate_invoice_number(self) -> str:
         """
@@ -108,7 +106,7 @@ class InvoiceService:
         Returns:
             Created Invoice object
         """
-        amount = self._quantize_amount(amount)
+        amount = quantize_amount(amount)
 
         # Verify user exists
         user = self.db.get(User, user_id)
@@ -177,8 +175,8 @@ class InvoiceService:
         Returns:
             Created Invoice object
         """
-        gross_amount = self._quantize_amount(gross_amount)
-        net_amount = self._quantize_amount(net_amount)
+        gross_amount = quantize_amount(gross_amount)
+        net_amount = quantize_amount(net_amount)
 
         # Verify user exists
         user = self.db.get(User, user_id)
@@ -203,8 +201,8 @@ class InvoiceService:
             hours = Decimal(str((end - start).total_seconds() / 3600))
             total_hours += hours
 
-        total_hours = self._quantize_amount(total_hours)
-        platform_fee = self._quantize_amount(gross_amount - net_amount)
+        total_hours = quantize_amount(total_hours)
+        platform_fee = quantize_amount(gross_amount - net_amount)
 
         # Generate invoice number
         invoice_number = self.generate_invoice_number()
@@ -261,7 +259,7 @@ class InvoiceService:
         Returns:
             Created Invoice object
         """
-        amount = self._quantize_amount(amount)
+        amount = quantize_amount(amount)
 
         # Verify user exists
         user = self.db.get(User, user_id)

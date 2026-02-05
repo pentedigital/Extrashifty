@@ -1,9 +1,25 @@
+/**
+ * TanStack Router Error Boundary Components
+ *
+ * These components are designed for use with TanStack Router's errorComponent prop.
+ * For generic React error boundaries, import from '@/components/ErrorBoundary'.
+ */
+
 import { Link, useRouter } from '@tanstack/react-router'
 import type { ErrorComponentProps } from '@tanstack/react-router'
 import { AlertTriangle, RefreshCw, Home, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
+
+// Re-export core error boundary components for convenience
+export {
+  ErrorBoundary,
+  ErrorFallback,
+  useErrorBoundary,
+  type ErrorBoundaryProps,
+  type ErrorFallbackProps,
+} from '@/components/ErrorBoundary'
 
 interface ErrorDisplayProps {
   /** The error that occurred */
@@ -17,7 +33,8 @@ interface ErrorDisplayProps {
 }
 
 /**
- * Generic error display component that can be used standalone or in error boundaries.
+ * Rich error display component for route errors.
+ * Includes navigation options (Dashboard, Go Back) and router integration.
  */
 export function ErrorDisplay({
   error,
@@ -116,6 +133,7 @@ export function ErrorDisplay({
 /**
  * Route error boundary component for TanStack Router.
  * Use this as the errorComponent in route definitions.
+ * Shows full-page error with navigation options.
  */
 export function RouteErrorBoundary({ error, reset }: ErrorComponentProps) {
   return <ErrorDisplay error={error} onReset={reset} />
@@ -123,7 +141,7 @@ export function RouteErrorBoundary({ error, reset }: ErrorComponentProps) {
 
 /**
  * Minimal route error boundary for use within authenticated layouts.
- * Shows error without full page chrome.
+ * Shows error without full page chrome (no card wrapper, no logo).
  */
 export function LayoutErrorBoundary({ error, reset }: ErrorComponentProps) {
   return <ErrorDisplay error={error} onReset={reset} minimal />

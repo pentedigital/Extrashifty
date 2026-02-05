@@ -8,8 +8,8 @@ import type {
   NotificationPreferences,
   Message,
   Conversation,
-  Transaction,
-  Payout,
+  FeatureTransaction,
+  FeaturePayout,
   EscrowAccount,
   VerificationDocument,
   VerificationStatus,
@@ -59,7 +59,7 @@ export const mockApi = {
       }
     },
 
-    getTransactions: async (): Promise<Transaction[]> => {
+    getTransactions: async (): Promise<FeatureTransaction[]> => {
       await delay(400)
       return [
         {
@@ -462,7 +462,7 @@ export const mockApi = {
 
   // ==================== PAYOUTS ====================
   payouts: {
-    list: async (): Promise<Payout[]> => {
+    list: async (): Promise<FeaturePayout[]> => {
       await delay(400)
       return [
         {
@@ -488,7 +488,7 @@ export const mockApi = {
       ]
     },
 
-    request: async (amount: number): Promise<Payout> => {
+    request: async (amount: number): Promise<FeaturePayout> => {
       await delay(500)
       return {
         id: generateId(),
