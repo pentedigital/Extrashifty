@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 interface BaseModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  title: string
+  title: React.ReactNode
   description?: string
   children: React.ReactNode
   footer?: React.ReactNode

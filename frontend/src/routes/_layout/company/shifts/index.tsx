@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useShifts } from '@/hooks/api/useShiftsApi'
 import type { Shift } from '@/types/shift'
 
@@ -31,20 +32,6 @@ function CompanyShiftsPage() {
       draft: shifts.filter((s) => s.status === 'draft'),
     }
   }, [data])
-
-  const getStatusBadge = (status: string, spotsTotal: number, spotsFilled: number) => {
-    if (status === 'open') {
-      if (spotsFilled === spotsTotal) return <Badge variant="success">Filled</Badge>
-      if (spotsFilled > 0) return <Badge variant="warning">{spotsTotal - spotsFilled} Open</Badge>
-      return <Badge variant="success">Open</Badge>
-    }
-    if (status === 'assigned' || status === 'filled') return <Badge variant="success">Filled</Badge>
-    if (status === 'in_progress') return <Badge variant="warning">In Progress</Badge>
-    if (status === 'completed') return <Badge variant="secondary">Completed</Badge>
-    if (status === 'draft') return <Badge variant="outline">Draft</Badge>
-    if (status === 'cancelled') return <Badge variant="destructive">Cancelled</Badge>
-    return <Badge>{status}</Badge>
-  }
 
   const renderShiftList = (shifts: Shift[], showApplicants = false) => {
     if (shifts.length === 0) {
@@ -92,7 +79,7 @@ function CompanyShiftsPage() {
                           x{shift.spots_total}
                         </span>
                       )}
-                      {getStatusBadge(shift.status, shift.spots_total, shift.spots_filled)}
+                      {(() => { const badge = getShiftStatusBadge(shift.status, shift.spots_total, shift.spots_filled); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {formatCurrency(shift.hourly_rate)}/hr

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { StaffProfile } from '@/types/staff'
 
 export const staffKeys = {
@@ -47,6 +48,17 @@ export function useStaffWallet() {
   })
 }
 
+/**
+ * Hook to fetch time clock records for the logged-in staff member.
+ *
+ * CANONICAL LOCATION: This is the authoritative version of useClockRecords.
+ * A deprecated version exists in useShiftsApi.ts for backward compatibility.
+ *
+ * Use this hook when:
+ * - Displaying staff's clock in/out history
+ * - Tracking time worked on shifts
+ * - Viewing attendance records
+ */
 export function useClockRecords(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.clockRecords(filters),
@@ -57,12 +69,20 @@ export function useClockRecords(filters?: Record<string, string>) {
 /**
  * Hook to fetch the logged-in staff member's assigned/confirmed shifts.
  * These are shifts where the staff has an accepted application.
+ *
+ * CANONICAL LOCATION: This is the authoritative version of useMyShifts.
+ * A deprecated version exists in useShiftsApi.ts for backward compatibility.
+ *
+ * Use this hook when:
+ * - Displaying staff dashboard with upcoming shifts
+ * - Showing "My Shifts" page for staff members
+ * - Checking shifts the staff is confirmed to work
  */
 export function useMyShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.myShifts(filters),
     queryFn: () => api.shifts.getMyShifts(filters),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -74,7 +94,7 @@ export function useMyStats() {
   return useQuery({
     queryKey: staffKeys.stats(),
     queryFn: () => api.users.getStats(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 

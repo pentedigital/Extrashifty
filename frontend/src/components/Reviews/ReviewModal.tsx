@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+import { BaseModal } from '@/components/ui/base-modal'
 import { ReviewForm } from './ReviewForm'
 import type { ReviewType } from '@/hooks/api/useReviewsApi'
 
@@ -69,22 +63,20 @@ export function ReviewModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{getTitle()}</DialogTitle>
-          <DialogDescription>
-            {getDescription()}
-          </DialogDescription>
-        </DialogHeader>
-        <ReviewForm
-          revieweeId={revieweeId}
-          shiftId={shiftId}
-          reviewType={reviewType}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
-      </DialogContent>
-    </Dialog>
+    <BaseModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={getTitle()}
+      description={getDescription()}
+      className="sm:max-w-[425px]"
+    >
+      <ReviewForm
+        revieweeId={revieweeId}
+        shiftId={shiftId}
+        reviewType={reviewType}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+      />
+    </BaseModal>
   )
 }

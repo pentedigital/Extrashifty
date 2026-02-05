@@ -1,6 +1,6 @@
 """Agency model for ExtraShifty."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
@@ -83,3 +83,116 @@ class AgencyModeChangeRequest(SQLModel, table=True):
     # Requirements check at time of request
     requirements_met: bool = Field(default=False)
     requirements_details: str | None = Field(default=None, max_length=2000)
+
+
+class StaffInvitation(SQLModel, table=True):
+    """Model for pending staff invitations."""
+
+    __tablename__ = "staff_invitations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    email: str = Field(max_length=255, index=True)
+    message: str | None = Field(default=None, max_length=1000)
+    status: str = Field(default="pending")  # pending, accepted, expired
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime | None = Field(default=None)
+
+
+class AgencyStaffMember(SQLModel, table=True):
+    """Model for agency staff members."""
+
+    __tablename__ = "agency_staff_members"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    staff_user_id: int = Field(index=True)
+    status: str = Field(default="active")  # active, inactive, pending
+    is_available: bool = Field(default=True)
+    shifts_completed: int = Field(default=0)
+    total_hours: float = Field(default=0.0)
+    notes: str | None = Field(default=None, max_length=2000)
+    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AgencyClient(SQLModel, table=True):
+    """Model for agency client relationships."""
+
+    __tablename__ = "agency_clients"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    business_email: str = Field(max_length=255, index=True)
+    billing_rate_markup: float | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=2000)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AgencyClientInvoice(SQLModel, table=True):
+    """Model for agency client invoices (separate from payment invoices)."""
+
+    __tablename__ = "agency_client_invoices"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    client_id: int = Field(index=True)
+    invoice_number: str = Field(max_length=50, unique=True, index=True)
+    status: str = Field(default="draft")  # draft, sent, paid, overdue
+    amount: float = Field(default=0.0)
+    currency: str = Field(default="EUR", max_length=3)
+    period_start: date = Field()
+    period_end: date = Field()
+    due_date: date = Field()
+    paid_date: date | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=2000)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PayrollEntry(SQLModel, table=True):
+    """Model for staff payroll entries."""
+
+    __tablename__ = "payroll_entries"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    staff_member_id: int = Field(index=True)
+    period_start: date = Field()
+    period_end: date = Field()
+    status: str = Field(default="pending")  # pending, approved, paid
+    hours_worked: float = Field(default=0.0)
+    gross_amount: float = Field(default=0.0)
+    deductions: float = Field(default=0.0)
+    net_amount: float = Field(default=0.0)
+    currency: str = Field(default="EUR", max_length=3)
+    paid_at: datetime | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=2000)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AgencyShiftAssignment(SQLModel, table=True):
+    """Model for tracking agency staff assignments to shifts."""
+
+    __tablename__ = "agency_shift_assignments"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    shift_id: int = Field(index=True)
+    staff_member_id: int = Field(index=True)  # References AgencyStaffMember.id
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AgencyShift(SQLModel, table=True):
+    """Model for tracking shifts posted by agencies for their clients."""
+
+    __tablename__ = "agency_shifts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agency_id: int = Field(index=True)
+    shift_id: int = Field(index=True, unique=True)  # References Shift.id
+    client_id: int = Field(index=True)  # References AgencyClient.id
+    created_at: datetime = Field(default_factory=datetime.utcnow)

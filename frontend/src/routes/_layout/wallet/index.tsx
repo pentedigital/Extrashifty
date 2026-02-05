@@ -3,13 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   Wallet,
-  ArrowDownToLine,
   ArrowUpFromLine,
-  Clock,
-  Check,
-  X,
   History,
   CreditCard,
   RefreshCw,
@@ -20,6 +17,8 @@ import {
 import { useWalletBalance, useWalletTransactions } from '@/hooks/api/useWalletApi'
 import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils'
+import { getTransactionStatusBadge } from '@/lib/badgeUtils'
+import { getTransactionIcon, getTransactionColor, getTransactionDisplayAmount } from '@/lib/transactionUtils'
 import type { TransactionType, TransactionStatus } from '@/hooks/api/useWalletApi'
 
 export const Route = createFileRoute('/_layout/wallet/')({
@@ -35,49 +34,6 @@ function WalletIndexPage() {
   const currency = walletData?.currency ?? 'EUR'
   const transactions = transactionsData?.items ?? []
 
-  const getTransactionIcon = (type: TransactionType) => {
-    switch (type) {
-      case 'earning':
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      case 'withdrawal':
-        return <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-      case 'top_up':
-        return <Plus className="h-4 w-4 text-green-600" />
-      case 'payment':
-        return <CreditCard className="h-4 w-4 text-red-600" />
-      default:
-        return <Wallet className="h-4 w-4 text-gray-600" />
-    }
-  }
-
-  const getStatusBadge = (status: TransactionStatus) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Completed
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <X className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
   const formatTransactionDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-IE', {
       month: 'short',
@@ -85,12 +41,6 @@ function WalletIndexPage() {
       hour: 'numeric',
       minute: '2-digit',
     }).format(new Date(dateString))
-  }
-
-  const getTransactionAmount = (type: TransactionType, amount: number) => {
-    // Earnings and top-ups are positive, withdrawals and payments are negative
-    const isPositive = type === 'earning' || type === 'top_up'
-    return isPositive ? amount : -Math.abs(amount)
   }
 
   if (isLoadingBalance) {
@@ -129,12 +79,10 @@ function WalletIndexPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Wallet</h1>
-        <p className="text-muted-foreground">
-          {isStaff ? 'Manage your earnings and withdrawals' : 'Manage your balance and payments'}
-        </p>
-      </div>
+      <PageHeader
+        title="Wallet"
+        description={isStaff ? 'Manage your earnings and withdrawals' : 'Manage your balance and payments'}
+      />
 
       {/* Balance Card */}
       <Card>
@@ -219,7 +167,10 @@ function WalletIndexPage() {
           ) : (
             <div className="space-y-4">
               {transactions.map((transaction) => {
-                const displayAmount = getTransactionAmount(transaction.type, transaction.amount)
+                const displayAmount = getTransactionDisplayAmount(transaction.type, transaction.amount)
+                const TransactionIcon = getTransactionIcon(transaction.type)
+                const transactionColor = getTransactionColor(transaction.type)
+                const statusBadge = getTransactionStatusBadge(transaction.status)
                 return (
                   <div
                     key={transaction.id}
@@ -227,7 +178,7 @@ function WalletIndexPage() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="p-2 bg-muted rounded-full">
-                        {getTransactionIcon(transaction.type)}
+                        <TransactionIcon className={`h-4 w-4 ${transactionColor}`} />
                       </div>
                       <div>
                         <p className="font-medium capitalize">
@@ -250,7 +201,7 @@ function WalletIndexPage() {
                         {displayAmount >= 0 ? '+' : ''}
                         {formatCurrency(displayAmount, currency)}
                       </p>
-                      {getStatusBadge(transaction.status)}
+                      <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
                     </div>
                   </div>
                 )

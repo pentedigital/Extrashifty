@@ -96,7 +96,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
         // Set timeout for pong response
         pongTimeoutRef.current = setTimeout(() => {
-          console.warn('WebSocket pong timeout, closing connection')
+          if (import.meta.env.DEV) console.warn('WebSocket pong timeout, closing connection')
           ws.close()
         }, PONG_TIMEOUT)
       }
@@ -128,7 +128,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current = ws
 
       ws.onopen = () => {
-        console.log('WebSocket connected')
+        if (import.meta.env.DEV) console.log('WebSocket connected')
         setConnectionState('connected')
         reconnectAttemptsRef.current = 0
         startPingPong(ws)
@@ -136,7 +136,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       }
 
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected', event.code, event.reason)
+        if (import.meta.env.DEV) console.log('WebSocket disconnected', event.code, event.reason)
         setConnectionState('disconnected')
         clearTimers()
         onDisconnect?.()
@@ -150,16 +150,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
               RECONNECT_INTERVAL * Math.pow(2, reconnectAttemptsRef.current - 1),
               30000 // Max 30 seconds
             )
-            console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
+            if (import.meta.env.DEV) console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
             reconnectTimeoutRef.current = setTimeout(connect, delay)
           } else {
-            console.error('Max reconnection attempts reached')
+            if (import.meta.env.DEV) console.error('Max reconnection attempts reached')
           }
         }
       }
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
+        if (import.meta.env.DEV) console.error('WebSocket error:', error)
         onError?.(error)
       }
 
@@ -202,11 +202,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
               break
           }
         } catch {
-          console.warn('Failed to parse WebSocket message:', event.data)
+          if (import.meta.env.DEV) console.warn('Failed to parse WebSocket message:', event.data)
         }
       }
     } catch (error) {
-      console.error('Failed to create WebSocket:', error)
+      if (import.meta.env.DEV) console.error('Failed to create WebSocket:', error)
       setConnectionState('disconnected')
     }
   }, [enabled, clearTimers, startPingPong, onConnect, onDisconnect, onError, queryClient])

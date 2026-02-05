@@ -90,7 +90,7 @@ export function useRegister() {
       queryClient.setQueryData(authKeys.me(), user)
     },
     onError: (error) => {
-      console.error('Registration failed:', error)
+      if (import.meta.env.DEV) console.error('Registration failed:', error)
     },
   })
 }

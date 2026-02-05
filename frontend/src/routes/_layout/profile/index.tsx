@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { VerificationBadges } from '@/components/Verification/VerificationBadges'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
@@ -133,13 +134,15 @@ function ProfilePage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Profile</h1>
-        <Button variant="outline" onClick={() => navigate({ to: '/settings' })}>
-          <Edit className="mr-2 h-4 w-4" />
-          Edit Profile
-        </Button>
-      </div>
+      <PageHeader
+        title="My Profile"
+        actions={
+          <Button variant="outline" onClick={() => navigate({ to: '/settings' })}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Profile
+          </Button>
+        }
+      />
 
       {userType === 'staff' && staffProfile && (
         <>

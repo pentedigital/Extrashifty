@@ -73,7 +73,7 @@ export function StripeProvider({ children, clientSecret }: StripeProviderProps) 
   }, [clientSecret])
 
   if (!STRIPE_PUBLISHABLE_KEY) {
-    console.warn('Stripe publishable key not configured')
+    if (import.meta.env.DEV) console.warn('Stripe publishable key not configured')
     return <>{children}</>
   }
 

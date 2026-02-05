@@ -111,7 +111,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   // Start fallback polling when WebSocket is unavailable
   const startPolling = useCallback(() => {
     stopPolling()
-    console.log('Starting fallback polling for real-time updates')
+    if (import.meta.env.DEV) console.log('Starting fallback polling for real-time updates')
 
     pollingIntervalRef.current = setInterval(() => {
       // Invalidate notifications to trigger a refetch
@@ -127,7 +127,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
         // Set timeout for pong response
         pongTimeoutRef.current = setTimeout(() => {
-          console.warn('WebSocket pong timeout, closing connection')
+          if (import.meta.env.DEV) console.warn('WebSocket pong timeout, closing connection')
           ws.close()
         }, PONG_TIMEOUT)
       }
@@ -160,7 +160,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       wsRef.current = ws
 
       ws.onopen = () => {
-        console.log('WebSocket connected')
+        if (import.meta.env.DEV) console.log('WebSocket connected')
         setConnectionState('connected')
         reconnectAttemptsRef.current = 0
         stopPolling() // Make sure polling is stopped when connected
@@ -168,7 +168,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       }
 
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected', event.code, event.reason)
+        if (import.meta.env.DEV) console.log('WebSocket disconnected', event.code, event.reason)
         setConnectionState('disconnected')
         clearTimers()
 
@@ -186,16 +186,16 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
               RECONNECT_INTERVAL * Math.pow(2, reconnectAttemptsRef.current - 1),
               30000 // Max 30 seconds
             )
-            console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
+            if (import.meta.env.DEV) console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
             reconnectTimeoutRef.current = setTimeout(connect, delay)
           } else {
-            console.error('Max reconnection attempts reached, using polling fallback')
+            if (import.meta.env.DEV) console.error('Max reconnection attempts reached, using polling fallback')
           }
         }
       }
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
+        if (import.meta.env.DEV) console.error('WebSocket error:', error)
       }
 
       ws.onmessage = (event) => {
@@ -237,11 +237,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
               break
           }
         } catch {
-          console.warn('Failed to parse WebSocket message:', event.data)
+          if (import.meta.env.DEV) console.warn('Failed to parse WebSocket message:', event.data)
         }
       }
     } catch (error) {
-      console.error('Failed to create WebSocket:', error)
+      if (import.meta.env.DEV) console.error('Failed to create WebSocket:', error)
       setConnectionState('disconnected')
       startPolling()
     }

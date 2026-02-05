@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { AgencyProfile, AgencyStaffMember, AgencyClient, StaffAssignment, AgencyShift } from '@/types/agency'
 
 export const agencyKeys = {
@@ -521,7 +522,7 @@ export function useAgencySchedule(params?: { start_date?: string; end_date?: str
 
       return schedule
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -555,7 +556,7 @@ export function useAgencyAcceptApplication() {
       queryClient.invalidateQueries({ queryKey: agencyKeys.shifts() })
     },
     onError: (error) => {
-      console.error('Failed to accept application:', error)
+      if (import.meta.env.DEV) console.error('Failed to accept application:', error)
     },
   })
 }
@@ -569,7 +570,7 @@ export function useAgencyRejectApplication() {
       queryClient.invalidateQueries({ queryKey: agencyKeys.applications() })
     },
     onError: (error) => {
-      console.error('Failed to reject application:', error)
+      if (import.meta.env.DEV) console.error('Failed to reject application:', error)
     },
   })
 }

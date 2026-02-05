@@ -13,17 +13,13 @@ import {
   Calendar,
   Building,
   CreditCard,
-  Check,
-  Clock,
   AlertCircle,
-  ArrowRight,
   Filter,
-  Download,
-  Loader2,
 } from 'lucide-react'
 import { usePayoutHistory, type PayoutStatus } from '@/hooks/api/usePaymentsApi'
 import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils'
+import { getPayoutStatusBadge } from '@/lib/badgeUtils'
 
 export const Route = createFileRoute('/_layout/staff/earnings/payouts')({
   component: PayoutsHistoryPage,
@@ -47,41 +43,6 @@ function PayoutsHistoryPage() {
     if (statusFilter === 'all') return payouts
     return payouts.filter(p => p.status === statusFilter)
   }, [payouts, statusFilter])
-
-  const getStatusBadge = (status: PayoutStatus) => {
-    switch (status) {
-      case 'paid':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Paid
-          </Badge>
-        )
-      case 'in_transit':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <ArrowRight className="h-3 w-3" />
-            In Transit
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="default" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
 
   const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-IE', {
@@ -280,7 +241,7 @@ function PayoutsHistoryPage() {
                         {formatCurrency(payout.amount)}
                       </td>
                       <td className="py-3 px-4">
-                        {getStatusBadge(payout.status)}
+                        {(() => { const badge = getPayoutStatusBadge(payout.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">

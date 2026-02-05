@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getPayrollStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyPayroll, useAgencyStaff } from '@/hooks/api/useAgencyApi'
 import type { PayrollEntry } from '@/types/agency'
 
@@ -91,19 +92,6 @@ function PayrollPage() {
       title: 'Payment initiated',
       description: `Payment of ${formatCurrency(amount)} to ${name} has been initiated.`,
     })
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>
-      case 'approved':
-        return <Badge variant="default">Approved</Badge>
-      case 'paid':
-        return <Badge variant="success">Paid</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
   }
 
   const toggleSelect = (id: string) => {
@@ -241,7 +229,7 @@ function PayrollPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{getStaffName(entry)}</p>
-                    {getStatusBadge(entry.status)}
+                    {(() => { const badge = getPayrollStatusBadge(entry.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {formatPeriod(entry.period_start, entry.period_end)} - {entry.shifts?.length ?? 0} shifts - {entry.hours_worked}h

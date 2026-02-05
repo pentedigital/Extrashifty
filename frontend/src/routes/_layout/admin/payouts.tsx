@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, CheckCircle, Clock, BanknoteIcon, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
+import { getPayoutStatusBadge } from '@/lib/badgeUtils'
 import { useAdminPayouts, useAdminProcessPayout } from '@/hooks/api/useAdminApi'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -104,16 +105,6 @@ function AdminPayoutsPage() {
     )
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending': return <Badge variant="warning">Pending</Badge>
-      case 'processing': return <Badge variant="default">Processing</Badge>
-      case 'completed': return <Badge variant="success">Completed</Badge>
-      case 'failed': return <Badge variant="destructive">Failed</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
   const pendingTotal = payouts
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + p.amount, 0)
@@ -172,7 +163,7 @@ function AdminPayoutsPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{payout.recipient}</p>
                       <Badge variant="outline">{payout.type}</Badge>
-                      {getStatusBadge(payout.status)}
+                      {(() => { const badge = getPayoutStatusBadge(payout.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {payout.shifts} shifts • {payout.period} • ****{payout.bankLast4}

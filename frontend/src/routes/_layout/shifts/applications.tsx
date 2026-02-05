@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getApplicationStatusBadge } from '@/lib/badgeUtils'
 import { useApplications, useUpdateApplicationStatus } from '@/hooks/api'
 import type { Application, ApplicationStatus } from '@/types/application'
 
@@ -71,21 +72,6 @@ function ApplicationsPage() {
     }
   }
 
-  const getStatusBadge = (status: ApplicationStatus) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>
-      case 'accepted':
-        return <Badge variant="success">Accepted</Badge>
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>
-      case 'withdrawn':
-        return <Badge variant="secondary">Withdrawn</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
   const renderApplicationList = (applications: Application[]) => {
     if (applications.length === 0) {
       return (
@@ -120,7 +106,7 @@ function ApplicationsPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{app.shift?.title || 'Shift'}</p>
-                    {getStatusBadge(app.status)}
+                    {(() => { const badge = getApplicationStatusBadge(app.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     @ {app.shift?.company?.company_name || app.shift?.location_name}

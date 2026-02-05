@@ -47,7 +47,7 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (data: ChangePasswordData) => api.users.updatePassword(data),
     onError: (error) => {
-      console.error('Password change failed:', error)
+      if (import.meta.env.DEV) console.error('Password change failed:', error)
     },
   })
 }
@@ -66,7 +66,7 @@ export function useDeleteAccount() {
       queryClient.clear()
     },
     onError: (error) => {
-      console.error('Account deletion failed:', error)
+      if (import.meta.env.DEV) console.error('Account deletion failed:', error)
     },
   })
 }

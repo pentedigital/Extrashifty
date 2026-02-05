@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useEarnings, useEarningsSummary } from '@/hooks/api/usePaymentsApi'
 import { useAuth } from '@/hooks/useAuth'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPayoutDate } from '@/lib/utils'
 import { EarningsSummary, EarningsChart, generateChartData } from '@/components/Earnings'
 
 export const Route = createFileRoute('/_layout/staff/earnings/')({
@@ -42,13 +42,6 @@ function StaffEarningsPage() {
   }, [earnings])
 
   const isLoading = summaryLoading || earningsLoading
-
-  const formatPayoutDate = (date: string | null) => {
-    if (!date) return 'No payout scheduled'
-    const d = new Date(date)
-    const dayName = d.toLocaleDateString('en-IE', { weekday: 'long' })
-    return dayName
-  }
 
   // Show access denied for non-staff
   if (!isStaff && !isLoading) {

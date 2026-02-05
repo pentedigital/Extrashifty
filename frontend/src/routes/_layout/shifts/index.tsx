@@ -6,7 +6,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useMyShifts } from '@/hooks/api/useShiftsApi'
 
 export const Route = createFileRoute('/_layout/shifts/')({
@@ -116,21 +118,6 @@ function MyShiftsPage() {
     )
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <Badge variant="success">Confirmed</Badge>
-      case 'in_progress':
-        return <Badge variant="warning">In Progress</Badge>
-      case 'completed':
-        return <Badge variant="secondary">Completed</Badge>
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
   const renderShiftList = (shifts: ProcessedShift[]) => {
     if (shifts.length === 0) {
       return (
@@ -190,7 +177,7 @@ function MyShiftsPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{shift.title}</p>
-                            {getStatusBadge(shift.status)}
+                            {(() => { const badge = getShiftStatusBadge(shift.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             @ {shift.company_name}
@@ -218,18 +205,18 @@ function MyShiftsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">My Shifts</h1>
-          <p className="text-muted-foreground">Track your upcoming and past shifts</p>
-        </div>
-        <Link to="/marketplace">
-          <Button>
-            <Search className="mr-2 h-4 w-4" />
-            Find Shifts
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="My Shifts"
+        description="Track your upcoming and past shifts"
+        actions={
+          <Link to="/marketplace">
+            <Button>
+              <Search className="mr-2 h-4 w-4" />
+              Find Shifts
+            </Button>
+          </Link>
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

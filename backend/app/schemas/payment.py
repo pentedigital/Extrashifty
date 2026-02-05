@@ -2,19 +2,11 @@
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.payment import PayoutStatus
-
-
-class PaymentMethodType(str, Enum):
-    """Payment method types for topup."""
-
-    CARD = "card"
-    BANK_ACCOUNT = "bank_account"
-    ACH = "ach"
+from ..models.wallet import PaymentMethodType
 
 
 class TopupRequest(BaseModel):

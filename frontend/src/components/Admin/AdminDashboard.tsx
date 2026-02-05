@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 // Mock data for admin dashboard
@@ -126,15 +127,10 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">System overview and management</p>
-        </div>
-        <div className="flex gap-2">
-          {/* Action buttons can be added here */}
-        </div>
-      </div>
+      <PageHeader
+        title="Admin Dashboard"
+        description="System overview and management"
+      />
 
       {/* Key Stats */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">

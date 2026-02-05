@@ -38,7 +38,7 @@ export function useUpdateCompanyProfile() {
       queryClient.invalidateQueries({ queryKey: companyKeys.profile() })
     },
     onError: (error) => {
-      console.error('Failed to update company profile:', error)
+      if (import.meta.env.DEV) console.error('Failed to update company profile:', error)
     },
   })
 }
@@ -74,7 +74,7 @@ export function useCreateVenue() {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
     },
     onError: (error) => {
-      console.error('Failed to create venue:', error)
+      if (import.meta.env.DEV) console.error('Failed to create venue:', error)
     },
   })
 }
@@ -89,7 +89,7 @@ export function useUpdateVenue() {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
     },
     onError: (error) => {
-      console.error('Failed to update venue:', error)
+      if (import.meta.env.DEV) console.error('Failed to update venue:', error)
     },
   })
 }
@@ -103,7 +103,7 @@ export function useDeleteVenue() {
       queryClient.invalidateQueries({ queryKey: companyKeys.venues() })
     },
     onError: (error) => {
-      console.error('Failed to delete venue:', error)
+      if (import.meta.env.DEV) console.error('Failed to delete venue:', error)
     },
   })
 }
@@ -128,7 +128,7 @@ export function useCreateCompanyShift() {
       queryClient.invalidateQueries({ queryKey: companyKeys.shifts() })
     },
     onError: (error) => {
-      console.error('Failed to create shift:', error)
+      if (import.meta.env.DEV) console.error('Failed to create shift:', error)
     },
   })
 }
@@ -144,7 +144,7 @@ export function useUpdateShift() {
       queryClient.invalidateQueries({ queryKey: companyKeys.shift(variables.id) })
     },
     onError: (error) => {
-      console.error('Failed to update shift:', error)
+      if (import.meta.env.DEV) console.error('Failed to update shift:', error)
     },
   })
 }
@@ -158,7 +158,7 @@ export function useDeleteShift() {
       queryClient.invalidateQueries({ queryKey: companyKeys.shifts() })
     },
     onError: (error) => {
-      console.error('Failed to delete shift:', error)
+      if (import.meta.env.DEV) console.error('Failed to delete shift:', error)
     },
   })
 }
@@ -184,7 +184,7 @@ export function useAcceptApplication() {
       queryClient.invalidateQueries({ queryKey: companyKeys.all })
     },
     onError: (error) => {
-      console.error('Failed to accept application:', error)
+      if (import.meta.env.DEV) console.error('Failed to accept application:', error)
     },
   })
 }
@@ -198,7 +198,7 @@ export function useRejectApplication() {
       queryClient.invalidateQueries({ queryKey: companyKeys.all })
     },
     onError: (error) => {
-      console.error('Failed to reject application:', error)
+      if (import.meta.env.DEV) console.error('Failed to reject application:', error)
     },
   })
 }
@@ -235,7 +235,7 @@ export function useCreateReview() {
       queryClient.invalidateQueries({ queryKey: companyKeys.reviews() })
     },
     onError: (error) => {
-      console.error('Failed to create review:', error)
+      if (import.meta.env.DEV) console.error('Failed to create review:', error)
     },
   })
 }
@@ -278,7 +278,7 @@ export function useAddPreferredAgency() {
       queryClient.invalidateQueries({ queryKey: companyKeys.preferredAgencies() })
     },
     onError: (error) => {
-      console.error('Failed to add preferred agency:', error)
+      if (import.meta.env.DEV) console.error('Failed to add preferred agency:', error)
     },
   })
 }
@@ -292,7 +292,7 @@ export function useRemovePreferredAgency() {
       queryClient.invalidateQueries({ queryKey: companyKeys.preferredAgencies() })
     },
     onError: (error) => {
-      console.error('Failed to remove preferred agency:', error)
+      if (import.meta.env.DEV) console.error('Failed to remove preferred agency:', error)
     },
   })
 }

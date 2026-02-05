@@ -1,12 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { BaseModal } from '@/components/ui/base-modal'
 import { Button } from '@/components/ui/button'
 import { Check, Wallet, Receipt, ArrowRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -39,63 +32,64 @@ export function TopupSuccessModal({
     onContinue?.()
   }
 
+  const footer = (
+    <div className="flex flex-col sm:flex-row gap-2 w-full">
+      {showViewTransactions && (
+        <Link to="/wallet/transactions" className="sm:flex-1">
+          <Button variant="outline" className="w-full">
+            <Receipt className="mr-2 h-4 w-4" />
+            View Transactions
+          </Button>
+        </Link>
+      )}
+
+      <Button onClick={handleContinue} className="sm:flex-1">
+        Continue
+        <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </div>
+  )
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-center">
-          {/* Success Animation */}
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 animate-in zoom-in duration-300">
-              <Check className="h-6 w-6 text-white" />
-            </div>
-          </div>
-
-          <DialogTitle className="text-xl">Top-Up Successful!</DialogTitle>
-          <DialogDescription>
-            Your wallet has been topped up successfully
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-6">
-          {/* Amount Added */}
-          <div className="text-center mb-6">
-            <p className="text-sm text-muted-foreground mb-1">Amount Added</p>
-            <p className="text-3xl font-bold text-green-600">
-              +{formatCurrency(amount, currency)}
-            </p>
-          </div>
-
-          {/* New Balance */}
-          <div className="p-4 rounded-lg bg-muted">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-muted-foreground" />
-                <span className="font-medium">New Balance</span>
-              </div>
-              <span className="text-xl font-bold text-brand-600">
-                {formatCurrency(newBalance, currency)}
-              </span>
-            </div>
+    <BaseModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Top-Up Successful!"
+      description="Your wallet has been topped up successfully"
+      footer={footer}
+    >
+      {/* Success Animation */}
+      <div className="text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 animate-in zoom-in duration-300">
+            <Check className="h-6 w-6 text-white" />
           </div>
         </div>
+      </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          {showViewTransactions && (
-            <Link to="/wallet/transactions" className="sm:flex-1">
-              <Button variant="outline" className="w-full">
-                <Receipt className="mr-2 h-4 w-4" />
-                View Transactions
-              </Button>
-            </Link>
-          )}
+      <div className="py-6">
+        {/* Amount Added */}
+        <div className="text-center mb-6">
+          <p className="text-sm text-muted-foreground mb-1">Amount Added</p>
+          <p className="text-3xl font-bold text-green-600">
+            +{formatCurrency(amount, currency)}
+          </p>
+        </div>
 
-          <Button onClick={handleContinue} className="sm:flex-1">
-            Continue
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {/* New Balance */}
+        <div className="p-4 rounded-lg bg-muted">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+              <span className="font-medium">New Balance</span>
+            </div>
+            <span className="text-xl font-bold text-brand-600">
+              {formatCurrency(newBalance, currency)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </BaseModal>
   )
 }
 

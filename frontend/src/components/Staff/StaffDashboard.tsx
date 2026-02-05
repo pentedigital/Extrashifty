@@ -6,6 +6,7 @@ import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { getApplicationStatusBadge } from '@/lib/badgeUtils'
@@ -33,20 +34,18 @@ export function StaffDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening.</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Dashboard"
+        description="Welcome back! Here's what's happening."
+        actions={
           <Link to="/marketplace">
             <Button>
               <Search className="mr-2 h-4 w-4" />
               Find Shifts
             </Button>
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">

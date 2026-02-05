@@ -131,7 +131,7 @@ export function useTopupWallet() {
       queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
     },
     onError: (error) => {
-      console.error('Failed to top up wallet:', error)
+      if (import.meta.env.DEV) console.error('Failed to top up wallet:', error)
     },
   })
 }
@@ -145,7 +145,7 @@ export function useCreatePaymentIntent() {
       return await api.payments.createPaymentIntent(amount)
     },
     onError: (error) => {
-      console.error('Failed to create payment intent:', error)
+      if (import.meta.env.DEV) console.error('Failed to create payment intent:', error)
     },
   })
 }
@@ -195,7 +195,7 @@ export function useConfigureAutoTopup() {
       queryClient.invalidateQueries({ queryKey: paymentKeys.autoTopup() })
     },
     onError: (error) => {
-      console.error('Failed to configure auto-topup:', error)
+      if (import.meta.env.DEV) console.error('Failed to configure auto-topup:', error)
     },
   })
 }
@@ -219,7 +219,7 @@ export function useReserveFunds() {
       queryClient.invalidateQueries({ queryKey: companyKeys.wallet() })
     },
     onError: (error) => {
-      console.error('Failed to reserve funds:', error)
+      if (import.meta.env.DEV) console.error('Failed to reserve funds:', error)
     },
   })
 }
@@ -247,7 +247,7 @@ export function useSettleShift() {
       queryClient.invalidateQueries({ queryKey: ['shifts'] })
     },
     onError: (error) => {
-      console.error('Failed to settle shift payment:', error)
+      if (import.meta.env.DEV) console.error('Failed to settle shift payment:', error)
     },
   })
 }
@@ -285,7 +285,7 @@ export function useCancelShiftPayment() {
       queryClient.invalidateQueries({ queryKey: ['shifts'] })
     },
     onError: (error) => {
-      console.error('Failed to cancel shift payment:', error)
+      if (import.meta.env.DEV) console.error('Failed to cancel shift payment:', error)
     },
   })
 }
@@ -552,7 +552,7 @@ export function useRequestInstantPayout() {
       queryClient.invalidateQueries({ queryKey: walletKeys.transactions() })
     },
     onError: (error) => {
-      console.error('Failed to request instant payout:', error)
+      if (import.meta.env.DEV) console.error('Failed to request instant payout:', error)
     },
   })
 }
@@ -597,7 +597,7 @@ export function useConnectOnboardingLink() {
       }
     },
     onError: (error) => {
-      console.error('Failed to get Connect onboarding link:', error)
+      if (import.meta.env.DEV) console.error('Failed to get Connect onboarding link:', error)
     },
   })
 }
@@ -676,7 +676,7 @@ export function useRequestAgencyPayout() {
       queryClient.invalidateQueries({ queryKey: ['agency'] })
     },
     onError: (error) => {
-      console.error('Failed to request agency payout:', error)
+      if (import.meta.env.DEV) console.error('Failed to request agency payout:', error)
     },
   })
 }

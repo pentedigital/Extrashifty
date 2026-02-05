@@ -264,29 +264,9 @@ class PaymentService:
         In production, this would call stripe.PaymentIntent.create() and confirm().
         Returns (success: bool, error_message: str | None).
         """
-        # In production, replace with actual Stripe integration:
-        #
-        # import stripe
-        # try:
-        #     intent = stripe.PaymentIntent.create(
-        #         amount=int(amount * 100),  # Stripe uses cents
-        #         currency="eur",
-        #         payment_method=payment_method_external_id,
-        #         confirm=True,
-        #         idempotency_key=idempotency_key,
-        #     )
-        #     if intent.status == "succeeded":
-        #         return True, None
-        #     else:
-        #         return False, f"Payment status: {intent.status}"
-        # except stripe.error.CardError as e:
-        #     return False, e.user_message
-        # except stripe.error.StripeError as e:
-        #     return False, str(e)
-
-        # Development/testing: simulate success
-        # To test failure handling, uncomment the following:
-        # return False, "Card declined: insufficient funds"
+        # TODO: Integrate Stripe PaymentIntent in production.
+        # This stub simulates success for development/testing.
+        # See Stripe docs: https://stripe.com/docs/api/payment_intents
 
         return True, None
 

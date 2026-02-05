@@ -17,7 +17,7 @@ import {
   Building,
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { getTransactionIcon, getTransactionColor } from '@/lib/transactionUtils'
+import { getTransactionIcon, getTransactionColor, getTransactionDisplayAmount } from '@/lib/transactionUtils'
 import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 import {
   useCompanyWalletBalance,
@@ -48,12 +48,6 @@ function CompanyWalletPage() {
       hour: 'numeric',
       minute: '2-digit',
     }).format(new Date(dateString))
-  }
-
-  const getTransactionAmount = (type: string, amount: number) => {
-    // Top-ups, refunds, and releases are positive
-    const isPositive = ['top_up', 'refund', 'release'].includes(type)
-    return isPositive ? amount : -Math.abs(amount)
   }
 
   if (isLoadingBalance) {
@@ -291,7 +285,7 @@ function CompanyWalletPage() {
           ) : (
             <div className="space-y-3">
               {transactions.map((transaction) => {
-                const displayAmount = getTransactionAmount(transaction.type, transaction.amount)
+                const displayAmount = getTransactionDisplayAmount(transaction.type, transaction.amount)
                 const TransactionIcon = getTransactionIcon(transaction.type)
                 const transactionColor = getTransactionColor(transaction.type)
                 const statusBadge = getTransactionStatusBadge(transaction.status)

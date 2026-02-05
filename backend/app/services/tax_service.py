@@ -119,12 +119,7 @@ class TaxService:
                 f"New total: {tax_year_record.total_earnings}"
             )
 
-            # TODO: Send W9 request notification to user
-            # await notification_service.create_tax_notification(
-            #     user_id=user_id,
-            #     notification_type="w9_required",
-            #     tax_year=tax_year_record.tax_year,
-            # )
+            # TODO: Implement W9 request notification when notification_service is integrated
 
         self.db.add(tax_year_record)
         self.db.commit()

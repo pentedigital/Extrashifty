@@ -1,10 +1,11 @@
 """API Dependencies for ExtraShifty."""
 
 from collections.abc import Generator
+from dataclasses import dataclass
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import ValidationError
 from sqlmodel import Session
@@ -14,6 +15,13 @@ from app.core.db import engine
 from app.crud import user as user_crud
 from app.models.user import User, UserType
 from app.schemas.token import TokenPayload
+
+
+@dataclass
+class PaginationParams:
+    """Standardized pagination parameters for list endpoints."""
+    skip: int = Query(default=0, ge=0, description="Number of records to skip")
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum number of records to return")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 

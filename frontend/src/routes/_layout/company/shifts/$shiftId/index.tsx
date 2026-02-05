@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ArrowLeft, Edit, MapPin, Clock, Euro, Users, Calendar, AlertCircle } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useShift } from '@/hooks/api/useShiftsApi'
 import type { ShiftStatus } from '@/types/shift'
 
@@ -18,18 +19,6 @@ function ShiftDetailsPage() {
 
   // Fetch shift data
   const { data: shift, isLoading, error } = useShift(shiftId)
-
-  const getStatusBadge = (status: ShiftStatus) => {
-    switch (status) {
-      case 'open': return <Badge variant="success">Open</Badge>
-      case 'assigned': return <Badge variant="success">Assigned</Badge>
-      case 'in_progress': return <Badge variant="warning">In Progress</Badge>
-      case 'completed': return <Badge variant="secondary">Completed</Badge>
-      case 'cancelled': return <Badge variant="destructive">Cancelled</Badge>
-      case 'draft': return <Badge variant="outline">Draft</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
 
   if (isLoading) {
     return (
@@ -84,7 +73,7 @@ function ShiftDetailsPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{shift.title}</h1>
-            {getStatusBadge(shift.status)}
+            {(() => { const badge = getShiftStatusBadge(shift.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
           </div>
           <p className="text-muted-foreground">{shift.location_name}, {shift.city}</p>
         </div>
@@ -190,7 +179,7 @@ function ShiftDetailsPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                {getStatusBadge(shift.status)}
+                {(() => { const badge = getShiftStatusBadge(shift.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Positions</span>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, MoreVertical, Eye, MapPin, Clock, Loader2 } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useAdminShifts } from '@/hooks/api/useAdminApi'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -77,16 +78,6 @@ function AdminShiftsPage() {
     )
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active': return <Badge variant="default">Active</Badge>
-      case 'filled': return <Badge variant="success">Filled</Badge>
-      case 'completed': return <Badge variant="secondary">Completed</Badge>
-      case 'cancelled': return <Badge variant="destructive">Cancelled</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -126,7 +117,7 @@ function AdminShiftsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-medium">{shift.title}</p>
-                    {getStatusBadge(shift.status)}
+                    {(() => { const badge = getShiftStatusBadge(shift.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
                   <p className="text-sm text-muted-foreground">{shift.company}</p>
                   <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">

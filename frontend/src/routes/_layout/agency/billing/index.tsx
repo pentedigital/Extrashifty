@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getInvoiceStatusBadge, getPayrollStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyInvoices, useAgencyPayroll, useAgencyWallet, useAgencyProfile } from '@/hooks/api/useAgencyApi'
 import type { Invoice, PayrollEntry, AgencyMode } from '@/types/agency'
 
@@ -63,25 +64,6 @@ function BillingOverviewPage() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3)
   }, [payrollData])
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return <Badge variant="success">Paid</Badge>
-      case 'sent':
-        return <Badge variant="default">Sent</Badge>
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>
-      case 'overdue':
-        return <Badge variant="destructive">Overdue</Badge>
-      case 'approved':
-        return <Badge variant="success">Approved</Badge>
-      case 'draft':
-        return <Badge variant="outline">Draft</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
 
   const formatPeriod = (start: string, end: string) => {
     const startDate = new Date(start)
@@ -290,7 +272,7 @@ function BillingOverviewPage() {
                         <p className="font-semibold">
                           {formatCurrency(invoice.amount)}
                         </p>
-                        {getStatusBadge(invoice.status)}
+                        {(() => { const badge = getInvoiceStatusBadge(invoice.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                       </div>
                     </Link>
                   ))}
@@ -356,7 +338,7 @@ function BillingOverviewPage() {
                         <p className="font-semibold">
                           {formatCurrency(payroll.net_amount)}
                         </p>
-                        {getStatusBadge(payroll.status)}
+                        {(() => { const badge = getPayrollStatusBadge(payroll.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                       </div>
                     </div>
                   ))}

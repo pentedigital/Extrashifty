@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getInvoiceStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyInvoice, useSendInvoice, useMarkInvoicePaid } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/billing/invoices/$invoiceId')({
@@ -65,21 +66,6 @@ function InvoiceDetailPage() {
       title: 'Download started',
       description: `${invoice.invoice_number}.pdf is being downloaded.`,
     })
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="outline" className="text-lg px-3 py-1">Draft</Badge>
-      case 'sent':
-        return <Badge variant="default" className="text-lg px-3 py-1">Sent</Badge>
-      case 'paid':
-        return <Badge variant="success" className="text-lg px-3 py-1">Paid</Badge>
-      case 'overdue':
-        return <Badge variant="destructive" className="text-lg px-3 py-1">Overdue</Badge>
-      default:
-        return <Badge className="text-lg px-3 py-1">{status}</Badge>
-    }
   }
 
   const formatPeriod = (start: string, end: string) => {
@@ -152,7 +138,7 @@ function InvoiceDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
-              {getStatusBadge(invoice.status)}
+              {(() => { const badge = getInvoiceStatusBadge(invoice.status); return <Badge variant={badge.variant} className="text-lg px-3 py-1">{badge.label}</Badge>; })()}
             </div>
             <p className="text-muted-foreground">
               Created on {formatDate(invoice.created_at)}

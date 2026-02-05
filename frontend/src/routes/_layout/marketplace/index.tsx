@@ -4,6 +4,7 @@ import { ShiftCard } from '@/components/Shifts/ShiftCard'
 import { ShiftFilters, FilterSidebar } from '@/components/Shifts/ShiftFilters'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
+import { PageHeader } from '@/components/ui/page-header'
 import { Search, AlertCircle } from 'lucide-react'
 import { useShifts } from '@/hooks/api'
 import type { ShiftFilters as ShiftFiltersType } from '@/types/shift'
@@ -27,10 +28,10 @@ function MarketplacePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Find Shifts</h1>
-        <p className="text-muted-foreground">Browse available shifts in your area</p>
-      </div>
+      <PageHeader
+        title="Find Shifts"
+        description="Browse available shifts in your area"
+      />
 
       <div className="flex gap-6">
         {/* Desktop Sidebar */}

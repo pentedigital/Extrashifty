@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { ReviewCard } from '@/components/Reviews/ReviewCard'
 
@@ -115,12 +116,10 @@ function ReviewsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{pageTitle}</h1>
-          <p className="text-muted-foreground">{pageDescription}</p>
-        </div>
-      </div>
+      <PageHeader
+        title={pageTitle}
+        description={pageDescription}
+      />
 
       {/* Rating Summary Card */}
       {totalCount > 0 && (

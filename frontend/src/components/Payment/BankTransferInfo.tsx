@@ -42,7 +42,7 @@ export function BankTransferInfo({
       setCopiedField(field)
       setTimeout(() => setCopiedField(null), 2000)
     } catch {
-      console.error('Failed to copy to clipboard')
+      if (import.meta.env.DEV) console.error('Failed to copy to clipboard')
     }
   }
 

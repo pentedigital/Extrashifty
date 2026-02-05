@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getInvoiceStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyInvoices, useSendInvoice, useMarkInvoicePaid, useAgencyClients } from '@/hooks/api/useAgencyApi'
 import type { Invoice } from '@/types/agency'
 
@@ -111,21 +112,6 @@ function InvoicesPage() {
     })
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="outline">Draft</Badge>
-      case 'sent':
-        return <Badge variant="default">Sent</Badge>
-      case 'paid':
-        return <Badge variant="success">Paid</Badge>
-      case 'overdue':
-        return <Badge variant="destructive">Overdue</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
   const formatPeriod = (start: string, end: string) => {
     const startDate = new Date(start)
     const endDate = new Date(end)
@@ -195,7 +181,7 @@ function InvoicesPage() {
                       >
                         {invoice.invoice_number}
                       </Link>
-                      {getStatusBadge(invoice.status)}
+                      {(() => { const badge = getInvoiceStatusBadge(invoice.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {clientName} - {formatPeriod(invoice.period_start, invoice.period_end)}

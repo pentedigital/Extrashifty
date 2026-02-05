@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Plus, Search, Calendar, MapPin, Clock, Euro, Users, Building2, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyShifts } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/shifts/')({
@@ -131,21 +132,6 @@ function AgencyShiftsPage() {
     navigate({ to: `/agency/shifts/${shiftId}` })
   }
 
-  const getStatusBadge = (status: string, spotsFilled: number, spotsTotal: number) => {
-    switch (status) {
-      case 'filled':
-        return <Badge variant="success">Filled</Badge>
-      case 'open':
-        return <Badge variant="warning">{spotsFilled}/{spotsTotal} Assigned</Badge>
-      case 'in_progress':
-        return <Badge variant="default">In Progress</Badge>
-      case 'completed':
-        return <Badge variant="secondary">Completed</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
   const filteredShifts = (shifts: AgencyShiftDisplay[]) => {
     if (!searchQuery) return shifts
     const query = searchQuery.toLowerCase()
@@ -196,7 +182,7 @@ function AgencyShiftsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="font-semibold text-lg">{shift.title}</h3>
-                    {getStatusBadge(shift.status, shift.spotsFilled, shift.spotsTotal)}
+                    {(() => { const badge = getShiftStatusBadge(shift.status, shift.spotsTotal, shift.spotsFilled); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <Building2 className="h-4 w-4" />

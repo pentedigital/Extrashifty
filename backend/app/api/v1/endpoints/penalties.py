@@ -3,10 +3,10 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import func, select
 
-from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
 from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.penalty import (
     AppealStatus,
@@ -107,8 +107,7 @@ def get_user_strikes(
 def get_penalty_history(
     session: SessionDep,
     current_user: ActiveUserDep,
-    skip: int = 0,
-    limit: int = Query(default=20, le=100),
+    pagination: PaginationParams = Depends(),
     status_filter: PenaltyStatus | None = Query(None, alias="status"),
 ) -> dict:
     """
@@ -121,8 +120,8 @@ def get_penalty_history(
     penalties = penalty_service.get_user_penalties(
         user_id=current_user.id,
         status_filter=status_filter,
-        skip=skip,
-        limit=limit,
+        skip=pagination.skip,
+        limit=pagination.limit,
     )
 
     total = penalty_service.get_penalty_count(
@@ -587,8 +586,7 @@ def get_user_penalties_admin(
     session: SessionDep,
     current_user: AdminUserDep,
     user_id: int,
-    skip: int = 0,
-    limit: int = Query(default=20, le=100),
+    pagination: PaginationParams = Depends(),
 ) -> dict:
     """
     Get penalties for a specific user (admin).
@@ -599,8 +597,8 @@ def get_user_penalties_admin(
 
     penalties = penalty_service.get_user_penalties(
         user_id=user_id,
-        skip=skip,
-        limit=limit,
+        skip=pagination.skip,
+        limit=pagination.limit,
     )
 
     total = penalty_service.get_penalty_count(user_id=user_id)

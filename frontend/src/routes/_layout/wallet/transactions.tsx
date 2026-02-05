@@ -8,15 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
-  Wallet,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Clock,
-  Check,
-  X,
   ArrowLeft,
-  CreditCard,
-  Plus,
   Loader2,
   Receipt,
   Filter,
@@ -25,6 +17,8 @@ import {
 } from 'lucide-react'
 import { useWalletTransactions } from '@/hooks/api/useWalletApi'
 import { formatCurrency } from '@/lib/utils'
+import { getTransactionStatusBadge } from '@/lib/badgeUtils'
+import { getTransactionIcon, getTransactionColor, getTransactionDisplayAmount } from '@/lib/transactionUtils'
 import type { TransactionType, TransactionStatus } from '@/hooks/api/useWalletApi'
 
 export const Route = createFileRoute('/_layout/wallet/transactions')({
@@ -66,49 +60,6 @@ function TransactionsPage() {
   const total = data?.total ?? 0
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE)
 
-  const getTransactionIcon = (type: TransactionType) => {
-    switch (type) {
-      case 'earning':
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      case 'withdrawal':
-        return <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-      case 'top_up':
-        return <Plus className="h-4 w-4 text-green-600" />
-      case 'payment':
-        return <CreditCard className="h-4 w-4 text-red-600" />
-      default:
-        return <Wallet className="h-4 w-4 text-gray-600" />
-    }
-  }
-
-  const getStatusBadge = (status: TransactionStatus) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Completed
-          </Badge>
-        )
-      case 'pending':
-        return (
-          <Badge variant="warning" className="gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        )
-      case 'failed':
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <X className="h-3 w-3" />
-            Failed
-          </Badge>
-        )
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
   const formatTransactionDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-IE', {
       weekday: 'short',
@@ -118,11 +69,6 @@ function TransactionsPage() {
       hour: 'numeric',
       minute: '2-digit',
     }).format(new Date(dateString))
-  }
-
-  const getTransactionAmount = (type: TransactionType, amount: number) => {
-    const isPositive = type === 'earning' || type === 'top_up'
-    return isPositive ? amount : -Math.abs(amount)
   }
 
   const handleClearFilters = () => {
@@ -279,7 +225,10 @@ function TransactionsPage() {
             <>
               <div className="space-y-4">
                 {filteredTransactions.map((transaction) => {
-                  const displayAmount = getTransactionAmount(transaction.type, transaction.amount)
+                  const displayAmount = getTransactionDisplayAmount(transaction.type, transaction.amount)
+                  const TransactionIcon = getTransactionIcon(transaction.type)
+                  const transactionColor = getTransactionColor(transaction.type)
+                  const statusBadge = getTransactionStatusBadge(transaction.status)
                   return (
                     <div
                       key={transaction.id}
@@ -287,7 +236,7 @@ function TransactionsPage() {
                     >
                       <div className="flex items-center gap-4">
                         <div className="p-2 bg-muted rounded-full">
-                          {getTransactionIcon(transaction.type)}
+                          <TransactionIcon className={`h-4 w-4 ${transactionColor}`} />
                         </div>
                         <div>
                           <p className="font-medium capitalize">
@@ -315,7 +264,7 @@ function TransactionsPage() {
                           {displayAmount >= 0 ? '+' : ''}
                           {formatCurrency(displayAmount, 'EUR')}
                         </p>
-                        {getStatusBadge(transaction.status)}
+                        <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
                       </div>
                     </div>
                   )

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/apiClient'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { ShiftRead, ShiftCreate, ShiftUpdate } from '@/lib/apiClient'
 
 // Re-export types for consumers of this hook
@@ -53,7 +54,7 @@ export function useShifts(filters?: ShiftFilters) {
   return useQuery({
     queryKey: shiftKeys.list(filters),
     queryFn: () => apiClient.shifts.list(filtersToParams(filters)),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -152,27 +153,38 @@ export function useApplyToShift() {
 }
 
 /**
- * Hook to fetch current user's shifts (staff)
- * Note: This is kept for backward compatibility.
- * For staff-specific shifts, prefer importing from useStaffApi.ts
- * Returns array of ShiftRead
+ * @deprecated Use useMyShifts from useStaffApi.ts instead.
+ *
+ * This version is kept for backward compatibility only.
+ * The canonical version in useStaffApi.ts uses consistent query keys with
+ * other staff-related hooks and proper cache invalidation.
+ *
+ * Migration: Replace imports from './useShiftsApi' with './useStaffApi'
+ * Example: import { useMyShifts } from '@/hooks/api/useStaffApi'
  */
 export function useMyShifts(params?: Record<string, string>) {
   return useQuery({
     queryKey: [...shiftKeys.all, 'my-shifts', params] as const,
     queryFn: () => apiClient.shifts.getMyShifts(params),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
 /**
- * Hook to fetch time tracking records
+ * @deprecated Use useClockRecords from useStaffApi.ts instead.
+ *
+ * This version is kept for backward compatibility only.
+ * The canonical version in useStaffApi.ts uses consistent query keys with
+ * other staff-related hooks and proper cache invalidation.
+ *
+ * Migration: Replace imports from './useShiftsApi' with './useStaffApi'
+ * Example: import { useClockRecords } from '@/hooks/api/useStaffApi'
  */
 export function useClockRecords(params?: Record<string, string>) {
   return useQuery({
     queryKey: [...shiftKeys.all, 'clock-records', params] as const,
     queryFn: () => api.staff.getClockRecords(params),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -195,7 +207,7 @@ export function useCurrentShiftStatus() {
       }
       return { clocked_in: false }
     },
-    staleTime: 1000 * 30, // 30 seconds - more frequent updates for time tracking
+    staleTime: STALE_TIME.REALTIME, // 30 seconds - for live time tracking data
   })
 }
 
@@ -212,7 +224,7 @@ export function useClockIn() {
       queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'current-shift-status'] })
     },
     onError: (error) => {
-      console.error('Clock in failed:', error)
+      if (import.meta.env.DEV) console.error('Clock in failed:', error)
     },
   })
 }
@@ -230,7 +242,7 @@ export function useClockOut() {
       queryClient.invalidateQueries({ queryKey: [...shiftKeys.all, 'current-shift-status'] })
     },
     onError: (error) => {
-      console.error('Clock out failed:', error)
+      if (import.meta.env.DEV) console.error('Clock out failed:', error)
     },
   })
 }

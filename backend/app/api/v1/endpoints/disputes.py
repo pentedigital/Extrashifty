@@ -3,9 +3,9 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
 from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
 from app.models.payment import Dispute, DisputeStatus
 from app.models.user import User
@@ -110,9 +110,8 @@ async def create_dispute(
 async def list_disputes(
     session: SessionDep,
     current_user: ActiveUserDep,
+    pagination: PaginationParams = Depends(),
     status_filter: DisputeStatus | None = Query(default=None, alias="status"),
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
 ) -> DisputeListResponse:
     """
     List disputes for the current user.
@@ -131,7 +130,7 @@ async def list_disputes(
 
         # Apply pagination
         total = len(disputes)
-        paginated = disputes[skip : skip + limit]
+        paginated = disputes[pagination.skip : pagination.skip + pagination.limit]
 
         items = [_build_dispute_response(d, session) for d in paginated]
 
@@ -325,8 +324,7 @@ async def resolve_dispute(
 async def get_pending_disputes(
     session: SessionDep,
     current_user: AdminUserDep,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    pagination: PaginationParams = Depends(),
 ) -> DisputeListResponse:
     """
     Get all open disputes needing resolution (admin only).
@@ -341,7 +339,7 @@ async def get_pending_disputes(
 
         # Apply pagination
         total = len(disputes)
-        paginated = disputes[skip : skip + limit]
+        paginated = disputes[pagination.skip : pagination.skip + pagination.limit]
 
         items = [_build_dispute_response(d, session) for d in paginated]
 
@@ -396,8 +394,7 @@ async def check_dispute_deadlines(
 async def get_overdue_disputes(
     session: SessionDep,
     current_user: AdminUserDep,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    pagination: PaginationParams = Depends(),
 ) -> DisputeListResponse:
     """
     Get all overdue disputes (admin only).
@@ -413,7 +410,7 @@ async def get_overdue_disputes(
 
         # Apply pagination
         total = len(disputes)
-        paginated = disputes[skip : skip + limit]
+        paginated = disputes[pagination.skip : pagination.skip + pagination.limit]
 
         items = [_build_dispute_response(d, session) for d in paginated]
 
@@ -434,9 +431,8 @@ async def get_overdue_disputes(
 async def get_disputes_approaching_deadline(
     session: SessionDep,
     current_user: AdminUserDep,
+    pagination: PaginationParams = Depends(),
     hours: int = Query(default=24, ge=1, le=72, description="Hours until deadline"),
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
 ) -> DisputeListResponse:
     """
     Get disputes approaching their resolution deadline (admin only).
@@ -457,7 +453,7 @@ async def get_disputes_approaching_deadline(
 
         # Apply pagination
         total = len(disputes)
-        paginated = disputes[skip : skip + limit]
+        paginated = disputes[pagination.skip : pagination.skip + pagination.limit]
 
         items = [_build_dispute_response(d, session) for d in paginated]
 

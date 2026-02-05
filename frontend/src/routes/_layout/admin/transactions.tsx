@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, ArrowUpRight, ArrowDownLeft, Eye, Loader2 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 import { useAdminTransactions } from '@/hooks/api/useAdminApi'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -86,15 +87,6 @@ function AdminTransactionsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed': return <Badge variant="success">Completed</Badge>
-      case 'pending': return <Badge variant="warning">Pending</Badge>
-      case 'failed': return <Badge variant="destructive">Failed</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -152,7 +144,7 @@ function AdminTransactionsPage() {
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="font-medium">{formatCurrency(tx.amount)}</p>
-                    {getStatusBadge(tx.status)}
+                    {(() => { const badge = getTransactionStatusBadge(tx.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
                   <Button variant="ghost" size="icon">
                     <Eye className="h-4 w-4" />

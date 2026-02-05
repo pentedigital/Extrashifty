@@ -8,108 +8,24 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, raise_conflict, require_found, require_permission
-from sqlmodel import Field as SQLField
 from sqlmodel import Session, SQLModel, select, func
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.models.user import UserType
 from app.models.shift import Shift, ShiftStatus
 from app.models.application import Application, ApplicationStatus
+from app.models.agency import (
+    AgencyClient,
+    AgencyClientInvoice,
+    AgencyShift,
+    AgencyShiftAssignment,
+    AgencyStaffMember,
+    PayrollEntry,
+    StaffInvitation,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-# --- Models for Agency Features ---
-
-
-class StaffInvitation(SQLModel, table=True):
-    """Model for pending staff invitations."""
-
-    __tablename__ = "staff_invitations"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    email: str = SQLField(max_length=255, index=True)
-    message: Optional[str] = SQLField(default=None, max_length=1000)
-    status: str = SQLField(default="pending")  # pending, accepted, expired
-    created_at: datetime = SQLField(default_factory=datetime.utcnow)
-    expires_at: Optional[datetime] = SQLField(default=None)
-
-
-class AgencyStaffMember(SQLModel, table=True):
-    """Model for agency staff members."""
-
-    __tablename__ = "agency_staff_members"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    staff_user_id: int = SQLField(index=True)
-    status: str = SQLField(default="active")  # active, inactive, pending
-    is_available: bool = SQLField(default=True)
-    shifts_completed: int = SQLField(default=0)
-    total_hours: float = SQLField(default=0.0)
-    notes: Optional[str] = SQLField(default=None, max_length=2000)
-    joined_at: datetime = SQLField(default_factory=datetime.utcnow)
-    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
-
-
-class AgencyClient(SQLModel, table=True):
-    """Model for agency client relationships."""
-
-    __tablename__ = "agency_clients"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    business_email: str = SQLField(max_length=255, index=True)
-    billing_rate_markup: Optional[float] = SQLField(default=None)
-    notes: Optional[str] = SQLField(default=None, max_length=2000)
-    is_active: bool = SQLField(default=True)
-    created_at: datetime = SQLField(default_factory=datetime.utcnow)
-    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
-
-
-class AgencyClientInvoice(SQLModel, table=True):
-    """Model for agency client invoices (separate from payment invoices)."""
-
-    __tablename__ = "agency_client_invoices"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    client_id: int = SQLField(index=True)
-    invoice_number: str = SQLField(max_length=50, unique=True, index=True)
-    status: str = SQLField(default="draft")  # draft, sent, paid, overdue
-    amount: float = SQLField(default=0.0)
-    currency: str = SQLField(default="EUR", max_length=3)
-    period_start: date = SQLField()
-    period_end: date = SQLField()
-    due_date: date = SQLField()
-    paid_date: Optional[date] = SQLField(default=None)
-    notes: Optional[str] = SQLField(default=None, max_length=2000)
-    created_at: datetime = SQLField(default_factory=datetime.utcnow)
-    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
-
-
-class PayrollEntry(SQLModel, table=True):
-    """Model for staff payroll entries."""
-
-    __tablename__ = "payroll_entries"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    staff_member_id: int = SQLField(index=True)
-    period_start: date = SQLField()
-    period_end: date = SQLField()
-    status: str = SQLField(default="pending")  # pending, approved, paid
-    hours_worked: float = SQLField(default=0.0)
-    gross_amount: float = SQLField(default=0.0)
-    deductions: float = SQLField(default=0.0)
-    net_amount: float = SQLField(default=0.0)
-    currency: str = SQLField(default="EUR", max_length=3)
-    paid_at: Optional[datetime] = SQLField(default=None)
-    notes: Optional[str] = SQLField(default=None, max_length=2000)
-    created_at: datetime = SQLField(default_factory=datetime.utcnow)
-    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
 # --- Request/Response Schemas ---
@@ -528,36 +444,6 @@ class ApplicationActionResponse(BaseModel):
     id: int
     status: str
     message: str
-
-
-# --- Agency Shift Assignment Model ---
-
-
-class AgencyShiftAssignment(SQLModel, table=True):
-    """Model for tracking agency staff assignments to shifts."""
-
-    __tablename__ = "agency_shift_assignments"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    shift_id: int = SQLField(index=True)
-    staff_member_id: int = SQLField(index=True)  # References AgencyStaffMember.id
-    assigned_at: datetime = SQLField(default_factory=datetime.utcnow)
-
-
-# --- Agency Shift Tracking Model ---
-
-
-class AgencyShift(SQLModel, table=True):
-    """Model for tracking shifts posted by agencies for their clients."""
-
-    __tablename__ = "agency_shifts"
-
-    id: Optional[int] = SQLField(default=None, primary_key=True)
-    agency_id: int = SQLField(index=True)
-    shift_id: int = SQLField(index=True, unique=True)  # References Shift.id
-    client_id: int = SQLField(index=True)  # References AgencyClient.id
-    created_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
 # --- Helper Functions ---

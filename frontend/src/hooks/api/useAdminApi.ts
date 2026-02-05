@@ -1,8 +1,36 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 
-// Note: Admin API endpoints should be added to the backend first
-// This file provides the hooks structure for when the endpoints are available
+/**
+ * Admin API Hooks
+ *
+ * IMPORTANT: Backend admin endpoints do NOT exist yet.
+ *
+ * The backend has the following routers in /backend/app/api/v1/api.py:
+ * - auth, users, shifts, applications, agency, staff, company, marketplace,
+ * - reviews, notifications, wallet, payments, invoices, verification,
+ * - disputes, appeals, tax, gdpr, penalties, webhooks, websocket
+ *
+ * There is NO /admin router. The 'admin' user type exists in the database schema
+ * (see backend/alembic/versions/001_initial_schema.py) but admin-specific endpoints
+ * have not been implemented.
+ *
+ * These hooks return empty/default data as placeholders until the backend
+ * admin API is implemented. When implementing the backend, add endpoints like:
+ * - GET /admin/stats - Dashboard statistics
+ * - GET /admin/users - List all users with filters
+ * - PATCH /admin/users/:id - Update user (verify, suspend, etc.)
+ * - GET /admin/companies - List companies for verification
+ * - GET /admin/agencies - List agencies for verification
+ * - GET /admin/shifts - All shifts across platform
+ * - GET /admin/transactions - Financial transactions
+ * - GET /admin/payouts - Payout requests
+ * - GET /admin/audit-logs - Admin action logs
+ * - GET /admin/reports - Analytics and reports
+ *
+ * Then update these hooks to call the real API endpoints.
+ */
 
 export const adminKeys = {
   all: ['admin'] as const,
@@ -142,10 +170,8 @@ export function useAdminStats() {
       pendingActions: PendingAction[]
       recentActivity: RecentActivity[]
     }> => {
-      // TODO: Replace with real API call when endpoint is available
-      // return await api.admin.getStats()
-
-      // For now, return empty/default data that will be replaced when API is ready
+      // Backend endpoint not implemented: GET /admin/stats
+      // When available, replace with: return await api.admin.getStats()
       return {
         stats: {
           totalUsers: 0,
@@ -161,7 +187,7 @@ export function useAdminStats() {
         recentActivity: [],
       }
     },
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -170,11 +196,11 @@ export function useAdminUsers(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.users(filters),
     queryFn: async (): Promise<{ items: AdminUser[]; total: number }> => {
-      // TODO: Replace with real API call when endpoint is available
-      // return await api.admin.getUsers(filters)
+      // Backend endpoint not implemented: GET /admin/users
+      // When available, replace with: return await api.admin.getUsers(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -183,15 +209,12 @@ export function useAdminUpdateUser() {
 
   return useMutation({
     mutationFn: async ({ userId, data }: { userId: number; data: Partial<AdminUser> }) => {
-      // TODO: Replace with real API call
-      // return await api.admin.updateUser(userId, data)
+      // Backend endpoint not implemented: PATCH /admin/users/:id
+      // When available, replace with: return await api.admin.updateUser(userId, data)
       return { ...data, id: userId }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users() })
-    },
-    onError: (error) => {
-      console.error('Failed to update user:', error)
     },
   })
 }
@@ -201,16 +224,13 @@ export function useAdminDeleteUser() {
 
   return useMutation({
     mutationFn: async (userId: number) => {
-      // TODO: Replace with real API call
-      // return await api.admin.deleteUser(userId)
+      // Backend endpoint not implemented: DELETE /admin/users/:id
+      // When available, replace with: return await api.admin.deleteUser(userId)
       return { success: true }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.users() })
       queryClient.invalidateQueries({ queryKey: adminKeys.stats() })
-    },
-    onError: (error) => {
-      console.error('Failed to delete user:', error)
     },
   })
 }
@@ -220,11 +240,11 @@ export function useAdminAdmins(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.admins(filters),
     queryFn: async (): Promise<{ items: AdminUser[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getAdmins(filters)
+      // Backend endpoint not implemented: GET /admin/admins
+      // When available, replace with: return await api.admin.getAdmins(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -233,15 +253,12 @@ export function useAdminCreateAdmin() {
 
   return useMutation({
     mutationFn: async (data: { email: string; full_name: string; password: string }) => {
-      // TODO: Replace with real API call
-      // return await api.admin.createAdmin(data)
+      // Backend endpoint not implemented: POST /admin/admins
+      // When available, replace with: return await api.admin.createAdmin(data)
       return { id: 0, ...data }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.admins() })
-    },
-    onError: (error) => {
-      console.error('Failed to create admin:', error)
     },
   })
 }
@@ -251,11 +268,11 @@ export function useAdminCompanies(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.companies(filters),
     queryFn: async (): Promise<{ items: AdminCompany[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getCompanies(filters)
+      // Backend endpoint not implemented: GET /admin/companies
+      // When available, replace with: return await api.admin.getCompanies(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -264,16 +281,13 @@ export function useAdminVerifyCompany() {
 
   return useMutation({
     mutationFn: async (companyId: number) => {
-      // TODO: Replace with real API call
-      // return await api.admin.verifyCompany(companyId)
+      // Backend endpoint not implemented: POST /admin/companies/:id/verify
+      // When available, replace with: return await api.admin.verifyCompany(companyId)
       return { success: true }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.companies() })
       queryClient.invalidateQueries({ queryKey: adminKeys.stats() })
-    },
-    onError: (error) => {
-      console.error('Failed to verify company:', error)
     },
   })
 }
@@ -283,11 +297,11 @@ export function useAdminAgencies(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.agencies(filters),
     queryFn: async (): Promise<{ items: AdminAgency[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getAgencies(filters)
+      // Backend endpoint not implemented: GET /admin/agencies
+      // When available, replace with: return await api.admin.getAgencies(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -296,16 +310,13 @@ export function useAdminVerifyAgency() {
 
   return useMutation({
     mutationFn: async (agencyId: number) => {
-      // TODO: Replace with real API call
-      // return await api.admin.verifyAgency(agencyId)
+      // Backend endpoint not implemented: POST /admin/agencies/:id/verify
+      // When available, replace with: return await api.admin.verifyAgency(agencyId)
       return { success: true }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.agencies() })
       queryClient.invalidateQueries({ queryKey: adminKeys.stats() })
-    },
-    onError: (error) => {
-      console.error('Failed to verify agency:', error)
     },
   })
 }
@@ -315,11 +326,11 @@ export function useAdminShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.shifts(filters),
     queryFn: async (): Promise<{ items: AdminShift[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getShifts(filters)
+      // Backend endpoint not implemented: GET /admin/shifts
+      // When available, replace with: return await api.admin.getShifts(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -328,11 +339,11 @@ export function useAdminTransactions(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.transactions(filters),
     queryFn: async (): Promise<{ items: AdminTransaction[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getTransactions(filters)
+      // Backend endpoint not implemented: GET /admin/transactions
+      // When available, replace with: return await api.admin.getTransactions(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -341,11 +352,11 @@ export function useAdminPayouts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.payouts(filters),
     queryFn: async (): Promise<{ items: AdminPayout[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getPayouts(filters)
+      // Backend endpoint not implemented: GET /admin/payouts
+      // When available, replace with: return await api.admin.getPayouts(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -354,16 +365,13 @@ export function useAdminProcessPayout() {
 
   return useMutation({
     mutationFn: async (payoutId: number) => {
-      // TODO: Replace with real API call
-      // return await api.admin.processPayout(payoutId)
+      // Backend endpoint not implemented: POST /admin/payouts/:id/process
+      // When available, replace with: return await api.admin.processPayout(payoutId)
       return { success: true }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.payouts() })
       queryClient.invalidateQueries({ queryKey: adminKeys.stats() })
-    },
-    onError: (error) => {
-      console.error('Failed to process payout:', error)
     },
   })
 }
@@ -373,11 +381,11 @@ export function useAdminAuditLogs(filters?: Record<string, string>) {
   return useQuery({
     queryKey: adminKeys.auditLogs(filters),
     queryFn: async (): Promise<{ items: AuditLogEntry[]; total: number }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getAuditLogs(filters)
+      // Backend endpoint not implemented: GET /admin/audit-logs
+      // When available, replace with: return await api.admin.getAuditLogs(filters)
       return { items: [], total: 0 }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -386,10 +394,10 @@ export function useAdminReports(filters?: { period?: string; start_date?: string
   return useQuery({
     queryKey: adminKeys.reports(filters as Record<string, string>),
     queryFn: async (): Promise<{ data: ReportData[]; summary: Record<string, number> }> => {
-      // TODO: Replace with real API call
-      // return await api.admin.getReports(filters)
+      // Backend endpoint not implemented: GET /admin/reports
+      // When available, replace with: return await api.admin.getReports(filters)
       return { data: [], summary: {} }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes for reports
+    staleTime: STALE_TIME.MEDIUM, // Reports are more stable, 5 minutes
   })
 }

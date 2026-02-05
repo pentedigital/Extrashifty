@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { PageHeader } from '@/components/ui/page-header'
 import { formatCurrency, formatTime, formatDate } from '@/lib/utils'
 import { useAgencyStats, useAgencyStaff, useAgencyShifts } from '@/hooks/api/useAgencyApi'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -98,26 +99,26 @@ export function AgencyDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Agency Dashboard</h1>
-          <p className="text-muted-foreground">Manage your staff, clients, and shifts.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/agency/staff/invite">
-            <Button variant="outline">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Staff
-            </Button>
-          </Link>
-          <Link to="/agency/shifts/create">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Shift
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Agency Dashboard"
+        description="Manage your staff, clients, and shifts."
+        actions={
+          <>
+            <Link to="/agency/staff/invite">
+              <Button variant="outline">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Staff
+              </Button>
+            </Link>
+            <Link to="/agency/shifts/create">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Shift
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -1,6 +1,17 @@
 """Database models for ExtraShifty."""
 
-from .agency import AgencyMode, AgencyModeChangeRequest, AgencyProfile
+from .agency import (
+    AgencyClient,
+    AgencyClientInvoice,
+    AgencyMode,
+    AgencyModeChangeRequest,
+    AgencyProfile,
+    AgencyShift,
+    AgencyShiftAssignment,
+    AgencyStaffMember,
+    PayrollEntry,
+    StaffInvitation,
+)
 from .appeal import (
     Appeal,
     AppealStatus,
@@ -48,9 +59,16 @@ from .penalty import (
 
 __all__ = [
     # Agency
+    "AgencyClient",
+    "AgencyClientInvoice",
     "AgencyMode",
     "AgencyModeChangeRequest",
     "AgencyProfile",
+    "AgencyShift",
+    "AgencyShiftAssignment",
+    "AgencyStaffMember",
+    "PayrollEntry",
+    "StaffInvitation",
     # Appeal
     "Appeal",
     "AppealStatus",

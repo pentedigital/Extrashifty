@@ -259,15 +259,7 @@ async def dispute_deadline_check_job() -> None:
                         f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
                         f"was auto-resolved in favor of worker due to exceeded deadline"
                     )
-
-                    # In production, create notifications for each admin
-                    # for admin in admins:
-                    #     await notification_service.create(
-                    #         user_id=admin.id,
-                    #         type="dispute_auto_resolved",
-                    #         title="Dispute Auto-Resolved",
-                    #         message=f"Dispute #{dispute.id} was auto-resolved in favor of worker",
-                    #     )
+                    # TODO: Implement admin notifications when notification_service is integrated
 
             # STEP 2: Get disputes approaching deadline (within 24 hours)
             approaching = await dispute_service.get_disputes_approaching_deadline(
@@ -300,15 +292,7 @@ async def dispute_deadline_check_job() -> None:
                         f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
                         f"needs resolution within {hours_left:.1f} hours"
                     )
-
-                    # In production, create notifications for each admin
-                    # for admin in admins:
-                    #     await notification_service.create(
-                    #         user_id=admin.id,
-                    #         type="dispute_deadline",
-                    #         title="Urgent: Dispute Approaching Deadline",
-                    #         message=f"Dispute #{dispute.id} needs resolution within {hours_left:.1f} hours",
-                    #     )
+                    # TODO: Implement admin notifications when notification_service is integrated
 
             else:
                 logger.debug("No disputes approaching deadline")
