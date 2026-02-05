@@ -53,9 +53,9 @@ function ActivityItem({ activity }: { activity: Activity }) {
       <span className={cn('p-1 rounded', colors[activity.type])}>
         {icons[activity.type]}
       </span>
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-sm whitespace-nowrap">
         <span className="font-medium text-foreground">{activity.title}</span>
-        <span className="text-muted-foreground">
+        <span className="text-muted-foreground truncate max-w-[180px]" title={activity.type === 'posted' ? `@ ${activity.company}` : activity.type === 'claimed' ? `by ${activity.worker}` : `@ ${activity.company}`}>
           {activity.type === 'posted' && `@ ${activity.company}`}
           {activity.type === 'claimed' && `by ${activity.worker}`}
           {activity.type === 'filled' && `@ ${activity.company}`}
@@ -200,20 +200,27 @@ export function LiveShiftCard({
   postedAgo,
 }: LiveShiftProps) {
   const fillPercentage = (spotsFilled / spotsTotal) * 100
+  const isFilled = spotsFilled >= spotsTotal
 
   return (
     <div className="relative overflow-hidden rounded-xl border-2 border-brand-500/50 bg-gradient-to-br from-brand-50/50 to-background dark:from-brand-950/30 dark:to-background">
-      {/* Pulse border */}
-      <div className="absolute inset-0 rounded-xl border-2 border-brand-500 animate-pulse opacity-30" />
+      {/* Pulse border - only animate if not filled */}
+      {!isFilled && <div className="absolute inset-0 rounded-xl border-2 border-brand-500 animate-pulse opacity-30" />}
 
       <div className="p-4 relative z-10">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               {title}
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-0.5 rounded-full animate-pulse">
-                LIVE
-              </span>
+              {isFilled ? (
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-0.5 rounded-full">
+                  FILLED
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-0.5 rounded-full animate-pulse">
+                  LIVE
+                </span>
+              )}
             </h3>
             <p className="text-sm text-muted-foreground mt-0.5">{company}</p>
           </div>

@@ -54,32 +54,32 @@ function LandingPage() {
               </SheetTrigger>
               <SheetContent side="left" className="w-72">
                 <div className="flex flex-col gap-4 mt-8">
-                  <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                  <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                     About
                   </Link>
-                  <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                  <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                     Pricing
                   </Link>
-                  <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                  <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                     Contact
                   </Link>
-                  <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                  <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                     Sign in
                   </Link>
-                  <Link to="/signup" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+                  <Link to="/signup" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                     Get started
                   </Link>
                 </div>
               </SheetContent>
             </Sheet>
             <div className="hidden md:flex items-center gap-4 mr-4">
-              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                 About
               </Link>
-              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                 Pricing
               </Link>
-              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors">
+              <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:underline transition-colors [&.active]:text-foreground [&.active]:font-medium">
                 Contact
               </Link>
             </div>
@@ -102,14 +102,14 @@ function LandingPage() {
         <section className="pt-24 md:pt-32 pb-12 md:pb-16 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-sm sm:text-base text-brand-600 dark:text-brand-400 font-medium mb-4 animate-fade-in-up">
-              Shift covered.
+              Your shift covered.
             </p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up animation-delay-100">
               <span className="block">One marketplace.</span>
-              <span className="block">Every shift. Filled.</span>
+              <span className="block">Every shift filled.</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-in-up animation-delay-200">
-              Post a shift in 30 seconds. Get matched in 90 seconds. Problem solved.
+              Post a shift in 30 seconds. Get matched in under 2 minutes. Done.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in-up animation-delay-400">
               <Link to="/signup">
@@ -120,7 +120,7 @@ function LandingPage() {
               </Link>
               <Link to="/marketplace">
                 <Button size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-md hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
-                  Browse shifts near me
+                  Browse available shifts
                 </Button>
               </Link>
             </div>
@@ -172,13 +172,13 @@ function LandingPage() {
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-8 md:mb-10 text-center">
               The problem is simple.
             </h2>
-            <div className="space-y-4 md:space-y-6 text-base sm:text-lg text-muted-foreground">
-              <p className="animate-slide-in-left">John called in sick.</p>
-              <p className="animate-slide-in-left animation-delay-100">Mary's running late.</p>
-              <p className="animate-slide-in-left animation-delay-200">Your Saturday night bartender just quit.</p>
-              <p className="pt-4 animate-slide-in-left animation-delay-300">It's 5 PM. Dinner service starts at 6.</p>
-              <p className="animate-slide-in-left animation-delay-400">You're frantically calling everyone you know. Most don't pick up. The ones who do are already booked.</p>
-              <p className="pt-4">Now it's 5:45. You're short-staffed. Again.</p>
+            <div className="space-y-4 md:space-y-6 text-muted-foreground">
+              <p className="text-base sm:text-lg animate-slide-in-left">John called in sick.</p>
+              <p className="text-base sm:text-lg animate-slide-in-left animation-delay-100">Mary's running late.</p>
+              <p className="text-base sm:text-lg animate-slide-in-left animation-delay-200">Your Saturday night bartender just quit.</p>
+              <p className="text-lg sm:text-xl pt-4 animate-slide-in-left animation-delay-300">It's <span className="font-semibold text-foreground">5 PM</span>. Dinner service starts at 6.</p>
+              <p className="text-base sm:text-lg animate-slide-in-left animation-delay-400">You're frantically calling everyone you know. Most don't pick up. The ones who do are already booked.</p>
+              <p className="text-xl sm:text-2xl font-medium text-foreground pt-4">Now it's <span className="text-brand-600 dark:text-brand-400 font-bold">5:45</span>. You're <span className="text-brand-600 dark:text-brand-400 font-bold">short-staffed</span>. <span className="italic">Again.</span></p>
             </div>
             <p className="text-lg sm:text-xl text-muted-foreground text-center italic mt-10 md:mt-12">
               There has to be a better way.
@@ -194,7 +194,7 @@ function LandingPage() {
               ExtraShifty.
             </h2>
             <p className="text-xl sm:text-2xl md:text-3xl text-foreground mb-4">
-              Post your shift. Get matched instantly. Shift covered.
+              Post your shift. Get matched instantly. Your shift covered.
             </p>
             <p className="text-lg sm:text-xl text-muted-foreground">That's it.</p>
           </div>
@@ -261,8 +261,8 @@ function LandingPage() {
               </p>
               <ul className="space-y-4 mb-8">
                 <FeatureItem highlight="Post in 30 seconds.">Job title. Time. Rate. Done.</FeatureItem>
-                <FeatureItem highlight="Match in under 2 minutes.">Our algorithm finds qualified workers in your area. Instantly.</FeatureItem>
-                <FeatureItem highlight="No CVs. No interviews.">The platform does the vetting. Every worker is verified and rated.</FeatureItem>
+                <FeatureItem highlight="Match in 90 seconds.">Our algorithm matches skills, location, availability, and ratings to find the best workers near you.</FeatureItem>
+                <FeatureItem highlight="No resumes. No interviews.">The platform does the vetting. Every worker is verified and rated.</FeatureItem>
                 <FeatureItem highlight="Pay per shift.">Not per month. Not per year. Only when you need us.</FeatureItem>
               </ul>
               <div className="bg-card rounded-xl p-5 md:p-6 border border-border">
@@ -276,7 +276,10 @@ function LandingPage() {
               </div>
             </div>
             <div className="bg-muted rounded-2xl h-64 md:h-80 flex items-center justify-center order-first md:order-last">
-              <Calendar className="h-20 w-20 md:h-24 md:w-24 text-muted-foreground/30" aria-hidden="true" />
+              <div className="relative">
+                <Briefcase className="h-20 w-20 md:h-24 md:w-24 text-brand-500/40" aria-hidden="true" />
+                <CheckCircle className="absolute -bottom-2 -right-2 h-10 w-10 md:h-12 md:w-12 text-green-500/60" aria-hidden="true" />
+              </div>
             </div>
           </div>
         </section>
@@ -285,7 +288,10 @@ function LandingPage() {
         <section className="py-20 md:py-24 px-4 sm:px-6 bg-muted">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <div className="bg-card rounded-2xl h-64 md:h-80 flex items-center justify-center shadow-sm">
-              <Star className="h-20 w-20 md:h-24 md:w-24 text-muted-foreground/30" aria-hidden="true" />
+              <div className="relative">
+                <Users className="h-20 w-20 md:h-24 md:w-24 text-brand-500/40" aria-hidden="true" />
+                <TrendingUp className="absolute -bottom-2 -right-2 h-10 w-10 md:h-12 md:w-12 text-green-500/60" aria-hidden="true" />
+              </div>
             </div>
             <div>
               <div className="inline-flex items-center gap-2 text-brand-600 dark:text-brand-400 font-medium mb-4">
@@ -293,16 +299,16 @@ function LandingPage() {
                 For workers
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
-                Work works for you.
+                Work on your terms.
               </h2>
               <p className="text-base sm:text-lg text-muted-foreground mb-6">
                 Your time is yours.
               </p>
               <ul className="space-y-4 mb-8">
-                <FeatureItem highlight="Browse shifts.">See what's available. Right now. In your area.</FeatureItem>
-                <FeatureItem highlight="Pick what fits.">Only work when you want. Where you want.</FeatureItem>
-                <FeatureItem highlight="Get paid by Friday.">48-hour guarantee. No chasing invoices. No waiting two weeks.</FeatureItem>
-                <FeatureItem highlight="Build your reputation.">Great ratings unlock premium shifts. Higher pay. Better venues.</FeatureItem>
+                <FeatureItem highlight="Browse shifts.">See what's available right now in your area.</FeatureItem>
+                <FeatureItem highlight="Pick what fits.">Only work when you want, where you want.</FeatureItem>
+                <FeatureItem highlight="Get paid within 48 hours.">Guaranteed payment after every shift. No chasing invoices.</FeatureItem>
+                <FeatureItem highlight="Build your reputation.">Great ratings unlock premium shifts with higher pay.</FeatureItem>
               </ul>
               <p className="text-brand-600 dark:text-brand-400 font-semibold">
                 No applications. No waiting. Just work.
@@ -328,16 +334,19 @@ function LandingPage() {
                 quote="I was down 3 people Friday night. Posted at 5:15 PM. Fully staffed by 5:45. Made €800 instead of canceling tables."
                 author="Sarah M."
                 role="Restaurant Owner"
+                company="The Copper Kitchen, Dublin 2"
               />
               <TestimonialCard
-                quote="I needed €200 for rent by Sunday. Picked up two shifts Saturday. Got paid Monday morning. This is my backup income now."
+                quote="I needed €200 for rent by Sunday. Picked up two shifts Saturday. Got paid within 48 hours. This is my backup income now."
                 author="Marcus T."
                 role="Bartender"
+                company="Various venues, Dublin"
               />
               <TestimonialCard
-                quote="We went from calling 50 people to find 5 workers to 90% fill rate. ExtraShifty cut our admin time in half."
+                quote="We went from calling 50 people to find 5 workers to over 90% fill rate. ExtraShifty cut our admin time in half."
                 author="Michelle G."
                 role="Staffing Manager"
+                company="Hospitality Solutions Ltd"
               />
             </div>
           </div>
@@ -352,7 +361,7 @@ function LandingPage() {
           </div>
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-10 md:mb-12">
-              <StatCardLight value="94%" label="of shifts get filled" />
+              <StatCardLight value="95%" label="of shifts get filled" />
               <StatCardLight value="5,000+" label="verified workers" />
               <StatCardLight value="Every" label="worker reviewed & rated" />
               <StatCardLight value="48hr" label="payment guarantee" />
@@ -384,12 +393,12 @@ function LandingPage() {
               <TrustCard
                 icon={Shield}
                 title="Background checks"
-                description="Optional. But available when you need them."
+                description="Available on request for roles that require them."
               />
               <TrustCard
                 icon={CheckCircle}
                 title="Certifications tracked"
-                description="Food safety. Alcohol service. All validated automatically."
+                description="Food safety. Alcohol service. All verified automatically."
               />
               <TrustCard
                 icon={Star}
@@ -429,13 +438,16 @@ function LandingPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              <AgencyFeature title="Staff management" description="Centralized." />
-              <AgencyFeature title="Client portal" description="Branded to you." />
-              <AgencyFeature title="Invoicing" description="Automated." />
-              <AgencyFeature title="Payroll" description="Handled." />
+              <AgencyFeature title="Staff management" description="Centralized dashboard for all your workers." />
+              <AgencyFeature title="Client portal" description="White-label portal with your branding." />
+              <AgencyFeature title="Invoicing" description="Automated invoicing and billing." />
+              <AgencyFeature title="Payroll" description="Payroll processing handled automatically." />
             </div>
 
-            <p className="text-center text-lg sm:text-xl text-brand-600 dark:text-brand-400 font-semibold mt-10 md:mt-12">
+            <p className="text-center text-base sm:text-lg text-muted-foreground mt-8 md:mt-10 max-w-2xl mx-auto">
+              Whether you manage 10 workers or 1,000, ExtraShifty gives you the tools to coordinate shifts, track performance, and keep clients happy.
+            </p>
+            <p className="text-center text-lg sm:text-xl text-brand-600 dark:text-brand-400 font-semibold mt-4 md:mt-6">
               Scale without the chaos.
             </p>
           </div>
@@ -448,11 +460,11 @@ function LandingPage() {
               Mary's late. John's sick. Sarah just quit.
             </p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6 md:mb-8 text-brand-600 dark:text-brand-400">
-              Your shift is covered.
+              Your shift covered.
             </h2>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 md:mb-8">
               <Link to="/signup">
-                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
+                <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2" aria-label="Get started with ExtraShifty">
                   Get your shift covered
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Button>
@@ -475,7 +487,7 @@ function LandingPage() {
             <div className="col-span-2 md:col-span-1">
               <Logo linkTo="/" className="mb-4" />
               <p className="text-brand-600 dark:text-brand-400 font-medium">
-                Shift covered.
+                Your shift covered.
               </p>
             </div>
             <div>
@@ -491,8 +503,8 @@ function LandingPage() {
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li><Link to="/about" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">About</Link></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed" role="link" aria-disabled="true" tabIndex={0}>Blog (Coming soon)</span></li>
-                <li><span className="text-muted-foreground/50 cursor-not-allowed" role="link" aria-disabled="true" tabIndex={0}>Careers (Coming soon)</span></li>
+                <li><span className="text-muted-foreground/50 cursor-not-allowed select-none" aria-disabled="true">Blog</span></li>
+                <li><span className="text-muted-foreground/50 cursor-not-allowed select-none" aria-disabled="true">Careers</span></li>
                 <li><Link to="/contact" className="hover:text-brand-600 dark:hover:text-brand-400 focus:outline-none focus:text-brand-600 focus:underline transition-colors">Contact</Link></li>
               </ul>
             </div>
@@ -557,12 +569,12 @@ function TrustCard({
   description: string
 }) {
   return (
-    <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-5 md:p-6 border border-muted-foreground/20">
-      <div className="h-10 w-10 mb-4 rounded-lg bg-brand-500/20 flex items-center justify-center">
-        <Icon className="h-5 w-5 text-brand-300" aria-hidden="true" />
+    <div className="bg-slate-800 rounded-xl p-5 md:p-6 border border-slate-700">
+      <div className="h-10 w-10 mb-4 rounded-lg bg-brand-500/30 flex items-center justify-center">
+        <Icon className="h-5 w-5 text-brand-400" aria-hidden="true" />
       </div>
-      <h3 className="font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground text-sm">{description}</p>
+      <h3 className="font-semibold mb-2 text-white">{title}</h3>
+      <p className="text-slate-300 text-sm">{description}</p>
     </div>
   )
 }
@@ -576,8 +588,8 @@ function AgencyFeature({
 }) {
   return (
     <div className="bg-muted rounded-xl p-5 md:p-6 text-center">
-      <h3 className="font-semibold text-base sm:text-lg mb-1">{title}</h3>
-      <p className="text-brand-600 dark:text-brand-400">{description}</p>
+      <h3 className="font-semibold text-base sm:text-lg mb-2">{title}</h3>
+      <p className="text-brand-600 dark:text-brand-400 text-sm">{description}</p>
     </div>
   )
 }
@@ -586,10 +598,12 @@ function TestimonialCard({
   quote,
   author,
   role,
+  company,
 }: {
   quote: string
   author: string
   role: string
+  company?: string
 }) {
   return (
     <div className="bg-card rounded-xl p-5 md:p-6 border border-border">
@@ -597,9 +611,17 @@ function TestimonialCard({
       <p className="text-foreground mb-4 text-sm sm:text-base leading-relaxed">
         "{quote}"
       </p>
-      <div>
-        <p className="font-semibold text-foreground">{author}</p>
-        <p className="text-sm text-muted-foreground">{role}</p>
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center shrink-0">
+          <span className="text-brand-600 dark:text-brand-400 font-semibold text-sm">
+            {author.split(' ').map(n => n[0]).join('')}
+          </span>
+        </div>
+        <div>
+          <p className="font-semibold text-foreground">{author}</p>
+          <p className="text-sm text-muted-foreground">{role}</p>
+          {company && <p className="text-xs text-muted-foreground/80">{company}</p>}
+        </div>
       </div>
     </div>
   )
