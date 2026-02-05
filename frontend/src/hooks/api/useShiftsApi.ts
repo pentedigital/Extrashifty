@@ -89,3 +89,28 @@ export function useDeleteShift() {
     },
   })
 }
+
+export function useApplyToShift() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ shiftId, coverMessage }: { shiftId: string; coverMessage?: string }) =>
+      api.shifts.apply(shiftId, coverMessage),
+    onSuccess: (_, { shiftId }) => {
+      // Invalidate the specific shift to reflect application status
+      queryClient.invalidateQueries({ queryKey: shiftKeys.detail(shiftId) })
+      // Invalidate shift lists
+      queryClient.invalidateQueries({ queryKey: shiftKeys.lists() })
+      // Invalidate applications list
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+    },
+  })
+}
+
+export function useMyShifts(params?: Record<string, string>) {
+  return useQuery({
+    queryKey: [...shiftKeys.all, 'my-shifts', params] as const,
+    queryFn: () => api.shifts.getMyShifts(params),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  })
+}

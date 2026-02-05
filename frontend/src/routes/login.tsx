@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
 import { useAuth } from '@/hooks/useAuth'
+import { tokenManager } from '@/lib/api'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,6 +20,12 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>
 
 export const Route = createFileRoute('/login')({
+  beforeLoad: () => {
+    // Redirect authenticated users to dashboard
+    if (tokenManager.hasTokens()) {
+      throw redirect({ to: '/dashboard' })
+    }
+  },
   component: LoginPage,
 })
 

@@ -16,6 +16,9 @@ import { useSidebarCollapsed, useAppStore } from '@/stores/app'
 import { cn } from '@/lib/utils'
 import { tokenManager, api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { LayoutErrorBoundary } from '@/components/ui/error-boundary'
+import { NotFound } from '@/components/ui/not-found'
+import { PageLoader } from '@/components/ui/page-loader'
 import type { UserType } from '@/types/user'
 
 /**
@@ -92,6 +95,9 @@ export const Route = createFileRoute('/_layout')({
     }
   },
   component: LayoutComponent,
+  errorComponent: LayoutErrorBoundary,
+  notFoundComponent: () => <NotFound minimal />,
+  pendingComponent: PageLoader,
 })
 
 function LayoutComponent() {

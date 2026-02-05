@@ -1,78 +1,36 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Plus, Calendar, Users } from 'lucide-react'
+import { Plus, Calendar, Users, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Spinner } from '@/components/ui/spinner'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useShifts } from '@/hooks/api/useShiftsApi'
+import type { Shift } from '@/types/shift'
 
 export const Route = createFileRoute('/_layout/company/shifts/')({
   component: CompanyShiftsPage,
 })
 
-// Mock data
-const mockShifts = {
-  active: [
-    {
-      id: '1',
-      title: 'Bartender',
-      date: '2026-02-07',
-      start_time: '18:00',
-      end_time: '00:00',
-      hourly_rate: 18,
-      spots_total: 1,
-      spots_filled: 0,
-      applicants: 3,
-      status: 'open',
-    },
-    {
-      id: '2',
-      title: 'Server',
-      date: '2026-02-08',
-      start_time: '12:00',
-      end_time: '20:00',
-      hourly_rate: 16,
-      spots_total: 2,
-      spots_filled: 1,
-      applicants: 5,
-      status: 'open',
-    },
-  ],
-  upcoming: [
-    {
-      id: '3',
-      title: 'Bartender',
-      date: '2026-02-06',
-      start_time: '18:00',
-      end_time: '00:00',
-      hourly_rate: 18,
-      spots_total: 1,
-      spots_filled: 1,
-      worker: 'John D.',
-      status: 'filled',
-    },
-  ],
-  completed: [
-    {
-      id: '4',
-      title: 'Line Cook',
-      date: '2026-02-01',
-      start_time: '06:00',
-      end_time: '14:00',
-      hourly_rate: 20,
-      spots_total: 1,
-      spots_filled: 1,
-      worker: 'Maria S.',
-      status: 'completed',
-    },
-  ],
-  draft: [],
-}
-
 function CompanyShiftsPage() {
   const [activeTab, setActiveTab] = useState('active')
+
+  // Fetch all company shifts - the API will filter by company_id automatically for company users
+  const { data, isLoading, error } = useShifts({})
+
+  // Group shifts by status
+  const groupedShifts = useMemo(() => {
+    const shifts = data?.items ?? []
+    return {
+      active: shifts.filter((s) => s.status === 'open'),
+      filled: shifts.filter((s) => s.status === 'assigned' || s.status === 'in_progress'),
+      completed: shifts.filter((s) => s.status === 'completed'),
+      draft: shifts.filter((s) => s.status === 'draft'),
+    }
+  }, [data])
 
   const getStatusBadge = (status: string, spotsTotal: number, spotsFilled: number) => {
     if (status === 'open') {
@@ -80,13 +38,15 @@ function CompanyShiftsPage() {
       if (spotsFilled > 0) return <Badge variant="warning">{spotsTotal - spotsFilled} Open</Badge>
       return <Badge variant="success">Open</Badge>
     }
-    if (status === 'filled') return <Badge variant="success">Filled</Badge>
+    if (status === 'assigned' || status === 'filled') return <Badge variant="success">Filled</Badge>
+    if (status === 'in_progress') return <Badge variant="warning">In Progress</Badge>
     if (status === 'completed') return <Badge variant="secondary">Completed</Badge>
     if (status === 'draft') return <Badge variant="outline">Draft</Badge>
+    if (status === 'cancelled') return <Badge variant="destructive">Cancelled</Badge>
     return <Badge>{status}</Badge>
   }
 
-  const renderShiftList = (shifts: typeof mockShifts.active, showApplicants = false) => {
+  const renderShiftList = (shifts: Shift[], showApplicants = false) => {
     if (shifts.length === 0) {
       return (
         <EmptyState
@@ -137,19 +97,19 @@ function CompanyShiftsPage() {
                     <p className="text-sm text-muted-foreground">
                       {formatCurrency(shift.hourly_rate)}/hr
                     </p>
-                    {'worker' in shift && shift.worker && (
+                    {shift.location_name && (
                       <p className="text-sm text-muted-foreground truncate">
-                        Assigned: {shift.worker}
+                        {shift.location_name}, {shift.city}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  {showApplicants && 'applicants' in shift && shift.applicants > 0 && (
+                  {showApplicants && shift.status === 'open' && (
                     <Link to={`/company/shifts/${shift.id}/applicants`}>
                       <Button variant="outline" size="sm">
                         <Users className="mr-2 h-4 w-4" />
-                        {shift.applicants} Applicants
+                        View Applicants
                       </Button>
                     </Link>
                   )}
@@ -163,6 +123,30 @@ function CompanyShiftsPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">My Shifts</h1>
+            <p className="text-muted-foreground">Manage your posted shifts</p>
+          </div>
+          <Link to="/company/shifts/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Shift
+            </Button>
+          </Link>
+        </div>
+        <EmptyState
+          icon={AlertCircle}
+          title="Failed to load shifts"
+          description="There was an error loading your shifts. Please try again later."
+        />
       </div>
     )
   }
@@ -182,35 +166,41 @@ function CompanyShiftsPage() {
         </Link>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="active">
-            Active ({mockShifts.active.length})
-          </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            Filled ({mockShifts.upcoming.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({mockShifts.completed.length})
-          </TabsTrigger>
-          <TabsTrigger value="draft">
-            Drafts ({mockShifts.draft.length})
-          </TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="active">
+              Active ({groupedShifts.active.length})
+            </TabsTrigger>
+            <TabsTrigger value="filled">
+              Filled ({groupedShifts.filled.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed ({groupedShifts.completed.length})
+            </TabsTrigger>
+            <TabsTrigger value="draft">
+              Drafts ({groupedShifts.draft.length})
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="active" className="mt-6">
-          {renderShiftList(mockShifts.active, true)}
-        </TabsContent>
-        <TabsContent value="upcoming" className="mt-6">
-          {renderShiftList(mockShifts.upcoming)}
-        </TabsContent>
-        <TabsContent value="completed" className="mt-6">
-          {renderShiftList(mockShifts.completed)}
-        </TabsContent>
-        <TabsContent value="draft" className="mt-6">
-          {renderShiftList(mockShifts.draft)}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="active" className="mt-6">
+            {renderShiftList(groupedShifts.active, true)}
+          </TabsContent>
+          <TabsContent value="filled" className="mt-6">
+            {renderShiftList(groupedShifts.filled)}
+          </TabsContent>
+          <TabsContent value="completed" className="mt-6">
+            {renderShiftList(groupedShifts.completed)}
+          </TabsContent>
+          <TabsContent value="draft" className="mt-6">
+            {renderShiftList(groupedShifts.draft)}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }

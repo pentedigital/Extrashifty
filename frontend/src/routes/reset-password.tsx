@@ -117,6 +117,9 @@ function ResetPasswordPage() {
                   )}
                 </button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 8 characters long
+              </p>
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}

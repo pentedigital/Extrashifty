@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,7 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/toast'
-import { api, ApiClientError } from '@/lib/api'
+import { useAddClient } from '@/hooks/api/useAgencyApi'
+import { ApiClientError } from '@/lib/api'
 
 export const Route = createFileRoute('/_layout/agency/clients/add')({
   component: AddClientPage,
@@ -27,7 +27,7 @@ type AddClientFormData = z.infer<typeof addClientSchema>
 function AddClientPage() {
   const navigate = useNavigate()
   const { addToast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const addClientMutation = useAddClient()
 
   const {
     register,
@@ -40,30 +40,32 @@ function AddClientPage() {
     },
   })
 
-  const onSubmit = async (data: AddClientFormData) => {
-    setIsSubmitting(true)
-    try {
-      await api.agency.addClient({
+  const onSubmit = (data: AddClientFormData) => {
+    addClientMutation.mutate(
+      {
         business_email: data.business_email,
         billing_rate_markup: data.billing_rate_markup,
         notes: data.notes,
-      })
-      addToast({
-        type: 'success',
-        title: 'Client invitation sent',
-        description: 'The business will receive an email to connect with your agency.',
-      })
-      navigate({ to: '/agency/clients' })
-    } catch (error) {
-      const message = error instanceof ApiClientError ? error.message : 'Failed to add client'
-      addToast({
-        type: 'error',
-        title: 'Error',
-        description: message,
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+      },
+      {
+        onSuccess: () => {
+          addToast({
+            type: 'success',
+            title: 'Client invitation sent',
+            description: 'The business will receive an email to connect with your agency.',
+          })
+          navigate({ to: '/agency/clients' })
+        },
+        onError: (error) => {
+          const message = error instanceof ApiClientError ? error.message : 'Failed to add client'
+          addToast({
+            type: 'error',
+            title: 'Error',
+            description: message,
+          })
+        },
+      }
+    )
   }
 
   return (
@@ -168,8 +170,8 @@ function AddClientPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={addClientMutation.isPending}>
+                {addClientMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send Invitation
               </Button>
             </div>

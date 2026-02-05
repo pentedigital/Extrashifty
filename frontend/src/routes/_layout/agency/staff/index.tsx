@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { UserPlus, Search, Users } from 'lucide-react'
+import { UserPlus, Search, Users, Loader2, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,74 +8,52 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Star } from 'lucide-react'
+import { useAgencyStaff } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/staff/')({
   component: StaffPoolPage,
 })
 
-// Mock data
-const mockStaff = {
-  active: [
-    {
-      id: '1',
-      name: 'John Doe',
-      avatar: null,
-      skills: ['Bartending', 'Cocktails', 'Wine Service'],
-      rating: 4.9,
-      shifts_completed: 32,
-      is_available: true,
-      status: 'active',
-    },
-    {
-      id: '2',
-      name: 'Maria Santos',
-      avatar: null,
-      skills: ['Line Cook', 'Prep Cook', 'Grill'],
-      rating: 4.7,
-      shifts_completed: 28,
-      is_available: true,
-      status: 'active',
-    },
-    {
-      id: '3',
-      name: 'Tom Wilson',
-      avatar: null,
-      skills: ['Server', 'Fine Dining', 'Wine Service'],
-      rating: 4.8,
-      shifts_completed: 45,
-      is_available: false,
-      status: 'active',
-    },
-    {
-      id: '4',
-      name: 'Sarah Chen',
-      avatar: null,
-      skills: ['Barista', 'Customer Service'],
-      rating: 4.6,
-      shifts_completed: 18,
-      is_available: true,
-      status: 'active',
-    },
-  ],
-  pending: [
-    {
-      id: '5',
-      name: 'Ali Hassan',
-      avatar: null,
-      skills: ['Kitchen Porter', 'Dishwasher'],
-      rating: 0,
-      shifts_completed: 0,
-      is_available: true,
-      status: 'pending',
-    },
-  ],
-  inactive: [],
+interface StaffMember {
+  id: string
+  name: string
+  avatar: string | null
+  skills: string[]
+  rating: number
+  shifts_completed: number
+  is_available: boolean
+  status: string
 }
 
 function StaffPoolPage() {
   const [activeTab, setActiveTab] = useState('active')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Fetch staff with status filter
+  const { data: activeStaffData, isLoading: activeLoading, error: activeError } = useAgencyStaff({ status: 'active' })
+  const { data: pendingStaffData, isLoading: pendingLoading } = useAgencyStaff({ status: 'pending' })
+  const { data: inactiveStaffData, isLoading: inactiveLoading } = useAgencyStaff({ status: 'inactive' })
+
+  // Transform API data to display format
+  const transformStaffData = (items: NonNullable<typeof activeStaffData>['items'] | undefined): StaffMember[] => {
+    if (!items) return []
+    return items.map((member) => ({
+      id: member.id,
+      name: member.staff?.full_name ?? `Staff Member ${member.staff_id}`,
+      avatar: member.staff?.avatar_url ?? null,
+      skills: member.staff?.skills ?? [],
+      rating: member.staff?.average_rating ?? 0,
+      shifts_completed: member.shifts_completed,
+      is_available: member.is_available,
+      status: member.status,
+    }))
+  }
+
+  const activeStaff = useMemo(() => transformStaffData(activeStaffData?.items), [activeStaffData])
+  const pendingStaff = useMemo(() => transformStaffData(pendingStaffData?.items), [pendingStaffData])
+  const inactiveStaff = useMemo(() => transformStaffData(inactiveStaffData?.items), [inactiveStaffData])
 
   const getStatusBadge = (status: string, isAvailable?: boolean) => {
     if (status === 'pending') return <Badge variant="warning">Pending</Badge>
@@ -84,7 +62,7 @@ function StaffPoolPage() {
     return <Badge variant="outline">Busy</Badge>
   }
 
-  const filteredStaff = (staff: typeof mockStaff.active) => {
+  const filteredStaff = (staff: StaffMember[]) => {
     if (!searchQuery) return staff
     const query = searchQuery.toLowerCase()
     return staff.filter(
@@ -94,7 +72,29 @@ function StaffPoolPage() {
     )
   }
 
-  const renderStaffList = (staff: typeof mockStaff.active) => {
+  const renderStaffList = (staff: StaffMember[], isLoading: boolean, error?: Error | null) => {
+    if (isLoading) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-[140px]" />
+          ))}
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+          <p>Failed to load staff members. Please try again.</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      )
+    }
+
     const filtered = filteredStaff(staff)
 
     if (filtered.length === 0) {
@@ -162,7 +162,7 @@ function StaffPoolPage() {
                         <>
                           <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                           <span>{member.rating}</span>
-                          <span>•</span>
+                          <span>-</span>
                         </>
                       )}
                       <span>{member.shifts_completed} shifts</span>
@@ -188,6 +188,8 @@ function StaffPoolPage() {
       </div>
     )
   }
+
+  const isAnyLoading = activeLoading || pendingLoading || inactiveLoading
 
   return (
     <div className="space-y-6">
@@ -223,24 +225,24 @@ function StaffPoolPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="active">
-            Active ({mockStaff.active.length})
+            Active {isAnyLoading ? '' : `(${activeStaff.length})`}
           </TabsTrigger>
           <TabsTrigger value="pending">
-            Pending ({mockStaff.pending.length})
+            Pending {isAnyLoading ? '' : `(${pendingStaff.length})`}
           </TabsTrigger>
           <TabsTrigger value="inactive">
-            Inactive ({mockStaff.inactive.length})
+            Inactive {isAnyLoading ? '' : `(${inactiveStaff.length})`}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-6">
-          {renderStaffList(mockStaff.active)}
+          {renderStaffList(activeStaff, activeLoading, activeError)}
         </TabsContent>
         <TabsContent value="pending" className="mt-6">
-          {renderStaffList(mockStaff.pending)}
+          {renderStaffList(pendingStaff, pendingLoading)}
         </TabsContent>
         <TabsContent value="inactive" className="mt-6">
-          {renderStaffList(mockStaff.inactive)}
+          {renderStaffList(inactiveStaff, inactiveLoading)}
         </TabsContent>
       </Tabs>
     </div>

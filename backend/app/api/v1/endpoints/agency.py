@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Field as SQLField
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, SQLModel, select, func
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.models.user import UserType
@@ -31,6 +31,23 @@ class StaffInvitation(SQLModel, table=True):
     status: str = SQLField(default="pending")  # pending, accepted, expired
     created_at: datetime = SQLField(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = SQLField(default=None)
+
+
+class AgencyStaffMember(SQLModel, table=True):
+    """Model for agency staff members."""
+
+    __tablename__ = "agency_staff_members"
+
+    id: Optional[int] = SQLField(default=None, primary_key=True)
+    agency_id: int = SQLField(index=True)
+    staff_user_id: int = SQLField(index=True)
+    status: str = SQLField(default="active")  # active, inactive, pending
+    is_available: bool = SQLField(default=True)
+    shifts_completed: int = SQLField(default=0)
+    total_hours: float = SQLField(default=0.0)
+    notes: Optional[str] = SQLField(default=None, max_length=2000)
+    joined_at: datetime = SQLField(default_factory=datetime.utcnow)
+    updated_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
 class AgencyClient(SQLModel, table=True):
@@ -84,6 +101,38 @@ class ClientResponse(BaseModel):
     notes: Optional[str]
     is_active: bool
     created_at: datetime
+
+
+class StaffMemberResponse(BaseModel):
+    """Response schema for staff member data."""
+
+    id: int
+    agency_id: int
+    staff_user_id: int
+    status: str
+    is_available: bool
+    shifts_completed: int
+    total_hours: float
+    notes: Optional[str]
+    joined_at: datetime
+    # Additional fields that would come from user lookup
+    name: Optional[str] = None
+    email: Optional[str] = None
+    skills: List[str] = []
+    rating: float = 0.0
+
+
+class AgencyStatsResponse(BaseModel):
+    """Response schema for agency dashboard stats."""
+
+    total_staff: int
+    available_staff: int
+    total_clients: int
+    pending_clients: int
+    active_shifts: int
+    revenue_this_week: float
+    pending_invoices: int
+    pending_payroll: int
 
 
 # --- Helper Functions ---
@@ -277,3 +326,143 @@ def list_invitations(
         }
         for inv in invitations
     ]
+
+
+@router.get("/staff", response_model=List[StaffMemberResponse])
+def list_staff(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+) -> List[dict]:
+    """
+    List all staff members for the current agency.
+
+    Optionally filter by status (active, inactive, pending).
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id
+    )
+
+    if status_filter:
+        statement = statement.where(AgencyStaffMember.status == status_filter)
+
+    statement = statement.offset(skip).limit(limit)
+    staff_members = session.exec(statement).all()
+
+    # Return staff members with placeholder user data
+    # In production, this would join with user table to get full profile
+    return [
+        StaffMemberResponse(
+            id=member.id,
+            agency_id=member.agency_id,
+            staff_user_id=member.staff_user_id,
+            status=member.status,
+            is_available=member.is_available,
+            shifts_completed=member.shifts_completed,
+            total_hours=member.total_hours,
+            notes=member.notes,
+            joined_at=member.joined_at,
+            name=f"Staff Member {member.staff_user_id}",  # Would come from user lookup
+            email=None,
+            skills=[],
+            rating=0.0,
+        )
+        for member in staff_members
+    ]
+
+
+@router.delete("/staff/{staff_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_staff(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    staff_id: int,
+) -> None:
+    """
+    Remove a staff member from the agency.
+
+    This doesn't delete the user account, just the agency association.
+    """
+    require_agency_user(current_user)
+
+    statement = select(AgencyStaffMember).where(
+        AgencyStaffMember.id == staff_id,
+        AgencyStaffMember.agency_id == current_user.id,
+    )
+    staff_member = session.exec(statement).first()
+
+    if not staff_member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found",
+        )
+
+    session.delete(staff_member)
+    session.commit()
+
+    logger.info(
+        f"Agency {current_user.id} removed staff member {staff_id}"
+    )
+
+
+@router.get("/stats", response_model=AgencyStatsResponse)
+def get_stats(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> AgencyStatsResponse:
+    """
+    Get agency dashboard statistics.
+
+    Returns counts and metrics for the agency dashboard.
+    """
+    require_agency_user(current_user)
+
+    # Count total staff
+    total_staff_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+    total_staff = session.exec(total_staff_stmt).one() or 0
+
+    # Count available staff
+    available_staff_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+        AgencyStaffMember.is_available == True,
+    )
+    available_staff = session.exec(available_staff_stmt).one() or 0
+
+    # Count total active clients
+    total_clients_stmt = select(func.count()).select_from(AgencyClient).where(
+        AgencyClient.agency_id == current_user.id,
+        AgencyClient.is_active == True,
+    )
+    total_clients = session.exec(total_clients_stmt).one() or 0
+
+    # Count pending invitations (used as pending clients indicator)
+    pending_clients_stmt = select(func.count()).select_from(StaffInvitation).where(
+        StaffInvitation.agency_id == current_user.id,
+        StaffInvitation.status == "pending",
+    )
+    pending_clients = session.exec(pending_clients_stmt).one() or 0
+
+    # Active shifts would come from shifts table in production
+    # For now, return placeholder data
+    active_shifts = 0
+    revenue_this_week = 0.0
+    pending_invoices = 0
+    pending_payroll = 0
+
+    return AgencyStatsResponse(
+        total_staff=total_staff,
+        available_staff=available_staff,
+        total_clients=total_clients,
+        pending_clients=pending_clients,
+        active_shifts=active_shifts,
+        revenue_this_week=revenue_this_week,
+        pending_invoices=pending_invoices,
+        pending_payroll=pending_payroll,
+    )

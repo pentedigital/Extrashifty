@@ -11,6 +11,7 @@ export const agencyKeys = {
   invoices: (filters?: Record<string, string>) => [...agencyKeys.all, 'invoices', filters] as const,
   payroll: (filters?: Record<string, string>) => [...agencyKeys.all, 'payroll', filters] as const,
   wallet: () => [...agencyKeys.all, 'wallet'] as const,
+  stats: () => [...agencyKeys.all, 'stats'] as const,
 }
 
 // Profile
@@ -44,9 +45,22 @@ export function useInviteStaff() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: { email: string; message?: string }) => api.agency.inviteStaff(data),
+    mutationFn: (data: { emails: string[]; message?: string }) => api.agency.inviteStaff(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: agencyKeys.staff() })
+      queryClient.invalidateQueries({ queryKey: agencyKeys.stats() })
+    },
+  })
+}
+
+export function useRemoveStaff() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => api.agency.removeStaffMember(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: agencyKeys.staff() })
+      queryClient.invalidateQueries({ queryKey: agencyKeys.stats() })
     },
   })
 }
@@ -75,10 +89,11 @@ export function useAddClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: { business_email: string; billing_rate_markup?: number }) =>
+    mutationFn: (data: { business_email: string; billing_rate_markup?: number; notes?: string }) =>
       api.agency.addClient(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: agencyKeys.clients() })
+      queryClient.invalidateQueries({ queryKey: agencyKeys.stats() })
     },
   })
 }
@@ -158,5 +173,13 @@ export function useAgencyWallet() {
   return useQuery({
     queryKey: agencyKeys.wallet(),
     queryFn: () => api.agency.getWallet(),
+  })
+}
+
+// Stats
+export function useAgencyStats() {
+  return useQuery({
+    queryKey: agencyKeys.stats(),
+    queryFn: () => api.agency.getStats(),
   })
 }

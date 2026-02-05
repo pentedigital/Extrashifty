@@ -15,19 +15,21 @@ export interface Shift {
   date: string
   start_time: string
   end_time: string
-  duration_hours: number
-  location_name: string
-  address: string
+  duration_hours?: number
+  location: string // Backend field name
+  location_name?: string // Alias for frontend compatibility
+  address?: string
   city: string
   hourly_rate: number
-  total_pay: number
-  currency: string
+  total_pay?: number
+  currency?: string
   spots_total: number
   spots_filled: number
-  required_skills: string[]
+  required_skills?: string[]
+  requirements?: Record<string, unknown>
   status: ShiftStatus
   created_at: string
-  updated_at: string
+  updated_at?: string
   company?: CompanyPublic
 }
 

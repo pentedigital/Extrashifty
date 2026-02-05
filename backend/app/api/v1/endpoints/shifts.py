@@ -1,12 +1,16 @@
 """Shift endpoints."""
 
 from datetime import date
+from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
 from app.crud import application as application_crud
 from app.crud import shift as shift_crud
+from app.models.application import ApplicationStatus
 from app.models.shift import Shift, ShiftStatus
 from app.models.user import UserType
 from app.schemas.shift import ShiftCreate, ShiftRead, ShiftUpdate
@@ -14,57 +18,130 @@ from app.schemas.shift import ShiftCreate, ShiftRead, ShiftUpdate
 router = APIRouter()
 
 
-@router.get("", response_model=list[ShiftRead])
-def list_shifts(
+class ShiftListResponse(BaseModel):
+    """Paginated shift list response."""
+
+    items: list[ShiftRead]
+    total: int
+    skip: int
+    limit: int
+
+
+@router.get("/my-shifts", response_model=list[ShiftRead])
+def get_my_shifts(
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
     limit: int = 100,
     status_filter: str | None = Query(None, alias="status"),
-    start_date: date | None = None,
-    end_date: date | None = None,
-    company_id: int | None = None,
+    upcoming_only: bool = Query(True, description="Only return upcoming shifts"),
 ) -> list[Shift]:
     """
-    List shifts (marketplace view).
+    Get shifts where the current user is assigned (confirmed).
+
+    Staff: Returns shifts where they have an accepted application.
+    """
+    from datetime import date as date_type
+
+    if current_user.user_type != UserType.STAFF:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only staff can view their assigned shifts",
+        )
+
+    # Get shifts where user has accepted applications
+    accepted_applications = application_crud.get_by_applicant(
+        session,
+        applicant_id=current_user.id,
+        status=ApplicationStatus.ACCEPTED.value,
+        skip=0,
+        limit=1000,  # Get all accepted applications
+    )
+
+    shift_ids = [app.shift_id for app in accepted_applications]
+
+    if not shift_ids:
+        return []
+
+    # Get the actual shifts
+    from sqlmodel import select
+
+    statement = select(Shift).where(Shift.id.in_(shift_ids))
+
+    if status_filter:
+        statement = statement.where(Shift.status == status_filter)
+
+    if upcoming_only:
+        statement = statement.where(Shift.date >= date_type.today())
+
+    statement = statement.offset(skip).limit(limit).order_by(Shift.date, Shift.start_time)
+
+    return list(session.exec(statement).all())
+
+
+@router.get("", response_model=ShiftListResponse)
+def list_shifts(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = Query(default=20, le=100),
+    status_filter: str | None = Query(None, alias="status"),
+    start_date: date | None = Query(None, alias="date_from"),
+    end_date: date | None = Query(None, alias="date_to"),
+    company_id: int | None = None,
+    city: str | None = None,
+    shift_type: str | None = None,
+    min_rate: Decimal | None = None,
+    max_rate: Decimal | None = None,
+    search: str | None = None,
+) -> dict[str, Any]:
+    """
+    List shifts (marketplace view) with filtering and pagination.
 
     Staff see available shifts.
     Companies see their own shifts.
     Admins see all shifts.
+
+    Supports filtering by:
+    - status: Shift status (open, filled, etc.)
+    - date_from/date_to: Date range
+    - city: City name (case-insensitive partial match)
+    - shift_type: Type of shift
+    - min_rate/max_rate: Hourly rate range
+    - search: Search in title, description, and location
     """
-    if current_user.user_type == UserType.ADMIN:
-        # Admin sees all shifts
-        shifts = shift_crud.get_multi(
-            session,
-            skip=skip,
-            limit=limit,
-            status=status_filter,
-            start_date=start_date,
-            end_date=end_date,
-            company_id=company_id,
-        )
-    elif current_user.user_type == UserType.COMPANY:
+    # Determine status filter based on user type
+    effective_status = status_filter
+    effective_company_id = company_id
+
+    if current_user.user_type == UserType.COMPANY:
         # Company sees only their shifts
-        shifts = shift_crud.get_multi(
-            session,
-            skip=skip,
-            limit=limit,
-            status=status_filter,
-            start_date=start_date,
-            end_date=end_date,
-            company_id=current_user.id,
-        )
-    else:
+        effective_company_id = current_user.id
+    elif current_user.user_type == UserType.STAFF:
         # Staff see only open shifts
-        shifts = shift_crud.get_multi(
-            session,
-            skip=skip,
-            limit=limit,
-            status=ShiftStatus.OPEN.value,
-            start_date=start_date,
-            end_date=end_date,
-        )
-    return shifts
+        effective_status = ShiftStatus.OPEN.value
+
+    shifts, total = shift_crud.get_multi_with_count(
+        session,
+        skip=skip,
+        limit=limit,
+        status=effective_status,
+        start_date=start_date,
+        end_date=end_date,
+        company_id=effective_company_id,
+        city=city,
+        shift_type=shift_type,
+        min_rate=min_rate,
+        max_rate=max_rate,
+        search=search,
+    )
+
+    return {
+        "items": shifts,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.post("", response_model=ShiftRead, status_code=status.HTTP_201_CREATED)

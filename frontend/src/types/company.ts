@@ -26,6 +26,9 @@ export interface CompanyPublic {
   id: string
   company_name: string
   company_type: CompanyType
+  // Aliases for compatibility
+  business_name?: string
+  business_type?: string
   logo_url?: string
   city: string
   is_verified: boolean

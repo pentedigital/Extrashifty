@@ -39,8 +39,76 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class StaffStatsResponse(BaseModel):
+    """Response schema for staff dashboard stats."""
+
+    upcoming_shifts: int
+    pending_applications: int
+    total_earned: float
+    average_rating: float
+    wallet_balance: float
+
+
+class UpdateProfileRequest(BaseModel):
+    """Request schema for updating user's profile."""
+
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    email: Optional[str] = Field(default=None, max_length=255)
+    avatar_url: Optional[str] = Field(default=None, max_length=500)
+
+
+class PublicUserProfile(BaseModel):
+    """Public user profile schema - limited info for viewing other users."""
+
+    id: int
+    full_name: str
+    user_type: UserType
+    is_verified: bool
+    created_at: str
+
+
 # --- User Settings Endpoints (for current user) ---
 # NOTE: These must be defined BEFORE /{user_id} routes to avoid path conflicts
+
+
+@router.patch("/me", response_model=UserRead)
+def update_my_profile(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: UpdateProfileRequest,
+) -> User:
+    """
+    Update current user's profile (name, email, avatar).
+
+    Allows users to update their own profile information.
+    Email changes may require re-verification in the future.
+    """
+    update_data = request.model_dump(exclude_unset=True)
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
+    # Check if email is being changed and if it's already taken
+    if "email" in update_data and update_data["email"] != current_user.email:
+        existing_user = user_crud.get_by_email(session, email=update_data["email"])
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+
+    # Apply updates
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    logger.info(f"User {current_user.id} updated their profile")
+    return current_user
 
 
 @router.patch("/me/name", response_model=UserRead)
@@ -113,6 +181,73 @@ def delete_my_account(
     return MessageResponse(message="Account deactivated successfully")
 
 
+@router.get("/me/stats", response_model=StaffStatsResponse)
+def get_my_stats(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> StaffStatsResponse:
+    """
+    Get dashboard stats for the current user.
+
+    For staff users: returns upcoming shifts count, pending applications,
+    total earned (placeholder), average rating, and wallet balance.
+    """
+    from datetime import date as date_type
+
+    from sqlmodel import func, select
+
+    from app.crud import application as application_crud
+    from app.models.application import Application, ApplicationStatus
+    from app.models.shift import Shift
+
+    if current_user.user_type != UserType.STAFF:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Stats are currently only available for staff users",
+        )
+
+    # Count pending applications
+    pending_applications = len(
+        application_crud.get_by_applicant(
+            session,
+            applicant_id=current_user.id,
+            status=ApplicationStatus.PENDING.value,
+        )
+    )
+
+    # Count upcoming shifts (accepted applications for future shifts)
+    accepted_apps = application_crud.get_by_applicant(
+        session,
+        applicant_id=current_user.id,
+        status=ApplicationStatus.ACCEPTED.value,
+    )
+    shift_ids = [app.shift_id for app in accepted_apps]
+
+    upcoming_shifts = 0
+    if shift_ids:
+        statement = (
+            select(func.count())
+            .select_from(Shift)
+            .where(Shift.id.in_(shift_ids))
+            .where(Shift.date >= date_type.today())
+        )
+        upcoming_shifts = session.exec(statement).one() or 0
+
+    # TODO: Calculate actual earnings from completed shifts
+    # For now, return placeholder values
+    total_earned = 0.0
+    average_rating = 0.0
+    wallet_balance = 0.0
+
+    return StaffStatsResponse(
+        upcoming_shifts=upcoming_shifts,
+        pending_applications=pending_applications,
+        total_earned=total_earned,
+        average_rating=average_rating,
+        wallet_balance=wallet_balance,
+    )
+
+
 # --- Admin and General User Endpoints ---
 
 
@@ -126,6 +261,38 @@ def list_users(
     """List all users (admin only)."""
     users = user_crud.get_multi(session, skip=skip, limit=limit)
     return users
+
+
+@router.get("/{user_id}/public", response_model=PublicUserProfile)
+def get_user_public_profile(
+    session: SessionDep,
+    _: ActiveUserDep,  # Requires authentication but any user can view
+    user_id: int,
+) -> PublicUserProfile:
+    """
+    Get public profile for any user.
+
+    Returns limited information suitable for public display.
+    Requires authentication but does not require admin or ownership.
+    """
+    user = user_crud.get(session, id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    return PublicUserProfile(
+        id=user.id,
+        full_name=user.full_name,
+        user_type=user.user_type,
+        is_verified=user.is_verified,
+        created_at=user.created_at.isoformat(),
+    )
 
 
 @router.get("/{user_id}", response_model=UserRead)

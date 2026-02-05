@@ -1,63 +1,44 @@
 import { Link } from '@tanstack/react-router'
-import { Calendar, Clock, Euro, Star, ArrowRight, Search, Wallet } from 'lucide-react'
+import { Calendar, Clock, Euro, Star, ArrowRight, Search, Wallet, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
+import { EmptyState } from '@/components/ui/empty-state'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import { useMyShifts, useMyStats } from '@/hooks/api/useStaffApi'
+import { useMyApplications } from '@/hooks/api/useApplicationsApi'
 
-// Mock data - would come from API
-const mockStats = {
-  upcoming_shifts: 3,
-  pending_applications: 5,
-  total_earned: 2450,
-  average_rating: 4.8,
-  wallet_balance: 850,
+// Helper to get badge variant for application status
+function getApplicationBadgeVariant(status: string): 'default' | 'success' | 'warning' | 'destructive' {
+  switch (status) {
+    case 'accepted':
+      return 'success'
+    case 'pending':
+      return 'warning'
+    case 'rejected':
+    case 'withdrawn':
+      return 'destructive'
+    default:
+      return 'default'
+  }
 }
 
-const mockUpcomingShifts = [
-  {
-    id: '1',
-    title: 'Bartender',
-    company_name: 'The Brazen Head',
-    date: '2026-02-07',
-    start_time: '18:00',
-    end_time: '00:00',
-    hourly_rate: 18,
-    status: 'confirmed',
-  },
-  {
-    id: '2',
-    title: 'Server',
-    company_name: 'Restaurant XYZ',
-    date: '2026-02-08',
-    start_time: '12:00',
-    end_time: '20:00',
-    hourly_rate: 16,
-    status: 'confirmed',
-  },
-]
-
-const mockApplications = [
-  {
-    id: '1',
-    shift_title: 'Line Cook',
-    company_name: 'Hotel Dublin',
-    date: '2026-02-10',
-    status: 'pending',
-    applied_at: '2026-02-04',
-  },
-  {
-    id: '2',
-    shift_title: 'Barista',
-    company_name: 'Café Central',
-    date: '2026-02-09',
-    status: 'pending',
-    applied_at: '2026-02-03',
-  },
-]
+// Helper to format application status label
+function formatApplicationStatus(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
 
 export function StaffDashboard() {
+  // Fetch data using React Query hooks
+  const { data: stats, isLoading: statsLoading, error: statsError } = useMyStats()
+  const { data: upcomingShifts, isLoading: shiftsLoading, error: shiftsError } = useMyShifts()
+  const { data: applicationsData, isLoading: applicationsLoading, error: applicationsError } = useMyApplications('pending')
+
+  // Extract applications from the response (backend returns { items, total })
+  const applications = applicationsData?.items ?? []
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -78,32 +59,51 @@ export function StaffDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard
-          title="Upcoming Shifts"
-          value={mockStats.upcoming_shifts}
-          icon={Calendar}
-        />
-        <StatCard
-          title="Pending Applications"
-          value={mockStats.pending_applications}
-          icon={Clock}
-        />
-        <StatCard
-          title="Total Earned"
-          value={formatCurrency(mockStats.total_earned)}
-          subtitle="This month"
-          icon={Euro}
-        />
-        <StatCard
-          title="Wallet Balance"
-          value={formatCurrency(mockStats.wallet_balance)}
-          icon={Wallet}
-        />
-        <StatCard
-          title="Rating"
-          value={mockStats.average_rating.toFixed(1)}
-          icon={Star}
-        />
+        {statsLoading ? (
+          <>
+            <StatCard title="Upcoming Shifts" value="-" icon={Calendar} />
+            <StatCard title="Pending Applications" value="-" icon={Clock} />
+            <StatCard title="Total Earned" value="-" subtitle="This month" icon={Euro} />
+            <StatCard title="Wallet Balance" value="-" icon={Wallet} />
+            <StatCard title="Rating" value="-" icon={Star} />
+          </>
+        ) : statsError ? (
+          <Card className="col-span-full">
+            <CardContent className="flex items-center gap-2 py-4 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>Failed to load stats. Please try again.</span>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <StatCard
+              title="Upcoming Shifts"
+              value={stats?.upcoming_shifts ?? 0}
+              icon={Calendar}
+            />
+            <StatCard
+              title="Pending Applications"
+              value={stats?.pending_applications ?? 0}
+              icon={Clock}
+            />
+            <StatCard
+              title="Total Earned"
+              value={formatCurrency(stats?.total_earned ?? 0)}
+              subtitle="This month"
+              icon={Euro}
+            />
+            <StatCard
+              title="Wallet Balance"
+              value={formatCurrency(stats?.wallet_balance ?? 0)}
+              icon={Wallet}
+            />
+            <StatCard
+              title="Rating"
+              value={stats?.average_rating ? stats.average_rating.toFixed(1) : 'N/A'}
+              icon={Star}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -116,9 +116,18 @@ export function StaffDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            {mockUpcomingShifts.length > 0 ? (
+            {shiftsLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : shiftsError ? (
+              <div className="flex items-center gap-2 py-8 justify-center text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>Failed to load shifts</span>
+              </div>
+            ) : upcomingShifts && upcomingShifts.length > 0 ? (
               <div className="space-y-4">
-                {mockUpcomingShifts.map((shift) => (
+                {upcomingShifts.slice(0, 5).map((shift) => (
                   <div
                     key={shift.id}
                     className="flex items-center justify-between rounded-lg border p-4"
@@ -129,10 +138,14 @@ export function StaffDashboard() {
                         <Badge variant="success">Confirmed</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {shift.company_name}
+                        {shift.company?.full_name ?? shift.location ?? shift.city ?? 'Unknown venue'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatDate(shift.date)} • {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                        {formatDate(shift.date)} {shift.start_time && shift.end_time && (
+                          <>
+                            {' '} {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
@@ -144,15 +157,16 @@ export function StaffDashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="mx-auto h-12 w-12 mb-3 opacity-50" />
-                <p>No upcoming shifts</p>
-                <Link to="/marketplace">
-                  <Button variant="link" className="mt-2">
-                    Browse available shifts
-                  </Button>
-                </Link>
-              </div>
+              <EmptyState
+                icon={Calendar}
+                title="No upcoming shifts"
+                description="You don't have any confirmed shifts yet."
+                action={
+                  <Link to="/marketplace">
+                    <Button variant="outline">Browse available shifts</Button>
+                  </Link>
+                }
+              />
             )}
           </CardContent>
         </Card>
@@ -166,24 +180,37 @@ export function StaffDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            {mockApplications.length > 0 ? (
+            {applicationsLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : applicationsError ? (
+              <div className="flex items-center gap-2 py-8 justify-center text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>Failed to load applications</span>
+              </div>
+            ) : applications.length > 0 ? (
               <div className="space-y-4">
-                {mockApplications.map((app) => (
+                {applications.slice(0, 5).map((app) => (
                   <div
                     key={app.id}
                     className="flex items-center justify-between rounded-lg border p-4"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{app.shift_title}</p>
-                        <Badge variant="warning">Pending</Badge>
+                        <p className="font-medium">{app.shift?.title ?? 'Shift'}</p>
+                        <Badge variant={getApplicationBadgeVariant(app.status)}>
+                          {formatApplicationStatus(app.status)}
+                        </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {app.company_name}
+                        {app.shift?.company?.full_name ?? app.shift?.location ?? app.shift?.city ?? 'Unknown venue'}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(app.date)}
-                      </p>
+                      {app.shift?.date && (
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(app.shift.date)}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right text-sm text-muted-foreground">
                       Applied {formatDate(app.applied_at)}
@@ -192,10 +219,16 @@ export function StaffDashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Clock className="mx-auto h-12 w-12 mb-3 opacity-50" />
-                <p>No pending applications</p>
-              </div>
+              <EmptyState
+                icon={Clock}
+                title="No pending applications"
+                description="Apply to shifts and track your applications here."
+                action={
+                  <Link to="/marketplace">
+                    <Button variant="outline">Browse shifts</Button>
+                  </Link>
+                }
+              />
             )}
           </CardContent>
         </Card>

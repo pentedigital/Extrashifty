@@ -1,69 +1,233 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save } from 'lucide-react'
+import { Select } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ArrowLeft, Save, AlertCircle, Trash2, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { useShift, useUpdateShift, useDeleteShift } from '@/hooks/api/useShiftsApi'
 
 export const Route = createFileRoute('/_layout/company/shifts/$shiftId/edit')({
   component: EditShiftPage,
 })
 
+const shiftTypes = [
+  { value: 'bar', label: 'Bar / Bartender' },
+  { value: 'server', label: 'Server / Waiter' },
+  { value: 'kitchen', label: 'Kitchen Staff' },
+  { value: 'chef', label: 'Chef' },
+  { value: 'host', label: 'Host / Hostess' },
+  { value: 'general', label: 'General' },
+]
+
+const statusOptions = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'open', label: 'Open' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
 function EditShiftPage() {
   const { shiftId } = Route.useParams()
   const navigate = useNavigate()
   const { addToast } = useToast()
-  const [isSaving, setIsSaving] = useState(false)
 
-  // Mock existing shift data
+  // Fetch shift data
+  const { data: shift, isLoading, error } = useShift(shiftId)
+
+  // Mutations
+  const updateShift = useUpdateShift()
+  const deleteShift = useDeleteShift()
+
+  // Form state
   const [formData, setFormData] = useState({
-    title: 'Bartender',
-    description: 'Looking for an experienced bartender for a busy Friday night shift. Must have cocktail experience and be able to work in a fast-paced environment.',
-    date: '2026-02-07',
-    startTime: '18:00',
-    endTime: '00:00',
-    hourlyRate: '18',
-    location: 'Temple Bar, Dublin 2',
-    spotsTotal: '2',
-    requirements: '2+ years bartending experience\nCocktail knowledge\nRSA certification',
+    title: '',
+    description: '',
+    shift_type: '',
+    date: '',
+    start_time: '',
+    end_time: '',
+    hourly_rate: '',
+    location_name: '',
+    address: '',
+    city: '',
+    spots_total: '1',
+    status: 'open',
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Populate form when shift data loads
+  useEffect(() => {
+    if (shift) {
+      setFormData({
+        title: shift.title || '',
+        description: shift.description || '',
+        shift_type: shift.shift_type || '',
+        date: shift.date || '',
+        start_time: shift.start_time || '',
+        end_time: shift.end_time || '',
+        hourly_rate: String(shift.hourly_rate || ''),
+        location_name: shift.location_name || '',
+        address: shift.address || '',
+        city: shift.city || '',
+        spots_total: String(shift.spots_total || 1),
+        status: shift.status || 'open',
+      })
+    }
+  }, [shift])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSaving(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      await updateShift.mutateAsync({
+        id: shiftId,
+        data: {
+          title: formData.title,
+          description: formData.description,
+          shift_type: formData.shift_type as 'bar' | 'server' | 'kitchen' | 'chef' | 'host' | 'general',
+          date: formData.date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          hourly_rate: parseFloat(formData.hourly_rate),
+          location_name: formData.location_name,
+          address: formData.address,
+          city: formData.city,
+          spots_total: parseInt(formData.spots_total),
+          status: formData.status as 'draft' | 'open' | 'cancelled',
+        },
+      })
 
-    addToast({
-      type: 'success',
-      title: 'Shift updated',
-      description: 'Your changes have been saved successfully.',
-    })
+      addToast({
+        type: 'success',
+        title: 'Shift updated',
+        description: 'Your changes have been saved successfully.',
+      })
 
-    setIsSaving(false)
-    navigate({ to: `/company/shifts/${shiftId}` })
+      navigate({ to: '/company/shifts' })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to update shift',
+        description: 'Please try again or contact support if the problem persists.',
+      })
+    }
   }
+
+  const handleDelete = async () => {
+    try {
+      await deleteShift.mutateAsync(shiftId)
+
+      addToast({
+        type: 'success',
+        title: 'Shift deleted',
+        description: 'The shift has been removed.',
+      })
+
+      navigate({ to: '/company/shifts' })
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to delete shift',
+        description: 'Please try again or contact support if the problem persists.',
+      })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error || !shift) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to="/company/shifts">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Edit Shift</h1>
+          </div>
+        </div>
+        <EmptyState
+          icon={AlertCircle}
+          title="Shift not found"
+          description="This shift may have been removed or you don't have permission to view it."
+        />
+      </div>
+    )
+  }
+
+  const canEdit = shift.status === 'draft' || shift.status === 'open'
+  const canDelete = shift.status === 'draft' || (shift.status === 'open' && shift.spots_filled === 0)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link to={`/company/shifts/${shiftId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Edit Shift</h1>
-          <p className="text-muted-foreground">Shift #{shiftId}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link to="/company/shifts">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Edit Shift</h1>
+            <p className="text-muted-foreground">{shift.title}</p>
+          </div>
         </div>
+        {canDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this shift? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {deleteShift.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -80,17 +244,19 @@ function EditShiftPage() {
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
+                  disabled={!canEdit}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={formData.location}
+                <Label htmlFor="shift_type">Shift Type</Label>
+                <Select
+                  id="shift_type"
+                  name="shift_type"
+                  options={shiftTypes}
+                  value={formData.shift_type}
                   onChange={handleChange}
-                  required
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -103,6 +269,7 @@ function EditShiftPage() {
                 value={formData.description}
                 onChange={handleChange}
                 rows={4}
+                disabled={!canEdit}
                 required
               />
             </div>
@@ -116,82 +283,139 @@ function EditShiftPage() {
                   type="date"
                   value={formData.date}
                   onChange={handleChange}
+                  disabled={!canEdit}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
+                <Label htmlFor="start_time">Start Time</Label>
                 <Input
-                  id="startTime"
-                  name="startTime"
+                  id="start_time"
+                  name="start_time"
                   type="time"
-                  value={formData.startTime}
+                  value={formData.start_time}
                   onChange={handleChange}
+                  disabled={!canEdit}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
+                <Label htmlFor="end_time">End Time</Label>
                 <Input
-                  id="endTime"
-                  name="endTime"
+                  id="end_time"
+                  name="end_time"
                   type="time"
-                  value={formData.endTime}
+                  value={formData.end_time}
                   onChange={handleChange}
+                  disabled={!canEdit}
                   required
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="hourlyRate">Hourly Rate (€)</Label>
+                <Label htmlFor="location_name">Location Name</Label>
                 <Input
-                  id="hourlyRate"
-                  name="hourlyRate"
-                  type="number"
-                  min="0"
-                  step="0.50"
-                  value={formData.hourlyRate}
+                  id="location_name"
+                  name="location_name"
+                  value={formData.location_name}
                   onChange={handleChange}
+                  placeholder="e.g., The Brazen Head"
+                  disabled={!canEdit}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="spotsTotal">Number of Workers Needed</Label>
+                <Label htmlFor="address">Address</Label>
                 <Input
-                  id="spotsTotal"
-                  name="spotsTotal"
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="20 Bridge Street Lower"
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="Dublin"
+                  disabled={!canEdit}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="hourly_rate">Hourly Rate</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    EUR
+                  </span>
+                  <Input
+                    id="hourly_rate"
+                    name="hourly_rate"
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={formData.hourly_rate}
+                    onChange={handleChange}
+                    className="pl-12"
+                    disabled={!canEdit}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="spots_total">Number of Workers</Label>
+                <Input
+                  id="spots_total"
+                  name="spots_total"
                   type="number"
                   min="1"
-                  value={formData.spotsTotal}
+                  value={formData.spots_total}
                   onChange={handleChange}
+                  disabled={!canEdit}
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  id="status"
+                  name="status"
+                  options={statusOptions}
+                  value={formData.status}
+                  onChange={handleChange}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="requirements">Requirements (one per line)</Label>
-              <Textarea
-                id="requirements"
-                name="requirements"
-                value={formData.requirements}
-                onChange={handleChange}
-                rows={3}
-                placeholder="e.g., 2+ years experience&#10;Food safety certification"
-              />
-            </div>
+            {!canEdit && (
+              <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                This shift cannot be edited because it has already been assigned or is in progress.
+              </p>
+            )}
           </CardContent>
         </Card>
 
         <div className="flex justify-end gap-3 mt-6">
-          <Link to={`/company/shifts/${shiftId}`}>
+          <Link to="/company/shifts">
             <Button type="button" variant="outline">Cancel</Button>
           </Link>
-          <Button type="submit" disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
+          <Button type="submit" disabled={updateShift.isPending || !canEdit}>
+            {updateShift.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {updateShift.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </form>

@@ -30,8 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
-import { useShift } from '@/hooks/api/useShiftsApi'
-import { useCreateApplication } from '@/hooks/api/useApplicationsApi'
+import { useShift, useApplyToShift } from '@/hooks/api/useShiftsApi'
 
 export const Route = createFileRoute('/_layout/marketplace/$shiftId')({
   component: ShiftDetailPage,
@@ -48,15 +47,15 @@ function ShiftDetailPage() {
   const { data: shift, isLoading, error } = useShift(shiftId)
 
   // Application mutation
-  const createApplication = useCreateApplication()
+  const applyToShift = useApplyToShift()
 
   const handleApply = async () => {
     if (!shift) return
 
     try {
-      await createApplication.mutateAsync({
-        shift_id: shift.id,
-        cover_message: coverMessage || undefined,
+      await applyToShift.mutateAsync({
+        shiftId: shift.id,
+        coverMessage: coverMessage || undefined,
       })
       setIsApplyDialogOpen(false)
       addToast({
@@ -292,8 +291,8 @@ function ShiftDetailPage() {
             <Button variant="outline" onClick={() => setIsApplyDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleApply} disabled={createApplication.isPending}>
-              {createApplication.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleApply} disabled={applyToShift.isPending}>
+              {applyToShift.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Application
             </Button>
           </DialogFooter>

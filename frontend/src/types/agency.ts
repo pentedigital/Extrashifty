@@ -43,13 +43,19 @@ export interface AgencyStaffMember {
   id: string
   agency_id: string
   staff_id: string
+  staff_user_id?: number
   status: StaffMemberStatus
   joined_at: string
-  staff: StaffPublic
+  staff?: StaffPublic
   shifts_completed: number
   total_hours: number
   is_available: boolean
   notes?: string
+  // Fields from backend response when staff relationship not loaded
+  name?: string
+  email?: string | null
+  skills?: string[]
+  rating?: number
 }
 
 export type ClientStatus = 'active' | 'pending' | 'inactive'
@@ -57,15 +63,18 @@ export type ClientStatus = 'active' | 'pending' | 'inactive'
 export interface AgencyClient {
   id: string
   agency_id: string
-  company_id: string
-  status: ClientStatus
-  contract_start: string
+  company_id?: string
+  business_email: string
+  status?: ClientStatus
+  is_active?: boolean
+  contract_start?: string
   contract_end?: string
   billing_rate_markup?: number
-  company: CompanyPublic
-  shifts_this_month: number
-  total_billed: number
+  company?: CompanyPublic
+  shifts_this_month?: number
+  total_billed?: number
   notes?: string
+  created_at?: string
 }
 
 export type AssignmentStatus = 'assigned' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled'
@@ -127,6 +136,7 @@ export interface AgencyStats {
   total_staff: number
   available_staff: number
   total_clients: number
+  pending_clients: number
   active_shifts: number
   revenue_this_week: number
   pending_invoices: number

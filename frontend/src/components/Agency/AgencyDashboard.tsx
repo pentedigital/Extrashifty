@@ -9,23 +9,29 @@ import {
   AlertCircle,
   Check,
   UserPlus,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatCurrency, formatTime } from '@/lib/utils'
+import { useAgencyStats, useAgencyStaff } from '@/hooks/api/useAgencyApi'
+import { Skeleton } from '@/components/ui/skeleton'
 
-// Mock data - would come from API
-const mockStats = {
-  total_staff: 45,
-  available_staff: 38,
-  total_clients: 12,
-  pending_clients: 3,
-  active_shifts: 28,
-  revenue_this_week: 8500,
+// Default stats for loading state or fallback
+const defaultStats = {
+  total_staff: 0,
+  available_staff: 0,
+  total_clients: 0,
+  pending_clients: 0,
+  active_shifts: 0,
+  revenue_this_week: 0,
+  pending_invoices: 0,
+  pending_payroll: 0,
 }
 
+// Mock data for schedule - TODO: Replace with API data when shifts API is integrated
 const mockTodaySchedule = [
   {
     id: '1',
@@ -54,14 +60,7 @@ const mockTodaySchedule = [
   },
 ]
 
-const mockAvailableStaff = [
-  { id: '1', name: 'John', avatar: null, available: true },
-  { id: '2', name: 'Maria', avatar: null, available: true },
-  { id: '3', name: 'Tom', avatar: null, available: true },
-  { id: '4', name: 'Sarah', avatar: null, available: false },
-  { id: '5', name: 'Ali', avatar: null, available: true },
-]
-
+// Mock data for unfilled shifts - TODO: Replace with API data when shifts API is integrated
 const mockUnfilledShifts = [
   {
     id: '1',
@@ -79,13 +78,32 @@ const mockUnfilledShifts = [
   },
 ]
 
-const mockPendingActions = [
-  { type: 'staff_applications', count: 3, label: 'new staff applications' },
-  { type: 'invoices', count: 2, label: 'client invoices due' },
-  { type: 'timesheets', count: 5, label: 'timesheets to approve' },
-]
-
 export function AgencyDashboard() {
+  // Fetch real stats from API
+  const { data: stats, isLoading: statsLoading, error: statsError } = useAgencyStats()
+  const { data: staffData, isLoading: staffLoading } = useAgencyStaff({ status: 'active', limit: '10' })
+
+  // Use API data or fallback to defaults
+  const displayStats = stats ?? defaultStats
+
+  // Build staff availability from API data
+  const availableStaffList = (staffData?.items ?? []).slice(0, 5).map((member) => ({
+    id: member.id,
+    name: member.staff?.full_name ?? `Staff ${member.staff_id}`,
+    avatar: member.staff?.avatar_url ?? null,
+    available: member.is_available,
+  }))
+
+  // Calculate remaining staff count for "+N more" display
+  const remainingStaff = Math.max(0, (staffData?.total ?? 0) - 5)
+
+  // Dynamic pending actions based on stats
+  const pendingActions = [
+    { type: 'staff_applications', count: displayStats.pending_clients, label: 'pending staff invitations' },
+    { type: 'invoices', count: displayStats.pending_invoices, label: 'client invoices due' },
+    { type: 'timesheets', count: displayStats.pending_payroll, label: 'timesheets to approve' },
+  ].filter(action => action.count > 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,29 +130,45 @@ export function AgencyDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Staff"
-          value={mockStats.total_staff}
-          subtitle={`${mockStats.available_staff} available`}
-          icon={Users}
-        />
-        <StatCard
-          title="Clients"
-          value={mockStats.total_clients}
-          subtitle={`${mockStats.pending_clients} pending`}
-          icon={Building2}
-        />
-        <StatCard
-          title="Active Shifts"
-          value={mockStats.active_shifts}
-          icon={Calendar}
-        />
-        <StatCard
-          title="Revenue"
-          value={formatCurrency(mockStats.revenue_this_week)}
-          subtitle="This week"
-          icon={Euro}
-        />
+        {statsLoading ? (
+          <>
+            <Skeleton className="h-[120px]" />
+            <Skeleton className="h-[120px]" />
+            <Skeleton className="h-[120px]" />
+            <Skeleton className="h-[120px]" />
+          </>
+        ) : statsError ? (
+          <div className="col-span-4 text-center py-8 text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            <p>Failed to load stats. Please try again.</p>
+          </div>
+        ) : (
+          <>
+            <StatCard
+              title="Staff"
+              value={displayStats.total_staff}
+              subtitle={`${displayStats.available_staff} available`}
+              icon={Users}
+            />
+            <StatCard
+              title="Clients"
+              value={displayStats.total_clients}
+              subtitle={displayStats.pending_clients > 0 ? `${displayStats.pending_clients} pending` : undefined}
+              icon={Building2}
+            />
+            <StatCard
+              title="Active Shifts"
+              value={displayStats.active_shifts}
+              icon={Calendar}
+            />
+            <StatCard
+              title="Revenue"
+              value={formatCurrency(displayStats.revenue_this_week)}
+              subtitle="This week"
+              icon={Euro}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -197,34 +231,53 @@ export function AgencyDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {mockAvailableStaff.map((staff) => (
-                <div
-                  key={staff.id}
-                  className="flex flex-col items-center gap-1"
-                  title={staff.available ? 'Available' : 'Busy'}
-                >
-                  <div className="relative">
-                    <Avatar size="md">
-                      {staff.avatar && <AvatarImage src={staff.avatar} />}
-                      <AvatarFallback>{staff.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div
-                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                        staff.available ? 'bg-green-500' : 'bg-gray-400'
-                      }`}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">{staff.name}</span>
-                </div>
-              ))}
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground">
-                  +12
-                </div>
-                <span className="text-xs text-muted-foreground">more</span>
+            {staffLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            </div>
+            ) : availableStaffList.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No staff members yet</p>
+                <Link to="/agency/staff/invite">
+                  <Button variant="outline" size="sm" className="mt-2">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Invite Staff
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableStaffList.map((staff) => (
+                  <div
+                    key={staff.id}
+                    className="flex flex-col items-center gap-1"
+                    title={staff.available ? 'Available' : 'Busy'}
+                  >
+                    <div className="relative">
+                      <Avatar size="md">
+                        {staff.avatar && <AvatarImage src={staff.avatar} />}
+                        <AvatarFallback>{staff.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div
+                        className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
+                          staff.available ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground">{staff.name.split(' ')[0]}</span>
+                  </div>
+                ))}
+                {remainingStaff > 0 && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground">
+                      +{remainingStaff}
+                    </div>
+                    <span className="text-xs text-muted-foreground">more</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -271,34 +324,46 @@ export function AgencyDashboard() {
             <CardTitle>Pending Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockPendingActions.map((action) => (
-                <div
-                  key={action.type}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700 font-semibold text-sm">
-                      {action.count}
-                    </div>
-                    <span className="text-sm">{action.label}</span>
-                  </div>
-                  <Link
-                    to={
-                      action.type === 'staff_applications'
-                        ? '/agency/staff'
-                        : action.type === 'invoices'
-                        ? '/agency/billing/invoices'
-                        : '/agency/billing/payroll'
-                    }
+            {statsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
+              </div>
+            ) : pendingActions.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <Check className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <p className="text-sm">All caught up! No pending actions.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingActions.map((action) => (
+                  <div
+                    key={action.type}
+                    className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <Button size="sm" variant="ghost">
-                      {action.type === 'timesheets' ? 'Approve' : 'Review'}
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700 font-semibold text-sm">
+                        {action.count}
+                      </div>
+                      <span className="text-sm">{action.label}</span>
+                    </div>
+                    <Link
+                      to={
+                        action.type === 'staff_applications'
+                          ? '/agency/staff'
+                          : action.type === 'invoices'
+                          ? '/agency/billing/invoices'
+                          : '/agency/billing/payroll'
+                      }
+                    >
+                      <Button size="sm" variant="ghost">
+                        {action.type === 'timesheets' ? 'Approve' : 'Review'}
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

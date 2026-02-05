@@ -92,7 +92,9 @@ def test_list_shifts(
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 1
+    assert "items" in data
+    assert "total" in data
+    assert len(data["items"]) >= 1
 
 
 def test_get_shift(
@@ -193,5 +195,6 @@ def test_list_shifts_with_filters(
     )
     assert response.status_code == 200
     data = response.json()
-    for shift in data:
+    assert "items" in data
+    for shift in data["items"]:
         assert shift["city"] == "Test City"

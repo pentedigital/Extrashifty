@@ -204,28 +204,45 @@ export const api = {
   },
 
   users: {
-    update: (data: { full_name?: string }) =>
+    update: (data: { full_name?: string; email?: string; avatar_url?: string }) =>
       baseFetch<import('@/types/user').User>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
 
     updatePassword: (data: { current_password: string; new_password: string }) =>
-      baseFetch<void>('/users/me/password', {
-        method: 'PUT',
+      baseFetch<{ message: string }>('/users/me/password', {
+        method: 'PATCH',
         body: JSON.stringify(data),
       }),
 
     delete: () =>
-      baseFetch<void>('/users/me', {
+      baseFetch<{ message: string }>('/users/me', {
         method: 'DELETE',
       }),
+
+    getPublicProfile: (userId: string) =>
+      baseFetch<{
+        id: number
+        full_name: string
+        user_type: import('@/types/user').UserType
+        is_verified: boolean
+        created_at: string
+      }>(`/users/${userId}/public`),
+
+    getStats: () =>
+      baseFetch<import('@/types/staff').StaffStats>('/users/me/stats'),
   },
 
   shifts: {
     list: (params?: Record<string, string>) => {
       const query = params ? `?${new URLSearchParams(params)}` : ''
       return baseFetch<{ items: import('@/types/shift').Shift[]; total: number }>(`/shifts${query}`)
+    },
+
+    getMyShifts: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : ''
+      return baseFetch<import('@/types/shift').Shift[]>(`/shifts/my-shifts${query}`)
     },
 
     get: (id: string) => baseFetch<import('@/types/shift').Shift>(`/shifts/${id}`),
@@ -244,6 +261,12 @@ export const api = {
 
     delete: (id: string) =>
       baseFetch<void>(`/shifts/${id}`, { method: 'DELETE' }),
+
+    apply: (shiftId: string, coverMessage?: string) =>
+      baseFetch<{ id: number; status: string; message: string }>(`/shifts/${shiftId}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({ cover_message: coverMessage }),
+      }),
   },
 
   applications: {
@@ -298,11 +321,12 @@ export const api = {
 
     getShifts: (params?: Record<string, string>) => {
       const query = params ? `?${new URLSearchParams(params)}` : ''
-      return baseFetch<{ items: import('@/types/shift').Shift[]; total: number }>(`/company/shifts${query}`)
+      // Company shifts are automatically filtered by the backend based on user type
+      return baseFetch<{ items: import('@/types/shift').Shift[]; total: number; skip: number; limit: number }>(`/shifts${query}`)
     },
 
     getApplicants: (shiftId: string) =>
-      baseFetch<{ items: import('@/types/application').Application[]; total: number }>(`/company/shifts/${shiftId}/applicants`),
+      baseFetch<import('@/types/application').Application[]>(`/applications?shift_id=${shiftId}`),
 
     getWallet: () => baseFetch<import('@/types/company').CompanyWallet>('/company/wallet'),
 
@@ -347,6 +371,11 @@ export const api = {
       baseFetch<import('@/types/agency').AgencyStaffMember>(`/agency/staff/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
+      }),
+
+    removeStaffMember: (id: string) =>
+      baseFetch<void>(`/agency/staff/${id}`, {
+        method: 'DELETE',
       }),
 
     // Client management
@@ -403,5 +432,8 @@ export const api = {
     },
 
     getWallet: () => baseFetch<import('@/types/agency').AgencyWallet>('/agency/wallet'),
+
+    // Stats
+    getStats: () => baseFetch<import('@/types/agency').AgencyStats>('/agency/stats'),
   },
 }

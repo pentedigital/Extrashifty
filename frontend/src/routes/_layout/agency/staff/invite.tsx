@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
-import { api, ApiClientError } from '@/lib/api'
+import { useInviteStaff } from '@/hooks/api/useAgencyApi'
+import { ApiClientError } from '@/lib/api'
 
 export const Route = createFileRoute('/_layout/agency/staff/invite')({
   component: InviteStaffPage,
@@ -26,10 +27,11 @@ type InviteFormData = z.infer<typeof inviteSchema>
 function InviteStaffPage() {
   const navigate = useNavigate()
   const { addToast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [emails, setEmails] = useState<string[]>([])
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
+
+  const inviteStaffMutation = useInviteStaff()
 
   const { register, handleSubmit } = useForm<InviteFormData>({
     resolver: zodResolver(inviteSchema),
@@ -74,28 +76,30 @@ function InviteStaffPage() {
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      await api.agency.inviteStaff({
+    inviteStaffMutation.mutate(
+      {
         emails,
         message: data.message,
-      })
-      addToast({
-        type: 'success',
-        title: 'Invitations sent',
-        description: `Successfully sent ${emails.length} invitation${emails.length !== 1 ? 's' : ''}.`,
-      })
-      navigate({ to: '/agency/staff' })
-    } catch (error) {
-      const message = error instanceof ApiClientError ? error.message : 'Failed to send invitations'
-      addToast({
-        type: 'error',
-        title: 'Error',
-        description: message,
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+      },
+      {
+        onSuccess: () => {
+          addToast({
+            type: 'success',
+            title: 'Invitations sent',
+            description: `Successfully sent ${emails.length} invitation${emails.length !== 1 ? 's' : ''}.`,
+          })
+          navigate({ to: '/agency/staff' })
+        },
+        onError: (error) => {
+          const message = error instanceof ApiClientError ? error.message : 'Failed to send invitations'
+          addToast({
+            type: 'error',
+            title: 'Error',
+            description: message,
+          })
+        },
+      }
+    )
   }
 
   return (
@@ -203,9 +207,9 @@ function InviteStaffPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || emails.length === 0}
+                disabled={inviteStaffMutation.isPending || emails.length === 0}
               >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {inviteStaffMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send {emails.length > 0 ? `${emails.length} ` : ''}Invitation
                 {emails.length !== 1 && 's'}
               </Button>

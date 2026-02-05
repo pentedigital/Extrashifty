@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Building2, Plus, Search, FileText, Calendar } from 'lucide-react'
+import { Building2, Plus, Search, FileText, Calendar, AlertCircle, Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,75 +8,60 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Star } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { useAgencyClients } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/clients/')({
   component: ClientsPage,
 })
 
-// Mock data
-const mockClients = {
-  active: [
-    {
-      id: '1',
-      business_name: 'Hotel ABC',
-      business_type: 'hotel',
-      logo: null,
-      rating: 4.8,
-      shifts_this_month: 12,
-      total_billed: 4200,
-      next_shift: 'Tomorrow 6AM',
-      has_unfilled: false,
-      status: 'active',
-    },
-    {
-      id: '2',
-      business_name: 'Café Central',
-      business_type: 'cafe',
-      logo: null,
-      rating: 4.6,
-      shifts_this_month: 8,
-      total_billed: 1800,
-      next_shift: 'Tomorrow 9AM',
-      has_unfilled: true,
-      status: 'active',
-    },
-    {
-      id: '3',
-      business_name: 'The Local Pub',
-      business_type: 'bar',
-      logo: null,
-      rating: 4.7,
-      shifts_this_month: 15,
-      total_billed: 3500,
-      next_shift: 'Saturday 6PM',
-      has_unfilled: false,
-      status: 'active',
-    },
-  ],
-  pending: [
-    {
-      id: '4',
-      business_name: 'Restaurant XYZ',
-      business_type: 'restaurant',
-      logo: null,
-      rating: 0,
-      shifts_this_month: 0,
-      total_billed: 0,
-      next_shift: null,
-      has_unfilled: false,
-      status: 'pending',
-    },
-  ],
-  inactive: [],
+interface ClientDisplay {
+  id: string
+  business_name: string
+  business_type: string
+  logo: string | null
+  rating: number
+  shifts_this_month: number
+  total_billed: number
+  next_shift: string | null
+  has_unfilled: boolean
+  status: string
 }
 
 function ClientsPage() {
   const [activeTab, setActiveTab] = useState('active')
   const [searchQuery, setSearchQuery] = useState('')
   const { addToast } = useToast()
+
+  // Fetch clients from API - for now we fetch all and filter client-side
+  // In production, you'd pass the status filter to the backend
+  const { data: clientsData, isLoading, error } = useAgencyClients()
+
+  // Transform API data to display format
+  const transformClientData = (items: NonNullable<typeof clientsData>['items'] | undefined): ClientDisplay[] => {
+    if (!items) return []
+    return items.map((client) => ({
+      id: client.id,
+      business_name: client.company?.business_name ?? client.business_email,
+      business_type: client.company?.business_type ?? 'business',
+      logo: client.company?.logo_url ?? null,
+      rating: client.company?.average_rating ?? 0,
+      shifts_this_month: client.shifts_this_month ?? 0,
+      total_billed: client.total_billed ?? 0,
+      next_shift: null, // Would come from shifts API
+      has_unfilled: false, // Would come from shifts API
+      status: client.status ?? (client.is_active ? 'active' : 'inactive'),
+    }))
+  }
+
+  // Filter clients by status
+  const allClients = useMemo(() => transformClientData(clientsData?.items), [clientsData])
+  const activeClients = useMemo(() => allClients.filter(c => c.status === 'active'), [allClients])
+  const pendingClients = useMemo(() => allClients.filter(c => c.status === 'pending'), [allClients])
+  const inactiveClients = useMemo(() => allClients.filter(c => c.status === 'inactive'), [allClients])
 
   const handleReviewClient = (businessName: string) => {
     addToast({
@@ -93,7 +78,7 @@ function ClientsPage() {
     return <Badge variant="success">Active</Badge>
   }
 
-  const filteredClients = (clients: typeof mockClients.active) => {
+  const filteredClients = (clients: ClientDisplay[]) => {
     if (!searchQuery) return clients
     const query = searchQuery.toLowerCase()
     return clients.filter((c) =>
@@ -102,7 +87,29 @@ function ClientsPage() {
     )
   }
 
-  const renderClientList = (clients: typeof mockClients.active) => {
+  const renderClientList = (clients: ClientDisplay[], isLoadingTab: boolean, errorTab?: Error | null) => {
+    if (isLoadingTab) {
+      return (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[120px]" />
+          ))}
+        </div>
+      )
+    }
+
+    if (errorTab) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+          <p>Failed to load clients. Please try again.</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      )
+    }
+
     const filtered = filteredClients(clients)
 
     if (filtered.length === 0) {
@@ -164,13 +171,13 @@ function ClientsPage() {
                         <span className="text-muted-foreground">
                           {client.shifts_this_month} shifts this month
                         </span>
-                        <span className="text-muted-foreground">•</span>
+                        <span className="text-muted-foreground">-</span>
                         <span className="font-medium text-brand-600">
                           {formatCurrency(client.total_billed)} billed
                         </span>
                         {client.rating > 0 && (
                           <>
-                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">-</span>
                             <span className="flex items-center gap-1">
                               <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                               {client.rating}
@@ -255,24 +262,24 @@ function ClientsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="active">
-            Active ({mockClients.active.length})
+            Active {isLoading ? '' : `(${activeClients.length})`}
           </TabsTrigger>
           <TabsTrigger value="pending">
-            Pending ({mockClients.pending.length})
+            Pending {isLoading ? '' : `(${pendingClients.length})`}
           </TabsTrigger>
           <TabsTrigger value="inactive">
-            Inactive ({mockClients.inactive.length})
+            Inactive {isLoading ? '' : `(${inactiveClients.length})`}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-6">
-          {renderClientList(mockClients.active)}
+          {renderClientList(activeClients, isLoading, error)}
         </TabsContent>
         <TabsContent value="pending" className="mt-6">
-          {renderClientList(mockClients.pending)}
+          {renderClientList(pendingClients, isLoading, error)}
         </TabsContent>
         <TabsContent value="inactive" className="mt-6">
-          {renderClientList(mockClients.inactive)}
+          {renderClientList(inactiveClients, isLoading, error)}
         </TabsContent>
       </Tabs>
     </div>

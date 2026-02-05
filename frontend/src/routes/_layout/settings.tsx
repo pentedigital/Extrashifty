@@ -1,5 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -16,121 +19,125 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
-import { Loader2 } from 'lucide-react'
-import { api, ApiClientError } from '@/lib/api'
+import { useUpdateProfile, useChangePassword, useDeleteAccount } from '@/hooks/api'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 export const Route = createFileRoute('/_layout/settings')({
   component: SettingsPage,
 })
 
+// Validation schemas
+const profileSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters').max(255, 'Name is too long'),
+})
+
+const passwordSchema = z.object({
+  current_password: z.string().min(1, 'Current password is required'),
+  new_password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirm_password: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.new_password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ['confirm_password'],
+}).refine((data) => data.current_password !== data.new_password, {
+  message: "New password must be different from current password",
+  path: ['new_password'],
+})
+
+type ProfileFormData = z.infer<typeof profileSchema>
+type PasswordFormData = z.infer<typeof passwordSchema>
+
 function SettingsPage() {
-  const { user, logout, refreshUser } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isSavingName, setIsSavingName] = useState(false)
-  const [isSavingPassword, setIsSavingPassword] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
 
-  const nameInputRef = useRef<HTMLInputElement>(null)
-  const currentPasswordRef = useRef<HTMLInputElement>(null)
-  const newPasswordRef = useRef<HTMLInputElement>(null)
-  const confirmPasswordRef = useRef<HTMLInputElement>(null)
+  // React Query mutations
+  const updateProfileMutation = useUpdateProfile()
+  const changePasswordMutation = useChangePassword()
+  const deleteAccountMutation = useDeleteAccount()
 
-  const handleSaveName = async () => {
-    const newName = nameInputRef.current?.value?.trim()
-    if (!newName) {
-      addToast({
-        type: 'error',
-        title: 'Invalid name',
-        description: 'Please enter a valid name.',
-      })
-      return
-    }
+  // Profile form
+  const {
+    register: registerProfile,
+    handleSubmit: handleProfileSubmit,
+    formState: { errors: profileErrors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      full_name: user?.full_name || '',
+    },
+  })
 
-    setIsSavingName(true)
+  // Password form
+  const {
+    register: registerPassword,
+    handleSubmit: handlePasswordSubmit,
+    formState: { errors: passwordErrors },
+    reset: resetPasswordForm,
+  } = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
+  })
+
+  const onProfileSubmit = async (data: ProfileFormData) => {
     try {
-      await api.users.update({ full_name: newName })
-      if (refreshUser) {
-        await refreshUser()
-      }
+      await updateProfileMutation.mutateAsync(data)
       addToast({
         type: 'success',
-        title: 'Name updated',
-        description: 'Your name has been saved successfully.',
+        title: 'Profile updated',
+        description: 'Your profile has been saved successfully.',
       })
     } catch (error) {
-      const message = error instanceof ApiClientError
-        ? error.message
-        : 'Please try again.'
+      const message = error instanceof Error ? error.message : 'Please try again.'
       addToast({
         type: 'error',
-        title: 'Failed to update name',
+        title: 'Failed to update profile',
         description: message,
       })
-    } finally {
-      setIsSavingName(false)
     }
   }
 
-  const handleUpdatePassword = async () => {
-    const currentPassword = currentPasswordRef.current?.value
-    const newPassword = newPasswordRef.current?.value
-    const confirmPassword = confirmPasswordRef.current?.value
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      addToast({
-        type: 'error',
-        title: 'Missing fields',
-        description: 'Please fill in all password fields.',
-      })
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      addToast({
-        type: 'error',
-        title: 'Passwords do not match',
-        description: 'New password and confirmation must match.',
-      })
-      return
-    }
-
-    if (newPassword.length < 8) {
-      addToast({
-        type: 'error',
-        title: 'Password too short',
-        description: 'Password must be at least 8 characters.',
-      })
-      return
-    }
-
-    setIsSavingPassword(true)
+  const onPasswordSubmit = async (data: PasswordFormData) => {
     try {
-      await api.users.updatePassword({
-        current_password: currentPassword,
-        new_password: newPassword,
+      await changePasswordMutation.mutateAsync({
+        current_password: data.current_password,
+        new_password: data.new_password,
       })
-      // Clear password fields on success
-      if (currentPasswordRef.current) currentPasswordRef.current.value = ''
-      if (newPasswordRef.current) newPasswordRef.current.value = ''
-      if (confirmPasswordRef.current) confirmPasswordRef.current.value = ''
+      resetPasswordForm()
       addToast({
         type: 'success',
         title: 'Password updated',
         description: 'Your password has been changed successfully.',
       })
     } catch (error) {
-      const message = error instanceof ApiClientError
-        ? error.message
-        : 'Please check your current password and try again.'
+      const message = error instanceof Error ? error.message : 'Please check your current password and try again.'
       addToast({
         type: 'error',
         title: 'Failed to update password',
         description: message,
       })
-    } finally {
-      setIsSavingPassword(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccountMutation.mutateAsync()
+      addToast({
+        type: 'success',
+        title: 'Account deleted',
+        description: 'Your account has been permanently deleted.',
+      })
+      logout()
+      navigate({ to: '/' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete account. Please try again.'
+      addToast({
+        type: 'error',
+        title: 'Failed to delete account',
+        description: message,
+      })
     }
   }
 
@@ -147,34 +154,38 @@ function SettingsPage() {
           <CardTitle>Account</CardTitle>
           <CardDescription>Update your account information</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={user?.email || ''}
-              disabled
-            />
-            <p className="text-xs text-muted-foreground">
-              Contact support to change your email address
-            </p>
-          </div>
+        <CardContent>
+          <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={user?.email || ''}
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">
+                Contact support to change your email address
+              </p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              defaultValue={user?.full_name || ''}
-              ref={nameInputRef}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                type="text"
+                {...registerProfile('full_name')}
+              />
+              {profileErrors.full_name && (
+                <p className="text-sm text-destructive">{profileErrors.full_name.message}</p>
+              )}
+            </div>
 
-          <Button onClick={handleSaveName} disabled={isSavingName}>
-            {isSavingName && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
+            <Button type="submit" disabled={updateProfileMutation.isPending}>
+              {updateProfileMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
@@ -184,26 +195,70 @@ function SettingsPage() {
           <CardTitle>Password</CardTitle>
           <CardDescription>Change your password</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="current_password">Current Password</Label>
-            <Input id="current_password" type="password" ref={currentPasswordRef} />
-          </div>
+        <CardContent>
+          <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="current_password">Current Password</Label>
+              <div className="relative">
+                <Input
+                  id="current_password"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  {...registerPassword('current_password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {passwordErrors.current_password && (
+                <p className="text-sm text-destructive">{passwordErrors.current_password.message}</p>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="new_password">New Password</Label>
-            <Input id="new_password" type="password" ref={newPasswordRef} />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="new_password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new_password"
+                  type={showNewPassword ? 'text' : 'password'}
+                  {...registerPassword('new_password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 8 characters long
+              </p>
+              {passwordErrors.new_password && (
+                <p className="text-sm text-destructive">{passwordErrors.new_password.message}</p>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirm_password">Confirm New Password</Label>
-            <Input id="confirm_password" type="password" ref={confirmPasswordRef} />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm_password">Confirm New Password</Label>
+              <Input
+                id="confirm_password"
+                type="password"
+                {...registerPassword('confirm_password')}
+              />
+              {passwordErrors.confirm_password && (
+                <p className="text-sm text-destructive">{passwordErrors.confirm_password.message}</p>
+              )}
+            </div>
 
-          <Button onClick={handleUpdatePassword} disabled={isSavingPassword}>
-            {isSavingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Update Password
-          </Button>
+            <Button type="submit" disabled={changePasswordMutation.isPending}>
+              {changePasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Password
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
@@ -253,33 +308,10 @@ function SettingsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={async () => {
-                setIsDeleting(true)
-                try {
-                  await api.users.delete()
-                  addToast({
-                    type: 'success',
-                    title: 'Account deleted',
-                    description: 'Your account has been permanently deleted.',
-                  })
-                  logout()
-                  navigate({ to: '/' })
-                } catch (error) {
-                  const message = error instanceof ApiClientError
-                    ? error.message
-                    : 'Failed to delete account. Please try again.'
-                  addToast({
-                    type: 'error',
-                    title: 'Failed to delete account',
-                    description: message,
-                  })
-                } finally {
-                  setIsDeleting(false)
-                }
-              }}
-              disabled={isDeleting}
+              onClick={handleDeleteAccount}
+              disabled={deleteAccountMutation.isPending}
             >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete Account
             </AlertDialogAction>
           </AlertDialogFooter>

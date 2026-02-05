@@ -1,6 +1,9 @@
 // Auth hooks
 export * from './useAuthApi'
 
+// Users hooks
+export * from './useUsersApi'
+
 // Shifts hooks
 export * from './useShiftsApi'
 

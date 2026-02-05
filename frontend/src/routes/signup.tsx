@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, redirect } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Logo } from '@/components/Logo'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { tokenManager } from '@/lib/api'
 import type { UserType } from '@/types/user'
 
 const signupSchema = z.object({
@@ -47,6 +48,12 @@ const userTypes: { type: UserType; label: string; description: string; icon: Rea
 ]
 
 export const Route = createFileRoute('/signup')({
+  beforeLoad: () => {
+    // Redirect authenticated users to dashboard
+    if (tokenManager.hasTokens()) {
+      throw redirect({ to: '/dashboard' })
+    }
+  },
   component: SignupPage,
 })
 
@@ -209,6 +216,9 @@ function SignupPage() {
                     )}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Password must be at least 8 characters long
+                </p>
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password.message}</p>
                 )}

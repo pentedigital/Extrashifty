@@ -17,10 +17,30 @@ export function useApplications(filters?: Record<string, string>) {
   })
 }
 
+/**
+ * Hook to fetch the current user's applications.
+ * For staff users, the backend automatically filters to only their applications.
+ */
+export function useMyApplications(status?: string) {
+  const filters: Record<string, string> = {}
+  if (status) {
+    filters.status = status
+  }
+  return useQuery({
+    queryKey: applicationKeys.list(filters),
+    queryFn: () => api.applications.list(filters),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  })
+}
+
 export function useShiftApplicants(shiftId: string) {
   return useQuery({
     queryKey: applicationKeys.forShift(shiftId),
-    queryFn: () => api.company.getApplicants(shiftId),
+    queryFn: async () => {
+      const applications = await api.company.getApplicants(shiftId)
+      // Wrap array response in {items, total} format for consistency
+      return { items: applications, total: applications.length }
+    },
     enabled: !!shiftId,
   })
 }
