@@ -71,6 +71,16 @@ class DisputeStatus(str, Enum):
     CLOSED = "closed"
 
 
+class ScheduledReserveStatus(str, Enum):
+    """Status for scheduled reserve operations."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class Transaction(SQLModel, table=True):
     """Transaction model for all wallet transactions."""
 
@@ -186,3 +196,29 @@ class Dispute(SQLModel, table=True):
     against_user: "User" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Dispute.against_user_id]"}
     )
+
+
+class ScheduledReserve(SQLModel, table=True):
+    """Scheduled reserve for multi-day shift subsequent days."""
+
+    __tablename__ = "scheduled_reserves"
+    __table_args__ = (
+        Index("ix_scheduled_reserves_shift_id", "shift_id"),
+        Index("ix_scheduled_reserves_wallet_id", "wallet_id"),
+        Index("ix_scheduled_reserves_status_execute_at", "status", "execute_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    shift_id: int = Field(foreign_key="shifts.id", index=True)
+    wallet_id: int = Field(foreign_key="wallets.id", index=True)
+    shift_date: date  # The specific day this reserve is for
+    amount: Decimal = Field(max_digits=12, decimal_places=2)
+    execute_at: datetime  # When to execute this reserve (48hrs before day starts)
+    status: ScheduledReserveStatus = Field(default=ScheduledReserveStatus.PENDING)
+    executed_at: datetime | None = Field(default=None)
+    failure_reason: str | None = Field(default=None, max_length=500)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relationships
+    shift: "Shift" = Relationship()
+    wallet: "Wallet" = Relationship()

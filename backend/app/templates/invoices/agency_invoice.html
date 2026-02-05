@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice - {{ invoice_number }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 40px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .invoice-info {
+            text-align: right;
+        }
+        .invoice-number {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .date {
+            color: #666;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .details-table th,
+        .details-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .details-table th {
+            background-color: #f9fafb;
+            font-weight: normal;
+            color: #666;
+        }
+        .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f9fafb;
+        }
+        .due-date-box {
+            background-color: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .due-date-title {
+            font-size: 12px;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+        .due-date-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #92400e;
+        }
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-draft {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+        .status-sent {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .status-paid {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .payment-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+        .payment-info-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">ExtraShifty</div>
+        <div class="invoice-info">
+            <div class="invoice-number">Invoice {{ invoice_number }}</div>
+            <div class="date">{{ issued_at.strftime('%B %d, %Y') }}</div>
+            <span class="status-badge status-{{ status }}">{{ status | upper }}</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Billed To</div>
+        <div>{{ user.full_name }}</div>
+        <div>{{ user.email }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Invoice Details</div>
+        <table class="details-table">
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+            <tr>
+                <td>{{ description or 'Agency Services' }}</td>
+                <td>{{ currency }} {{ amount }}</td>
+            </tr>
+            {% if tax_amount and tax_amount > 0 %}
+            <tr>
+                <td>Tax</td>
+                <td>{{ currency }} {{ tax_amount }}</td>
+            </tr>
+            {% endif %}
+            <tr class="total-row">
+                <td>Total Due</td>
+                <td class="amount">{{ currency }} {{ total_amount }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if due_date and status != 'paid' %}
+    <div class="due-date-box">
+        <div class="due-date-title">PAYMENT DUE BY</div>
+        <div class="due-date-value">{{ due_date.strftime('%B %d, %Y') }}</div>
+    </div>
+    {% endif %}
+
+    <div class="payment-info">
+        <div class="payment-info-title">Payment Information</div>
+        <p>Please ensure payment is made by the due date to avoid any service interruptions.</p>
+        <p>Payment can be made via bank transfer or card through your ExtraShifty dashboard.</p>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for your business!</p>
+        <p>ExtraShifty - Connecting businesses with skilled temporary staff</p>
+        <p>support@extrashifty.com</p>
+    </div>
+</body>
+</html>

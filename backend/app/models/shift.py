@@ -46,6 +46,17 @@ class Shift(SQLModel, table=True):
     requirements: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Agency Mode B (Full Intermediary) fields
+    # If agency posted for a client, this is the agency's user ID
+    posted_by_agency_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    # The actual client company (for Mode B shifts)
+    client_company_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    # True for Mode B shifts where agency manages the full workflow
+    is_agency_managed: bool = Field(default=False, index=True)
+
     # Relationships
-    company: Optional["User"] = Relationship(back_populates="shifts")
+    company: Optional["User"] = Relationship(
+        back_populates="shifts",
+        sa_relationship_kwargs={"foreign_keys": "[Shift.company_id]"}
+    )
     applications: list["Application"] = Relationship(back_populates="shift")

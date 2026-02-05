@@ -20,7 +20,7 @@ from app.models.payment import (
     TransactionType,
 )
 from app.models.shift import Shift, ShiftStatus
-from app.models.wallet import PaymentMethod, Wallet
+from app.models.wallet import PaymentMethod, Wallet, WalletStatus
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -66,6 +66,10 @@ class PaymentService:
     FULL_REFUND_HOURS = 48  # Full refund if cancelled >= 48 hours before shift
     PARTIAL_REFUND_HOURS = 24  # 50% refund if cancelled >= 24 hours before shift
     WORKER_COMPENSATION_HOURS = 24  # Worker gets 2 hours pay if <24hr company cancellation
+
+    # Grace period settings
+    GRACE_PERIOD_HOURS = 48  # Hours until wallet is suspended after failed top-up
+    SUSPENSION_WARNING_HOURS = 24  # Hours before suspension to send warning email
 
     def __init__(self, db: Session):
         self.db = db
@@ -186,6 +190,22 @@ class PaymentService:
         self.db.commit()
         self.db.refresh(transaction)
 
+        # Create company receipt for the top-up
+        try:
+            from app.services.invoice_service import InvoiceService
+
+            invoice_service = InvoiceService(self.db)
+            invoice_service.create_company_receipt(
+                user_id=user_id,
+                transaction_id=transaction.id,
+                amount=amount,
+                payment_method=payment_method.type.value,
+            )
+            logger.info(f"Created company receipt for transaction {transaction.id}")
+        except Exception as e:
+            # Don't fail the top-up if invoice creation fails
+            logger.error(f"Failed to create company receipt for transaction {transaction.id}: {e}")
+
         logger.info(f"Topped up wallet {wallet.id} with {amount} ({idempotency_key})")
         return transaction
 
@@ -242,7 +262,7 @@ class PaymentService:
     async def reserve_shift_funds(
         self,
         shift_id: int,
-        company_wallet_id: int,
+        company_wallet_id: int | None = None,
         idempotency_key: str | None = None,
     ) -> FundsHold:
         """
@@ -250,16 +270,46 @@ class PaymentService:
 
         For multi-day shifts, only reserve the first day's cost.
         Returns HTTP 402 equivalent if insufficient funds.
+
+        For agency-managed shifts (Mode B):
+        - Funds are reserved from the AGENCY's wallet, not the client's
         """
         # Get shift details
         shift = self.db.get(Shift, shift_id)
         if not shift:
             raise PaymentError("Shift not found", "shift_not_found")
 
-        # Get company wallet
-        wallet = self.db.get(Wallet, company_wallet_id)
+        # Determine which wallet to use based on agency mode
+        # Mode B: Reserve from agency wallet
+        if shift.is_agency_managed and shift.posted_by_agency_id:
+            wallet = self.db.exec(
+                select(Wallet).where(Wallet.user_id == shift.posted_by_agency_id)
+            ).first()
+            if not wallet:
+                # Create wallet for agency if doesn't exist
+                wallet = Wallet(user_id=shift.posted_by_agency_id)
+                self.db.add(wallet)
+                self.db.commit()
+                self.db.refresh(wallet)
+            logger.info(f"Mode B shift {shift_id}: reserving from agency wallet {wallet.id}")
+        elif company_wallet_id:
+            # Mode A or direct: Use provided wallet ID
+            wallet = self.db.get(Wallet, company_wallet_id)
+        else:
+            # Fallback: Use company's wallet
+            wallet = self.db.exec(
+                select(Wallet).where(Wallet.user_id == shift.company_id)
+            ).first()
+
         if not wallet:
             raise PaymentError("Wallet not found", "wallet_not_found")
+
+        # Check wallet status - suspended wallets cannot accept shifts
+        if wallet.status == WalletStatus.SUSPENDED:
+            raise PaymentError(
+                "Wallet is suspended. Please resolve payment issues to accept shifts.",
+                "wallet_suspended",
+            )
 
         # Calculate shift cost
         shift_cost = self._calculate_shift_cost(shift)
@@ -337,6 +387,10 @@ class PaymentService:
 
         Triggered by clock-out + manager approval OR 24hr auto-approve.
         Splits payment: 15% platform fee, 85% to worker/agency.
+
+        For agency-managed shifts (Mode B):
+        - 15% to platform, 85% to agency
+        - Agency handles staff payment off-platform
         """
         shift = self.db.get(Shift, shift_id)
         if not shift:
@@ -358,34 +412,53 @@ class PaymentService:
         gross_amount = self._quantize_amount(actual_hours * shift.hourly_rate)
 
         # Calculate settlement split
-        platform_fee, worker_amount = await self.calculate_settlement_split(gross_amount)
+        platform_fee, recipient_amount = await self.calculate_settlement_split(gross_amount)
 
-        # Get company wallet
-        company_wallet = self.db.get(Wallet, hold.wallet_id)
-        if not company_wallet:
-            raise PaymentError("Company wallet not found", "wallet_not_found")
+        # Get the wallet that holds the funds (company or agency for Mode B)
+        payer_wallet = self.db.get(Wallet, hold.wallet_id)
+        if not payer_wallet:
+            raise PaymentError("Payer wallet not found", "wallet_not_found")
 
-        # Get worker wallet (from accepted application)
-        from app.models.application import Application, ApplicationStatus
+        # Determine recipient based on agency mode
+        # Mode B: Pay to agency wallet (agency pays staff off-platform)
+        if shift.is_agency_managed and shift.posted_by_agency_id:
+            # In Mode B, agency receives the 85% - they pay staff off-platform
+            recipient_wallet = self.db.exec(
+                select(Wallet).where(Wallet.user_id == shift.posted_by_agency_id)
+            ).first()
 
-        accepted_app = self.db.exec(
-            select(Application).where(
-                Application.shift_id == shift_id,
-                Application.status == ApplicationStatus.ACCEPTED,
-            )
-        ).first()
+            if not recipient_wallet:
+                recipient_wallet = Wallet(user_id=shift.posted_by_agency_id)
+                self.db.add(recipient_wallet)
 
-        if not accepted_app:
-            raise PaymentError("No accepted worker for this shift", "no_worker_found")
+            settlement_description = f"Agency payment for shift {shift_id} ({actual_hours} hours) - Mode B"
+            is_agency_managed = True
+            logger.info(f"Mode B settlement: paying agency {shift.posted_by_agency_id}")
+        else:
+            # Mode A or direct: Pay to worker wallet
+            from app.models.application import Application, ApplicationStatus
 
-        worker_wallet = self.db.exec(
-            select(Wallet).where(Wallet.user_id == accepted_app.applicant_id)
-        ).first()
+            accepted_app = self.db.exec(
+                select(Application).where(
+                    Application.shift_id == shift_id,
+                    Application.status == ApplicationStatus.ACCEPTED,
+                )
+            ).first()
 
-        if not worker_wallet:
-            # Create wallet for worker
-            worker_wallet = Wallet(user_id=accepted_app.applicant_id)
-            self.db.add(worker_wallet)
+            if not accepted_app:
+                raise PaymentError("No accepted worker for this shift", "no_worker_found")
+
+            recipient_wallet = self.db.exec(
+                select(Wallet).where(Wallet.user_id == accepted_app.applicant_id)
+            ).first()
+
+            if not recipient_wallet:
+                # Create wallet for worker
+                recipient_wallet = Wallet(user_id=accepted_app.applicant_id)
+                self.db.add(recipient_wallet)
+
+            settlement_description = f"Payment for shift {shift_id} ({actual_hours} hours)"
+            is_agency_managed = False
 
         transactions = []
         idempotency_base = self._generate_idempotency_key("settle")
@@ -395,16 +468,16 @@ class PaymentService:
         hold.released_at = datetime.utcnow()
         self.db.add(hold)
 
-        # Update company reserved balance
-        company_wallet.reserved_balance -= hold.amount
-        company_wallet.updated_at = datetime.utcnow()
+        # Update payer reserved balance
+        payer_wallet.reserved_balance -= hold.amount
+        payer_wallet.updated_at = datetime.utcnow()
 
         # 2. If actual is less than reserved, refund the difference
         refund_amount = hold.amount - gross_amount
         if refund_amount > 0:
-            company_wallet.balance += refund_amount  # Add back unused portion
+            payer_wallet.balance += refund_amount  # Add back unused portion
             refund_tx = Transaction(
-                wallet_id=company_wallet.id,
+                wallet_id=payer_wallet.id,
                 transaction_type=TransactionType.REFUND,
                 amount=refund_amount,
                 fee=Decimal("0.00"),
@@ -418,21 +491,21 @@ class PaymentService:
             self.db.add(refund_tx)
             transactions.append(refund_tx)
 
-        # 3. Pay the worker
-        worker_wallet.balance += worker_amount
-        worker_wallet.updated_at = datetime.utcnow()
-        self.db.add(worker_wallet)
+        # 3. Pay the recipient (worker or agency)
+        recipient_wallet.balance += recipient_amount
+        recipient_wallet.updated_at = datetime.utcnow()
+        self.db.add(recipient_wallet)
 
-        worker_tx = Transaction(
-            wallet_id=worker_wallet.id,
+        recipient_tx = Transaction(
+            wallet_id=recipient_wallet.id,
             transaction_type=TransactionType.SETTLEMENT,
             amount=gross_amount,
             fee=platform_fee,
-            net_amount=worker_amount,
+            net_amount=recipient_amount,
             status=TransactionStatus.COMPLETED,
-            idempotency_key=f"{idempotency_base}_worker",
+            idempotency_key=f"{idempotency_base}_recipient",
             related_shift_id=shift_id,
-            description=f"Payment for shift {shift_id} ({actual_hours} hours)",
+            description=settlement_description,
             completed_at=datetime.utcnow(),
             metadata={
                 "gross_amount": str(gross_amount),
@@ -440,14 +513,16 @@ class PaymentService:
                 "hourly_rate": str(shift.hourly_rate),
                 "hours_worked": str(actual_hours),
                 "approved_by": approved_by,
+                "is_agency_managed": is_agency_managed,
+                "agency_id": shift.posted_by_agency_id if is_agency_managed else None,
             },
         )
-        self.db.add(worker_tx)
-        transactions.append(worker_tx)
+        self.db.add(recipient_tx)
+        transactions.append(recipient_tx)
 
         # 4. Record platform commission
         commission_tx = Transaction(
-            wallet_id=company_wallet.id,  # Logged against company for tracking
+            wallet_id=payer_wallet.id,  # Logged against payer for tracking
             transaction_type=TransactionType.COMMISSION,
             amount=platform_fee,
             fee=Decimal("0.00"),
@@ -461,18 +536,19 @@ class PaymentService:
         self.db.add(commission_tx)
         transactions.append(commission_tx)
 
-        # Update company balance (deduct actual amount from balance, not reserved)
-        company_wallet.balance -= gross_amount
-        self.db.add(company_wallet)
+        # Update payer balance (deduct actual amount from balance, not reserved)
+        payer_wallet.balance -= gross_amount
+        self.db.add(payer_wallet)
 
         self.db.commit()
 
         for tx in transactions:
             self.db.refresh(tx)
 
+        mode_str = "Mode B (agency)" if is_agency_managed else "Mode A/direct"
         logger.info(
-            f"Settled shift {shift_id}: gross={gross_amount}, "
-            f"platform={platform_fee}, worker={worker_amount}"
+            f"Settled shift {shift_id} ({mode_str}): gross={gross_amount}, "
+            f"platform={platform_fee}, recipient={recipient_amount}"
         )
         return transactions
 
@@ -734,6 +810,59 @@ class PaymentService:
         self.db.commit()
         self.db.refresh(payout)
 
+        # Record earnings for tax tracking (1099-NEC compliance)
+        try:
+            from app.services.tax_service import TaxService
+
+            tax_service = TaxService(self.db)
+            await tax_service.record_earnings(
+                user_id=wallet.user_id,
+                amount=net_amount,
+                tax_year=datetime.utcnow().year,
+            )
+            logger.info(f"Recorded earnings for tax tracking: user {wallet.user_id}, amount {net_amount}")
+        except Exception as e:
+            # Don't fail the payout if tax tracking fails
+            logger.error(f"Failed to record earnings for tax tracking: {e}")
+
+        # Create staff pay stub for the payout
+        try:
+            from app.services.invoice_service import InvoiceService
+
+            invoice_service = InvoiceService(self.db)
+
+            # Get the shifts associated with this payout period
+            # For instant payout, use current date as period
+            from app.models.application import Application, ApplicationStatus
+
+            # Find completed shifts for this user
+            completed_shifts = list(
+                self.db.exec(
+                    select(Shift)
+                    .join(Application, Application.shift_id == Shift.id)
+                    .where(
+                        Application.applicant_id == wallet.user_id,
+                        Application.status == ApplicationStatus.ACCEPTED,
+                        Shift.status == ShiftStatus.COMPLETED,
+                    )
+                    .order_by(Shift.date.desc())
+                ).all()
+            )
+
+            invoice_service.create_staff_pay_stub(
+                user_id=wallet.user_id,
+                payout_id=payout.id,
+                period_start=date.today(),
+                period_end=date.today(),
+                shifts=completed_shifts[:10] if completed_shifts else [],  # Limit to recent shifts
+                gross_amount=amount,
+                net_amount=net_amount,
+            )
+            logger.info(f"Created staff pay stub for payout {payout.id}")
+        except Exception as e:
+            # Don't fail the payout if invoice creation fails
+            logger.error(f"Failed to create staff pay stub for payout {payout.id}: {e}")
+
         logger.info(f"Processed instant payout {payout.id}: amount={amount}, fee={fee}")
         return payout
 
@@ -799,6 +928,70 @@ class PaymentService:
 
         for payout in payouts:
             self.db.refresh(payout)
+
+        # Record earnings for tax tracking and create pay stubs for each payout
+        try:
+            from app.services.invoice_service import InvoiceService
+            from app.services.tax_service import TaxService
+            from app.models.application import Application, ApplicationStatus
+
+            invoice_service = InvoiceService(self.db)
+            tax_service = TaxService(self.db)
+
+            # Calculate the weekly period (last 7 days)
+            period_end = date.today()
+            period_start = period_end - timedelta(days=7)
+
+            for payout in payouts:
+                try:
+                    wallet = self.db.get(Wallet, payout.wallet_id)
+                    if not wallet:
+                        continue
+
+                    # Record earnings for tax tracking (1099-NEC compliance)
+                    try:
+                        await tax_service.record_earnings(
+                            user_id=wallet.user_id,
+                            amount=payout.net_amount,
+                            tax_year=datetime.utcnow().year,
+                        )
+                        logger.info(f"Recorded earnings for tax tracking: user {wallet.user_id}, amount {payout.net_amount}")
+                    except Exception as e:
+                        logger.error(f"Failed to record earnings for tax tracking: {e}")
+
+                    # Get completed shifts for this user during the period
+                    completed_shifts = list(
+                        self.db.exec(
+                            select(Shift)
+                            .join(Application, Application.shift_id == Shift.id)
+                            .where(
+                                Application.applicant_id == wallet.user_id,
+                                Application.status == ApplicationStatus.ACCEPTED,
+                                Shift.status == ShiftStatus.COMPLETED,
+                                Shift.date >= period_start,
+                                Shift.date <= period_end,
+                            )
+                            .order_by(Shift.date.desc())
+                        ).all()
+                    )
+
+                    invoice_service.create_staff_pay_stub(
+                        user_id=wallet.user_id,
+                        payout_id=payout.id,
+                        period_start=period_start,
+                        period_end=period_end,
+                        shifts=completed_shifts,
+                        gross_amount=payout.amount,
+                        net_amount=payout.net_amount,
+                    )
+                    logger.info(f"Created staff pay stub for weekly payout {payout.id}")
+                except Exception as e:
+                    logger.error(f"Failed to create pay stub for payout {payout.id}: {e}")
+                    continue
+
+        except Exception as e:
+            # Don't fail the payouts if invoice creation fails
+            logger.error(f"Failed to create pay stubs for weekly payouts: {e}")
 
         logger.info(f"Processed {len(payouts)} weekly payouts")
         return payouts
@@ -915,8 +1108,195 @@ class PaymentService:
                         logger.info(f"Auto-topped up wallet {wallet.id}")
                     except Exception as e:
                         logger.error(f"Auto-topup failed for wallet {wallet.id}: {e}")
+                        # Handle the failed auto-topup
+                        await self.handle_failed_topup(
+                            wallet_id=wallet.id,
+                            amount=wallet.auto_topup_amount,
+                            reason=str(e),
+                        )
 
         return transactions
+
+    async def handle_failed_topup(
+        self,
+        wallet_id: int,
+        amount: Decimal,
+        reason: str,
+    ) -> None:
+        """
+        Handle a failed top-up by placing wallet in grace period.
+
+        1. Update wallet status to GRACE_PERIOD
+        2. Set grace_period_ends_at = now + 48hrs
+        3. Send failed top-up email alert
+        4. Create notification
+        """
+        from app.services.email_service import EmailService
+
+        wallet = self.db.get(Wallet, wallet_id)
+        if not wallet:
+            logger.error(f"Cannot handle failed topup: wallet {wallet_id} not found")
+            return
+
+        # Only process if wallet is currently active
+        if wallet.status == WalletStatus.SUSPENDED:
+            logger.info(f"Wallet {wallet_id} already suspended, skipping grace period")
+            return
+
+        now = datetime.utcnow()
+        grace_period_ends = now + timedelta(hours=self.GRACE_PERIOD_HOURS)
+
+        # Update wallet status
+        wallet.status = WalletStatus.GRACE_PERIOD
+        wallet.last_failed_topup_at = now
+        wallet.grace_period_ends_at = grace_period_ends
+        wallet.suspension_reason = f"Failed top-up: {reason}"
+        wallet.updated_at = now
+        self.db.add(wallet)
+        self.db.commit()
+
+        logger.warning(
+            f"Wallet {wallet_id} placed in grace period until {grace_period_ends}. "
+            f"Reason: {reason}"
+        )
+
+        # Send email notification
+        email_service = EmailService(self.db)
+        await email_service.send_failed_topup_alert(
+            user_id=wallet.user_id,
+            amount=amount,
+            failure_reason=reason,
+            grace_period_ends=grace_period_ends,
+        )
+
+    async def check_and_suspend_wallets(self) -> list[int]:
+        """
+        Find wallets where grace period has ended and suspend them.
+
+        Returns list of suspended wallet IDs.
+        """
+        from app.services.email_service import EmailService
+
+        now = datetime.utcnow()
+        suspended_wallet_ids = []
+
+        # Find wallets where grace period has ended
+        wallets_to_suspend = self.db.exec(
+            select(Wallet).where(
+                Wallet.status == WalletStatus.GRACE_PERIOD,
+                Wallet.grace_period_ends_at <= now,
+            )
+        ).all()
+
+        email_service = EmailService(self.db)
+
+        for wallet in wallets_to_suspend:
+            wallet.status = WalletStatus.SUSPENDED
+            wallet.updated_at = now
+            self.db.add(wallet)
+
+            logger.warning(f"Wallet {wallet.id} suspended due to expired grace period")
+
+            # Send suspension email
+            await email_service.send_account_suspended(
+                user_id=wallet.user_id,
+                reason=wallet.suspension_reason or "Failed to resolve payment issues within grace period",
+            )
+
+            suspended_wallet_ids.append(wallet.id)
+
+        if suspended_wallet_ids:
+            self.db.commit()
+
+        return suspended_wallet_ids
+
+    async def send_suspension_warnings(self) -> list[int]:
+        """
+        Send warning emails to wallets approaching suspension deadline.
+
+        Returns list of wallet IDs that were warned.
+        """
+        from app.services.email_service import EmailService
+
+        now = datetime.utcnow()
+        warning_threshold = now + timedelta(hours=self.SUSPENSION_WARNING_HOURS)
+        warned_wallet_ids = []
+
+        # Find wallets in grace period that will be suspended within warning window
+        # but haven't been warned yet (grace_period_ends_at is within 24-48 hours)
+        wallets_to_warn = self.db.exec(
+            select(Wallet).where(
+                Wallet.status == WalletStatus.GRACE_PERIOD,
+                Wallet.grace_period_ends_at <= warning_threshold,
+                Wallet.grace_period_ends_at > now,
+            )
+        ).all()
+
+        email_service = EmailService(self.db)
+
+        for wallet in wallets_to_warn:
+            # Calculate hours remaining
+            time_remaining = wallet.grace_period_ends_at - now
+            hours_remaining = int(time_remaining.total_seconds() / 3600)
+
+            if hours_remaining <= self.SUSPENSION_WARNING_HOURS:
+                await email_service.send_suspension_warning(
+                    user_id=wallet.user_id,
+                    hours_remaining=max(1, hours_remaining),  # At least 1 hour
+                )
+                warned_wallet_ids.append(wallet.id)
+                logger.info(
+                    f"Sent suspension warning to wallet {wallet.id}: "
+                    f"{hours_remaining} hours remaining"
+                )
+
+        return warned_wallet_ids
+
+    async def reactivate_wallet(
+        self,
+        wallet_id: int,
+        minimum_balance: Decimal | None = None,
+    ) -> Wallet:
+        """
+        Reactivate a suspended or grace-period wallet.
+
+        Verifies sufficient balance before reactivation.
+        """
+        from app.services.email_service import EmailService
+
+        wallet = self.db.get(Wallet, wallet_id)
+        if not wallet:
+            raise PaymentError("Wallet not found", "wallet_not_found")
+
+        if wallet.status == WalletStatus.ACTIVE:
+            logger.info(f"Wallet {wallet_id} is already active")
+            return wallet
+
+        # Verify minimum balance if specified
+        if minimum_balance is not None and wallet.available_balance < minimum_balance:
+            raise InsufficientFundsError(
+                required=minimum_balance,
+                available=wallet.available_balance,
+                message=f"Insufficient funds to reactivate. Need {minimum_balance}, have {wallet.available_balance}",
+            )
+
+        # Reset wallet status
+        wallet.status = WalletStatus.ACTIVE
+        wallet.last_failed_topup_at = None
+        wallet.grace_period_ends_at = None
+        wallet.suspension_reason = None
+        wallet.updated_at = datetime.utcnow()
+        self.db.add(wallet)
+        self.db.commit()
+        self.db.refresh(wallet)
+
+        logger.info(f"Wallet {wallet_id} reactivated")
+
+        # Send reactivation email
+        email_service = EmailService(self.db)
+        await email_service.send_account_reactivated(user_id=wallet.user_id)
+
+        return wallet
 
     async def auto_approve_shifts(self) -> list[int]:
         """
@@ -966,3 +1346,250 @@ class PaymentService:
                     logger.error(f"Failed to auto-approve shift {shift.id}: {e}")
 
         return approved_shift_ids
+
+    # ==================== Multi-Day Shift Scheduling ====================
+
+    def schedule_subsequent_reserves(
+        self,
+        shift_id: int,
+        shift_days: list[date],
+    ) -> list[dict]:
+        """
+        Schedule reserve operations for subsequent days of a multi-day shift.
+
+        This creates ScheduledReserve records for each day after the first.
+        Each reserve is scheduled to execute 48 hours before the day starts.
+
+        Args:
+            shift_id: The ID of the multi-day shift
+            shift_days: List of dates for the shift (first day is already reserved)
+
+        Returns:
+            List of created scheduled reserve records
+        """
+        from app.models.payment import ScheduledReserve, ScheduledReserveStatus
+
+        if len(shift_days) <= 1:
+            logger.debug(f"Shift {shift_id} is single-day, no subsequent reserves needed")
+            return []
+
+        shift = self.db.get(Shift, shift_id)
+        if not shift:
+            raise PaymentError("Shift not found", "shift_not_found")
+
+        # Get the company wallet from the existing hold
+        existing_hold = self.db.exec(
+            select(FundsHold).where(
+                FundsHold.shift_id == shift_id,
+                FundsHold.status == FundsHoldStatus.ACTIVE,
+            )
+        ).first()
+
+        if not existing_hold:
+            raise PaymentError(
+                "No active funds hold found for shift. First day must be reserved before scheduling subsequent days.",
+                "no_active_hold",
+            )
+
+        company_wallet_id = existing_hold.wallet_id
+        scheduled_reserves = []
+
+        # Calculate daily cost (same for each day)
+        daily_cost = self._calculate_shift_cost(shift)
+
+        # Schedule reserves for subsequent days (skip first day - already reserved)
+        for day_date in shift_days[1:]:
+            # Calculate when to execute the reserve (48 hours before day starts)
+            day_start = datetime.combine(day_date, shift.start_time)
+            execute_at = day_start - timedelta(hours=48)
+
+            # Don't schedule if execute time is in the past
+            if execute_at <= datetime.utcnow():
+                logger.warning(
+                    f"Scheduled reserve for shift {shift_id} day {day_date} "
+                    f"would be in the past, executing immediately"
+                )
+                execute_at = datetime.utcnow()
+
+            # Create scheduled reserve record
+            scheduled_reserve = ScheduledReserve(
+                shift_id=shift_id,
+                wallet_id=company_wallet_id,
+                shift_date=day_date,
+                amount=daily_cost,
+                execute_at=execute_at,
+                status=ScheduledReserveStatus.PENDING,
+            )
+            self.db.add(scheduled_reserve)
+            scheduled_reserves.append({
+                "shift_id": shift_id,
+                "shift_date": day_date,
+                "amount": daily_cost,
+                "execute_at": execute_at,
+            })
+
+        self.db.commit()
+
+        logger.info(
+            f"Scheduled {len(scheduled_reserves)} subsequent reserves for "
+            f"multi-day shift {shift_id}"
+        )
+
+        return scheduled_reserves
+
+    async def execute_scheduled_reserve(
+        self,
+        scheduled_reserve_id: int,
+    ) -> FundsHold | None:
+        """
+        Execute a scheduled reserve for a multi-day shift day.
+
+        Args:
+            scheduled_reserve_id: ID of the ScheduledReserve to execute
+
+        Returns:
+            The created FundsHold, or None if execution failed
+        """
+        from app.models.payment import ScheduledReserve, ScheduledReserveStatus
+
+        scheduled_reserve = self.db.get(ScheduledReserve, scheduled_reserve_id)
+        if not scheduled_reserve:
+            logger.error(f"ScheduledReserve {scheduled_reserve_id} not found")
+            return None
+
+        if scheduled_reserve.status != ScheduledReserveStatus.PENDING:
+            logger.warning(
+                f"ScheduledReserve {scheduled_reserve_id} is not pending "
+                f"(status: {scheduled_reserve.status})"
+            )
+            return None
+
+        # Mark as processing
+        scheduled_reserve.status = ScheduledReserveStatus.PROCESSING
+        self.db.add(scheduled_reserve)
+        self.db.commit()
+
+        try:
+            # Get wallet and check balance
+            wallet = self.db.get(Wallet, scheduled_reserve.wallet_id)
+            if not wallet:
+                raise PaymentError("Wallet not found", "wallet_not_found")
+
+            available = wallet.available_balance
+            if available < scheduled_reserve.amount:
+                raise InsufficientFundsError(
+                    required=scheduled_reserve.amount,
+                    available=available,
+                    message=f"Insufficient funds for scheduled reserve. "
+                            f"Need {scheduled_reserve.amount}, have {available}",
+                )
+
+            # Create the funds hold
+            shift = self.db.get(Shift, scheduled_reserve.shift_id)
+            if not shift:
+                raise PaymentError("Shift not found", "shift_not_found")
+
+            # Calculate expiration (24 hours after the shift day ends)
+            shift_end = datetime.combine(scheduled_reserve.shift_date, shift.end_time)
+            if shift.end_time <= shift.start_time:
+                shift_end += timedelta(days=1)
+            expires_at = shift_end + timedelta(hours=24)
+
+            hold = FundsHold(
+                wallet_id=scheduled_reserve.wallet_id,
+                shift_id=scheduled_reserve.shift_id,
+                amount=scheduled_reserve.amount,
+                status=FundsHoldStatus.ACTIVE,
+                expires_at=expires_at,
+            )
+            self.db.add(hold)
+
+            # Update wallet reserved balance
+            wallet.reserved_balance += scheduled_reserve.amount
+            wallet.updated_at = datetime.utcnow()
+            self.db.add(wallet)
+
+            # Create reserve transaction
+            transaction = Transaction(
+                wallet_id=scheduled_reserve.wallet_id,
+                transaction_type=TransactionType.RESERVE,
+                amount=scheduled_reserve.amount,
+                fee=Decimal("0.00"),
+                net_amount=scheduled_reserve.amount,
+                status=TransactionStatus.COMPLETED,
+                idempotency_key=self._generate_idempotency_key("sched_reserve"),
+                related_shift_id=scheduled_reserve.shift_id,
+                description=f"Scheduled reserve for shift {scheduled_reserve.shift_id} "
+                           f"day {scheduled_reserve.shift_date}",
+                completed_at=datetime.utcnow(),
+            )
+            self.db.add(transaction)
+
+            # Mark scheduled reserve as completed
+            scheduled_reserve.status = ScheduledReserveStatus.COMPLETED
+            scheduled_reserve.executed_at = datetime.utcnow()
+            self.db.add(scheduled_reserve)
+
+            self.db.commit()
+            self.db.refresh(hold)
+
+            logger.info(
+                f"Executed scheduled reserve {scheduled_reserve_id}: "
+                f"created hold {hold.id} for {scheduled_reserve.amount}"
+            )
+
+            return hold
+
+        except (InsufficientFundsError, PaymentError) as e:
+            # Mark as failed
+            scheduled_reserve.status = ScheduledReserveStatus.FAILED
+            scheduled_reserve.failure_reason = str(e)
+            self.db.add(scheduled_reserve)
+            self.db.commit()
+
+            logger.error(
+                f"Failed to execute scheduled reserve {scheduled_reserve_id}: {e}"
+            )
+
+            # TODO: Create notification for company about failed reserve
+            return None
+
+        except Exception as e:
+            # Mark as failed for unexpected errors
+            scheduled_reserve.status = ScheduledReserveStatus.FAILED
+            scheduled_reserve.failure_reason = f"Unexpected error: {str(e)}"
+            self.db.add(scheduled_reserve)
+            self.db.commit()
+
+            logger.exception(
+                f"Unexpected error executing scheduled reserve {scheduled_reserve_id}"
+            )
+            return None
+
+    def get_pending_scheduled_reserves(
+        self,
+        execute_before: datetime | None = None,
+    ) -> list:
+        """
+        Get pending scheduled reserves that are due for execution.
+
+        Args:
+            execute_before: Only return reserves due before this time.
+                           Defaults to current time + 1 hour.
+
+        Returns:
+            List of ScheduledReserve objects ready for execution
+        """
+        from app.models.payment import ScheduledReserve, ScheduledReserveStatus
+
+        if execute_before is None:
+            execute_before = datetime.utcnow() + timedelta(hours=1)
+
+        return list(
+            self.db.exec(
+                select(ScheduledReserve).where(
+                    ScheduledReserve.status == ScheduledReserveStatus.PENDING,
+                    ScheduledReserve.execute_at <= execute_before,
+                )
+            ).all()
+        )

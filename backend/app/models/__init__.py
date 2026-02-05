@@ -1,6 +1,9 @@
 """Database models for ExtraShifty."""
 
+from .agency import AgencyMode, AgencyModeChangeRequest, AgencyProfile
 from .application import Application, ApplicationStatus
+from .gdpr import DeletionRequest, DeletionRequestStatus
+from .invoice import Invoice, InvoiceStatus, InvoiceType
 from .notification import Notification, NotificationPreference
 from .payment import (
     Dispute,
@@ -16,6 +19,7 @@ from .payment import (
 )
 from .review import Review, ReviewType
 from .shift import Shift, ShiftStatus
+from .tax import TaxDocument, TaxFormStatus, TaxFormType, TaxYear
 from .user import User, UserType
 from .wallet import (
     PaymentMethod,
@@ -25,6 +29,10 @@ from .wallet import (
 )
 
 __all__ = [
+    # Agency
+    "AgencyMode",
+    "AgencyModeChangeRequest",
+    "AgencyProfile",
     # User
     "User",
     "UserType",
@@ -56,4 +64,16 @@ __all__ = [
     "PayoutStatus",
     "Dispute",
     "DisputeStatus",
+    # Invoice
+    "Invoice",
+    "InvoiceType",
+    "InvoiceStatus",
+    # GDPR
+    "DeletionRequest",
+    "DeletionRequestStatus",
+    # Tax
+    "TaxYear",
+    "TaxDocument",
+    "TaxFormType",
+    "TaxFormStatus",
 ]

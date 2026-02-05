@@ -1,5 +1,22 @@
 """Pydantic schemas for ExtraShifty."""
 
+from .agency import (
+    AgencyClientForShift,
+    AgencyClientListForShifts,
+    AgencyDashboardResponse,
+    AgencyEarningsSummary,
+    AgencyModeRequirements,
+    AgencyModeUpdateRequest,
+    AgencyModeUpdateResponse,
+    AgencyPaymentSummary,
+    AgencyProfileCreate,
+    AgencyProfileRead,
+    AgencyProfileUpdate,
+    AgencySettlementPreview,
+    AgencyShiftCreateForClient,
+    AgencyShiftListResponse,
+    AgencyShiftResponse,
+)
 from .application import ApplicationCreate, ApplicationRead, ApplicationUpdate
 from .notification import (
     NotificationCreate,
@@ -43,8 +60,28 @@ from .dispute import (
     EvidenceCreate,
     EvidenceResponse,
 )
+from .gdpr import (
+    AdminDeletionRequestResponse,
+    DataExportDownloadResponse,
+    DataExportResponse,
+    DeletionRequestCreate,
+    DeletionRequestListResponse,
+    DeletionRequestResponse,
+    DeletionStatusResponse,
+)
 from .review import ReviewCreate, ReviewListResponse, ReviewRead, ReviewStats
 from .shift import ShiftCreate, ShiftRead, ShiftUpdate
+from .tax import (
+    Generate1099Request,
+    Generate1099Response,
+    PendingW9Response,
+    TaxDocumentListResponse,
+    TaxDocumentResponse,
+    TaxStatusResponse,
+    TaxYearSummary,
+    W9SubmitRequest,
+    W9SubmitResponse,
+)
 from .token import Token, TokenPayload
 from .user import UserCreate, UserLogin, UserRead, UserUpdate
 from .verification import (
@@ -70,6 +107,22 @@ from .wallet import (
 )
 
 __all__ = [
+    # Agency
+    "AgencyClientForShift",
+    "AgencyClientListForShifts",
+    "AgencyDashboardResponse",
+    "AgencyEarningsSummary",
+    "AgencyModeRequirements",
+    "AgencyModeUpdateRequest",
+    "AgencyModeUpdateResponse",
+    "AgencyPaymentSummary",
+    "AgencyProfileCreate",
+    "AgencyProfileRead",
+    "AgencyProfileUpdate",
+    "AgencySettlementPreview",
+    "AgencyShiftCreateForClient",
+    "AgencyShiftListResponse",
+    "AgencyShiftResponse",
     # Application
     "ApplicationCreate",
     "ApplicationRead",
@@ -149,4 +202,22 @@ __all__ = [
     "DisputeUpdate",
     "EvidenceCreate",
     "EvidenceResponse",
+    # Tax
+    "Generate1099Request",
+    "Generate1099Response",
+    "PendingW9Response",
+    "TaxDocumentListResponse",
+    "TaxDocumentResponse",
+    "TaxStatusResponse",
+    "TaxYearSummary",
+    "W9SubmitRequest",
+    "W9SubmitResponse",
+    # GDPR
+    "AdminDeletionRequestResponse",
+    "DataExportDownloadResponse",
+    "DataExportResponse",
+    "DeletionRequestCreate",
+    "DeletionRequestListResponse",
+    "DeletionRequestResponse",
+    "DeletionStatusResponse",
 ]

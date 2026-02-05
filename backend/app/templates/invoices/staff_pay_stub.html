@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pay Stub - {{ invoice_number }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 40px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .pay-stub-info {
+            text-align: right;
+        }
+        .pay-stub-number {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .date {
+            color: #666;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .details-table th,
+        .details-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .details-table th {
+            background-color: #f9fafb;
+            font-weight: normal;
+            color: #666;
+        }
+        .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #16a34a;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f9fafb;
+        }
+        .summary-box {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .summary-title {
+            font-size: 14px;
+            color: #166534;
+            margin-bottom: 10px;
+        }
+        .net-pay {
+            font-size: 32px;
+            font-weight: bold;
+            color: #16a34a;
+        }
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .period-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">ExtraShifty</div>
+        <div class="pay-stub-info">
+            <div class="pay-stub-number">Pay Stub {{ invoice_number }}</div>
+            <div class="date">{{ issued_at.strftime('%B %d, %Y') }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Employee</div>
+        <div>{{ user.full_name }}</div>
+        <div>{{ user.email }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Pay Period</div>
+        <span class="period-badge">
+            {{ period_start.strftime('%b %d, %Y') if period_start else 'N/A' }} -
+            {{ period_end.strftime('%b %d, %Y') if period_end else 'N/A' }}
+        </span>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Earnings Summary</div>
+        <table class="details-table">
+            <tr>
+                <th>Description</th>
+                <th>Details</th>
+                <th>Amount</th>
+            </tr>
+            <tr>
+                <td>Shifts Completed</td>
+                <td>{{ shifts_count or 0 }} shift(s)</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Hours Worked</td>
+                <td>{{ hours_worked or '0.00' }} hours</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Gross Earnings</td>
+                <td>-</td>
+                <td>{{ currency }} {{ gross_earnings or '0.00' }}</td>
+            </tr>
+            <tr class="total-row">
+                <td>Net Pay</td>
+                <td>-</td>
+                <td class="amount">{{ currency }} {{ net_earnings or '0.00' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="summary-box">
+        <div class="summary-title">NET PAY THIS PERIOD</div>
+        <div class="net-pay">{{ currency }} {{ net_earnings or '0.00' }}</div>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for your hard work!</p>
+        <p>ExtraShifty - Connecting businesses with skilled temporary staff</p>
+        <p>support@extrashifty.com</p>
+    </div>
+</body>
+</html>

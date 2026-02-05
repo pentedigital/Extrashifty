@@ -68,10 +68,10 @@ class AgencyClient(SQLModel, table=True):
     updated_at: datetime = SQLField(default_factory=datetime.utcnow)
 
 
-class Invoice(SQLModel, table=True):
-    """Model for client invoices."""
+class AgencyClientInvoice(SQLModel, table=True):
+    """Model for agency client invoices (separate from payment invoices)."""
 
-    __tablename__ = "invoices"
+    __tablename__ = "agency_client_invoices"
 
     id: Optional[int] = SQLField(default=None, primary_key=True)
     agency_id: int = SQLField(index=True)
@@ -1803,8 +1803,8 @@ def reject_application(
 def generate_invoice_number(agency_id: int, session: SessionDep) -> str:
     """Generate a unique invoice number."""
     # Count existing invoices for this agency to create sequential number
-    count_stmt = select(func.count()).select_from(Invoice).where(
-        Invoice.agency_id == agency_id
+    count_stmt = select(func.count()).select_from(AgencyClientInvoice).where(
+        AgencyClientInvoice.agency_id == agency_id
     )
     count = session.exec(count_stmt).one() or 0
     year = datetime.utcnow().year
@@ -1827,25 +1827,25 @@ def list_invoices(
     """
     require_agency_user(current_user)
 
-    statement = select(Invoice).where(Invoice.agency_id == current_user.id)
+    statement = select(AgencyClientInvoice).where(AgencyClientInvoice.agency_id == current_user.id)
 
     if status_filter:
-        statement = statement.where(Invoice.status == status_filter)
+        statement = statement.where(AgencyClientInvoice.status == status_filter)
 
     if client_id:
-        statement = statement.where(Invoice.client_id == client_id)
+        statement = statement.where(AgencyClientInvoice.client_id == client_id)
 
     # Count total before pagination
-    count_stmt = select(func.count()).select_from(Invoice).where(
-        Invoice.agency_id == current_user.id
+    count_stmt = select(func.count()).select_from(AgencyClientInvoice).where(
+        AgencyClientInvoice.agency_id == current_user.id
     )
     if status_filter:
-        count_stmt = count_stmt.where(Invoice.status == status_filter)
+        count_stmt = count_stmt.where(AgencyClientInvoice.status == status_filter)
     if client_id:
-        count_stmt = count_stmt.where(Invoice.client_id == client_id)
+        count_stmt = count_stmt.where(AgencyClientInvoice.client_id == client_id)
     total = session.exec(count_stmt).one() or 0
 
-    statement = statement.order_by(Invoice.created_at.desc()).offset(skip).limit(limit)
+    statement = statement.order_by(AgencyClientInvoice.created_at.desc()).offset(skip).limit(limit)
     invoices = session.exec(statement).all()
 
     # Fetch client info for each invoice
@@ -1917,7 +1917,7 @@ def create_invoice(
     invoice_number = generate_invoice_number(current_user.id, session)
 
     # Create invoice
-    invoice = Invoice(
+    invoice = AgencyClientInvoice(
         agency_id=current_user.id,
         client_id=request.client_id,
         invoice_number=invoice_number,
@@ -1973,9 +1973,9 @@ def get_invoice(
     """Get invoice details by ID."""
     require_agency_user(current_user)
 
-    statement = select(Invoice).where(
-        Invoice.id == invoice_id,
-        Invoice.agency_id == current_user.id,
+    statement = select(AgencyClientInvoice).where(
+        AgencyClientInvoice.id == invoice_id,
+        AgencyClientInvoice.agency_id == current_user.id,
     )
     invoice = session.exec(statement).first()
 
@@ -2032,9 +2032,9 @@ def send_invoice(
     """
     require_agency_user(current_user)
 
-    statement = select(Invoice).where(
-        Invoice.id == invoice_id,
-        Invoice.agency_id == current_user.id,
+    statement = select(AgencyClientInvoice).where(
+        AgencyClientInvoice.id == invoice_id,
+        AgencyClientInvoice.agency_id == current_user.id,
     )
     invoice = session.exec(statement).first()
 
@@ -2105,9 +2105,9 @@ def mark_invoice_paid(
     """
     require_agency_user(current_user)
 
-    statement = select(Invoice).where(
-        Invoice.id == invoice_id,
-        Invoice.agency_id == current_user.id,
+    statement = select(AgencyClientInvoice).where(
+        AgencyClientInvoice.id == invoice_id,
+        AgencyClientInvoice.agency_id == current_user.id,
     )
     invoice = session.exec(statement).first()
 
@@ -2435,3 +2435,545 @@ def get_payroll_entry(
         updated_at=entry.updated_at,
         staff_member=staff_response,
     )
+
+
+# ==================== Agency Mode Endpoints ====================
+
+
+from app.models.agency import AgencyMode, AgencyProfile, AgencyModeChangeRequest
+from app.models.wallet import Wallet
+from app.schemas.agency import (
+    AgencyDashboardResponse,
+    AgencyModeRequirements,
+    AgencyModeUpdateRequest,
+    AgencyModeUpdateResponse,
+    AgencyProfileRead,
+    AgencyProfileUpdate as AgencyProfileUpdateSchema,
+    AgencyShiftCreateForClient,
+    AgencyShiftResponse as AgencyModeShiftResponse,
+)
+
+
+def get_or_create_agency_profile(session: SessionDep, user_id: int) -> AgencyProfile:
+    """Get existing agency profile or create a new one."""
+    statement = select(AgencyProfile).where(AgencyProfile.user_id == user_id)
+    profile = session.exec(statement).first()
+
+    if not profile:
+        profile = AgencyProfile(user_id=user_id)
+        session.add(profile)
+        session.commit()
+        session.refresh(profile)
+
+    return profile
+
+
+@router.get("/mode/profile", response_model=AgencyProfileRead)
+def get_agency_mode_profile(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> AgencyProfile:
+    """
+    Get the agency's mode profile.
+
+    Returns the agency's current mode (STAFF_PROVIDER or FULL_INTERMEDIARY)
+    and related settings.
+    """
+    require_agency_user(current_user)
+    return get_or_create_agency_profile(session, current_user.id)
+
+
+@router.patch("/mode/profile", response_model=AgencyProfileRead)
+def update_agency_mode_profile(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    profile_update: AgencyProfileUpdateSchema,
+) -> AgencyProfile:
+    """
+    Update agency profile settings (not mode - use /mode endpoint for that).
+
+    Allows updating business information, contact details, and markup rates.
+    """
+    require_agency_user(current_user)
+
+    profile = get_or_create_agency_profile(session, current_user.id)
+
+    # Update fields if provided
+    update_data = profile_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(profile, field, value)
+
+    profile.updated_at = datetime.utcnow()
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+
+    logger.info(f"Agency {current_user.id} updated mode profile")
+    return profile
+
+
+@router.get("/mode/requirements", response_model=AgencyModeRequirements)
+def check_mode_requirements(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    target_mode: AgencyMode,
+) -> AgencyModeRequirements:
+    """
+    Check if agency meets requirements for a specific mode.
+
+    Mode B (FULL_INTERMEDIARY) requires:
+    - Agency must be verified
+    - Must have at least one active client
+    - Must have sufficient wallet balance (minimum $1000)
+    """
+    require_agency_user(current_user)
+
+    profile = get_or_create_agency_profile(session, current_user.id)
+    requirements = []
+    is_eligible = True
+
+    if target_mode == AgencyMode.FULL_INTERMEDIARY:
+        # Requirement 1: Verified agency
+        verified_check = {
+            "name": "Agency Verification",
+            "description": "Agency must be verified to operate as Full Intermediary",
+            "met": current_user.is_verified or profile.is_verified,
+        }
+        requirements.append(verified_check)
+        if not verified_check["met"]:
+            is_eligible = False
+
+        # Requirement 2: Active clients
+        client_count_stmt = select(func.count()).select_from(AgencyClient).where(
+            AgencyClient.agency_id == current_user.id,
+            AgencyClient.is_active == True,
+        )
+        client_count = session.exec(client_count_stmt).one() or 0
+        client_check = {
+            "name": "Active Clients",
+            "description": "Must have at least 1 active client",
+            "met": client_count >= 1,
+            "current": client_count,
+            "required": 1,
+        }
+        requirements.append(client_check)
+        if not client_check["met"]:
+            is_eligible = False
+
+        # Requirement 3: Sufficient balance
+        wallet_stmt = select(Wallet).where(Wallet.user_id == current_user.id)
+        wallet = session.exec(wallet_stmt).first()
+        current_balance = wallet.balance if wallet else Decimal("0.00")
+        balance_check = {
+            "name": "Wallet Balance",
+            "description": f"Must have at least {profile.minimum_balance_required} in wallet",
+            "met": current_balance >= profile.minimum_balance_required,
+            "current": str(current_balance),
+            "required": str(profile.minimum_balance_required),
+        }
+        requirements.append(balance_check)
+        if not balance_check["met"]:
+            is_eligible = False
+
+    elif target_mode == AgencyMode.STAFF_PROVIDER:
+        # Mode A has no special requirements - always eligible
+        requirements.append({
+            "name": "No Requirements",
+            "description": "Staff Provider mode has no special requirements",
+            "met": True,
+        })
+
+    message = (
+        "All requirements met. You can switch to this mode."
+        if is_eligible
+        else "Some requirements are not met. Please address them before switching modes."
+    )
+
+    return AgencyModeRequirements(
+        target_mode=target_mode,
+        is_eligible=is_eligible,
+        requirements=requirements,
+        message=message,
+    )
+
+
+@router.patch("/mode", response_model=AgencyModeUpdateResponse)
+def update_agency_mode(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    mode_request: AgencyModeUpdateRequest,
+) -> AgencyModeUpdateResponse:
+    """
+    Switch agency operating mode.
+
+    Mode A (STAFF_PROVIDER): Agency places their staff in shifts posted by other companies.
+        - Platform takes 15%, Agency gets 85%
+        - Agency pays staff off-platform
+
+    Mode B (FULL_INTERMEDIARY): Agency is the client-facing entity.
+        - Agency posts shifts for their clients
+        - Agency pays from their wallet
+        - Platform still takes 15%
+
+    Switching to Mode B requires meeting eligibility requirements.
+    """
+    require_agency_user(current_user)
+
+    profile = get_or_create_agency_profile(session, current_user.id)
+    new_mode = mode_request.mode
+
+    # If switching to same mode, just return current state
+    if profile.mode == new_mode:
+        return AgencyModeUpdateResponse(
+            mode=profile.mode,
+            can_post_for_clients=profile.can_post_for_clients,
+            message="Already operating in this mode",
+            requirements_checked=[],
+        )
+
+    # Check requirements for Mode B
+    requirements_result = check_mode_requirements(
+        session=session,
+        current_user=current_user,
+        target_mode=new_mode,
+    )
+
+    if not requirements_result.is_eligible:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Requirements not met for mode change",
+                "requirements": requirements_result.requirements,
+            }
+        )
+
+    # Record the mode change request for audit
+    mode_change = AgencyModeChangeRequest(
+        agency_profile_id=profile.id,
+        from_mode=profile.mode,
+        to_mode=new_mode,
+        status="approved",  # Auto-approved if requirements met
+        processed_at=datetime.utcnow(),
+        requirements_met=True,
+        requirements_details=str(requirements_result.requirements),
+    )
+    session.add(mode_change)
+
+    # Update profile
+    profile.mode = new_mode
+    profile.can_post_for_clients = (new_mode == AgencyMode.FULL_INTERMEDIARY)
+    profile.updated_at = datetime.utcnow()
+    session.add(profile)
+
+    session.commit()
+    session.refresh(profile)
+
+    logger.info(f"Agency {current_user.id} switched mode to {new_mode.value}")
+
+    return AgencyModeUpdateResponse(
+        mode=profile.mode,
+        can_post_for_clients=profile.can_post_for_clients,
+        message=f"Successfully switched to {new_mode.value} mode",
+        requirements_checked=requirements_result.requirements,
+    )
+
+
+@router.get("/dashboard", response_model=AgencyDashboardResponse)
+def get_agency_dashboard(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> AgencyDashboardResponse:
+    """
+    Get agency dashboard with mode-specific statistics.
+
+    Returns different stats based on whether agency is in Mode A or Mode B.
+    """
+    require_agency_user(current_user)
+
+    profile = get_or_create_agency_profile(session, current_user.id)
+
+    # Staff counts
+    total_staff_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+    )
+    staff_count = session.exec(total_staff_stmt).one() or 0
+
+    active_staff_stmt = select(func.count()).select_from(AgencyStaffMember).where(
+        AgencyStaffMember.agency_id == current_user.id,
+        AgencyStaffMember.status == "active",
+    )
+    active_staff_count = session.exec(active_staff_stmt).one() or 0
+
+    # Client count (Mode B only)
+    client_count = None
+    if profile.mode == AgencyMode.FULL_INTERMEDIARY:
+        client_count_stmt = select(func.count()).select_from(AgencyClient).where(
+            AgencyClient.agency_id == current_user.id,
+            AgencyClient.is_active == True,
+        )
+        client_count = session.exec(client_count_stmt).one() or 0
+
+    # Active shifts (shifts the agency has staff assigned to or has posted)
+    agency_shift_ids_stmt = select(AgencyShift.shift_id).where(
+        AgencyShift.agency_id == current_user.id
+    )
+    agency_shift_ids = session.exec(agency_shift_ids_stmt).all()
+
+    active_shifts = 0
+    if agency_shift_ids:
+        active_shifts_stmt = select(func.count()).select_from(Shift).where(
+            Shift.id.in_(agency_shift_ids),
+            Shift.status.in_([ShiftStatus.OPEN, ShiftStatus.FILLED, ShiftStatus.IN_PROGRESS]),
+        )
+        active_shifts = session.exec(active_shifts_stmt).one() or 0
+
+    # Completed shifts this month
+    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    completed_this_month = 0
+    if agency_shift_ids:
+        completed_stmt = select(func.count()).select_from(Shift).where(
+            Shift.id.in_(agency_shift_ids),
+            Shift.status == ShiftStatus.COMPLETED,
+            Shift.date >= month_start.date(),
+        )
+        completed_this_month = session.exec(completed_stmt).one() or 0
+
+    # Wallet info
+    wallet_stmt = select(Wallet).where(Wallet.user_id == current_user.id)
+    wallet = session.exec(wallet_stmt).first()
+    wallet_balance = wallet.balance if wallet else Decimal("0.00")
+    wallet_reserved = wallet.reserved_balance if wallet else Decimal("0.00")
+
+    # Calculate pending payouts and earnings (placeholder - would integrate with payment service)
+    pending_payouts = Decimal("0.00")
+    total_earnings_this_month = Decimal("0.00")
+
+    # Mode-specific stats
+    mode_a_stats = None
+    mode_b_stats = None
+
+    if profile.mode == AgencyMode.STAFF_PROVIDER:
+        mode_a_stats = {
+            "staff_placements_this_month": completed_this_month,
+            "available_staff": active_staff_count,
+            "pending_applications": 0,  # Would count pending applications
+        }
+    else:
+        mode_b_stats = {
+            "active_clients": client_count,
+            "pending_invoices": 0,  # Would count pending invoices
+            "shifts_posted_this_month": active_shifts,
+        }
+
+    return AgencyDashboardResponse(
+        mode=profile.mode,
+        staff_count=staff_count,
+        active_staff_count=active_staff_count,
+        client_count=client_count,
+        active_shifts=active_shifts,
+        completed_shifts_this_month=completed_this_month,
+        pending_payouts=pending_payouts,
+        total_earnings_this_month=total_earnings_this_month,
+        wallet_balance=wallet_balance,
+        wallet_reserved=wallet_reserved,
+        mode_a_stats=mode_a_stats,
+        mode_b_stats=mode_b_stats,
+    )
+
+
+# ==================== Mode B: Client Shift Management ====================
+
+
+def require_full_intermediary_mode(session: SessionDep, user_id: int) -> AgencyProfile:
+    """Verify agency is in FULL_INTERMEDIARY mode."""
+    profile = get_or_create_agency_profile(session, user_id)
+
+    if profile.mode != AgencyMode.FULL_INTERMEDIARY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This operation requires Full Intermediary (Mode B) mode. "
+                   "Please switch your agency mode to access this feature.",
+        )
+
+    return profile
+
+
+@router.post("/clients/{client_id}/shifts", response_model=AgencyModeShiftResponse, status_code=status.HTTP_201_CREATED)
+def create_shift_for_client(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    client_id: int,
+    shift_data: AgencyShiftCreateForClient,
+) -> AgencyModeShiftResponse:
+    """
+    Create a shift on behalf of a client (Mode B only).
+
+    Agency must be in FULL_INTERMEDIARY mode.
+    Funds are reserved from the AGENCY's wallet, not the client's.
+    """
+    require_agency_user(current_user)
+    profile = require_full_intermediary_mode(session, current_user.id)
+
+    # Verify client exists and belongs to agency
+    client_stmt = select(AgencyClient).where(
+        AgencyClient.id == client_id,
+        AgencyClient.agency_id == current_user.id,
+        AgencyClient.is_active == True,
+    )
+    client = session.exec(client_stmt).first()
+
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found or inactive",
+        )
+
+    # Create the shift with agency as the poster
+    shift = Shift(
+        title=shift_data.title,
+        description=shift_data.description,
+        company_id=current_user.id,  # Agency is the "company" posting
+        posted_by_agency_id=current_user.id,
+        client_company_id=client_id,  # Track the actual client
+        is_agency_managed=True,  # Mark as Mode B shift
+        shift_type=shift_data.shift_type,
+        date=shift_data.date,
+        start_time=shift_data.start_time,
+        end_time=shift_data.end_time,
+        hourly_rate=shift_data.hourly_rate,
+        location=shift_data.location,
+        address=shift_data.address,
+        city=shift_data.city,
+        spots_total=shift_data.spots_total,
+        spots_filled=0,
+        status=ShiftStatus.OPEN,
+        requirements=shift_data.requirements,
+    )
+    session.add(shift)
+    session.commit()
+    session.refresh(shift)
+
+    # Track in AgencyShift table for listing purposes
+    agency_shift = AgencyShift(
+        agency_id=current_user.id,
+        shift_id=shift.id,
+        client_id=client_id,
+    )
+    session.add(agency_shift)
+    session.commit()
+
+    logger.info(f"Agency {current_user.id} (Mode B) created shift {shift.id} for client {client_id}")
+
+    return AgencyModeShiftResponse(
+        id=shift.id,
+        title=shift.title,
+        description=shift.description,
+        company_id=shift.company_id,
+        posted_by_agency_id=shift.posted_by_agency_id,
+        client_company_id=shift.client_company_id,
+        is_agency_managed=shift.is_agency_managed,
+        shift_type=shift.shift_type,
+        date=shift.date,
+        start_time=shift.start_time,
+        end_time=shift.end_time,
+        hourly_rate=shift.hourly_rate,
+        location=shift.location,
+        address=shift.address,
+        city=shift.city,
+        spots_total=shift.spots_total,
+        spots_filled=shift.spots_filled,
+        status=shift.status.value,
+        requirements=shift.requirements,
+        created_at=shift.created_at,
+        client_name=client.business_email,  # Would ideally be business name
+        assigned_staff_count=0,
+    )
+
+
+@router.get("/mode/shifts", response_model=List[AgencyModeShiftResponse])
+def list_agency_mode_shifts(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    skip: int = 0,
+    limit: int = 100,
+    is_agency_managed: Optional[bool] = None,
+) -> List[AgencyModeShiftResponse]:
+    """
+    List all shifts associated with this agency.
+
+    Optionally filter by is_agency_managed to see only Mode B shifts.
+    """
+    require_agency_user(current_user)
+
+    # Get all shifts where agency is involved
+    # This includes Mode B shifts (posted_by_agency_id) and Mode A placements (via AgencyShift)
+    agency_shift_ids = select(AgencyShift.shift_id).where(
+        AgencyShift.agency_id == current_user.id
+    )
+    agency_shift_id_list = session.exec(agency_shift_ids).all()
+
+    if not agency_shift_id_list:
+        return []
+
+    shift_stmt = select(Shift).where(Shift.id.in_(agency_shift_id_list))
+
+    if is_agency_managed is not None:
+        shift_stmt = shift_stmt.where(Shift.is_agency_managed == is_agency_managed)
+
+    shift_stmt = shift_stmt.offset(skip).limit(limit)
+    shifts = session.exec(shift_stmt).all()
+
+    # Get client info mapping
+    agency_shifts = session.exec(
+        select(AgencyShift).where(AgencyShift.agency_id == current_user.id)
+    ).all()
+    shift_client_map = {as_.shift_id: as_.client_id for as_ in agency_shifts}
+
+    # Get client names
+    client_ids = list(set(shift_client_map.values()))
+    clients = {}
+    if client_ids:
+        client_list = session.exec(
+            select(AgencyClient).where(AgencyClient.id.in_(client_ids))
+        ).all()
+        clients = {c.id: c for c in client_list}
+
+    result = []
+    for shift in shifts:
+        client_id = shift_client_map.get(shift.id)
+        client = clients.get(client_id) if client_id else None
+
+        # Count assigned staff
+        assign_count_stmt = select(func.count()).select_from(AgencyShiftAssignment).where(
+            AgencyShiftAssignment.shift_id == shift.id,
+            AgencyShiftAssignment.agency_id == current_user.id,
+        )
+        assigned_count = session.exec(assign_count_stmt).one() or 0
+
+        result.append(AgencyModeShiftResponse(
+            id=shift.id,
+            title=shift.title,
+            description=shift.description,
+            company_id=shift.company_id,
+            posted_by_agency_id=shift.posted_by_agency_id,
+            client_company_id=shift.client_company_id,
+            is_agency_managed=shift.is_agency_managed,
+            shift_type=shift.shift_type,
+            date=shift.date,
+            start_time=shift.start_time,
+            end_time=shift.end_time,
+            hourly_rate=shift.hourly_rate,
+            location=shift.location,
+            address=shift.address,
+            city=shift.city,
+            spots_total=shift.spots_total,
+            spots_filled=shift.spots_filled,
+            status=shift.status.value if hasattr(shift.status, 'value') else shift.status,
+            requirements=shift.requirements,
+            created_at=shift.created_at,
+            client_name=client.business_email if client else None,
+            assigned_staff_count=assigned_count,
+        ))
+
+    return result

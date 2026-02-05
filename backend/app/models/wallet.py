@@ -21,6 +21,14 @@ class WalletType(str, Enum):
     PLATFORM = "platform"  # Platform account for ExtraShifty
 
 
+class WalletStatus(str, Enum):
+    """Wallet status enumeration for tracking account state."""
+
+    ACTIVE = "active"              # Normal operating state
+    GRACE_PERIOD = "grace_period"  # 48hr after failed top-up
+    SUSPENDED = "suspended"        # Cannot accept shifts
+
+
 class PaymentMethodType(str, Enum):
     """Payment method type enumeration."""
 
@@ -41,6 +49,7 @@ class Wallet(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", unique=True, index=True)
     wallet_type: WalletType = Field(default=WalletType.STAFF)
+    status: WalletStatus = Field(default=WalletStatus.ACTIVE)
     stripe_account_id: str | None = Field(default=None, max_length=255)  # Stripe Connect account ID
     balance: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)
     reserved_balance: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2)  # Funds on hold
@@ -50,6 +59,9 @@ class Wallet(SQLModel, table=True):
     auto_topup_threshold: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
     auto_topup_amount: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
     stripe_onboarding_complete: bool = Field(default=False)
+    last_failed_topup_at: datetime | None = Field(default=None)
+    grace_period_ends_at: datetime | None = Field(default=None)
+    suspension_reason: str | None = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Suspension Warning - Urgent Action Required</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ffc107;
+            color: #333;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .urgent-box {
+            background-color: #f8d7da;
+            border: 2px solid #dc3545;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .urgent-box h2 {
+            color: #dc3545;
+            margin: 0 0 10px 0;
+        }
+        .countdown {
+            font-size: 2em;
+            font-weight: bold;
+            color: #dc3545;
+        }
+        .button {
+            display: inline-block;
+            background-color: #dc3545;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .consequences {
+            background-color: white;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Urgent: Account Suspension Warning</h1>
+    </div>
+    <div class="content">
+        <p>Hello {{ user_name }},</p>
+
+        <div class="urgent-box">
+            <h2>Your account will be suspended in</h2>
+            <div class="countdown">{{ hours_remaining }} hours</div>
+        </div>
+
+        <p>We previously notified you of a failed payment on your account. The grace period is about to expire, and your account will be <strong>suspended</strong> if payment is not resolved.</p>
+
+        <div class="consequences">
+            <strong>Once suspended, you will not be able to:</strong>
+            <ul>
+                <li>Accept new shift applications</li>
+                <li>Post new shifts</li>
+                <li>Access certain account features</li>
+            </ul>
+        </div>
+
+        <p><strong>Please take action immediately</strong> to avoid any disruption to your business operations.</p>
+
+        <center>
+            <a href="{{ retry_url }}" class="button">Resolve Payment Now</a>
+        </center>
+
+        <p>If you believe this is an error or need assistance, please contact our support team immediately.</p>
+
+        <p>Best regards,<br>The ExtraShifty Team</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated message from ExtraShifty. Please do not reply directly to this email.</p>
+    </div>
+</body>
+</html>

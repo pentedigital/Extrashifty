@@ -86,6 +86,11 @@ class ShiftRead(BaseModel):
     created_at: datetime
     company: Optional[UserRead] = None
 
+    # Agency Mode B fields
+    posted_by_agency_id: Optional[int] = None
+    client_company_id: Optional[int] = None
+    is_agency_managed: bool = False
+
     @property
     def location_name(self) -> str:
         """Alias for location field for frontend compatibility."""

@@ -36,6 +36,12 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # GDPR deletion fields
+    deletion_requested_at: datetime | None = Field(default=None)
+    is_deleted: bool = Field(default=False, index=True)
+    deleted_at: datetime | None = Field(default=None)
+    anonymized_id: str | None = Field(default=None, max_length=50, index=True)
+
     # Relationships
     shifts: list["Shift"] = Relationship(back_populates="company")
     applications: list["Application"] = Relationship(back_populates="applicant")

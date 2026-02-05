@@ -135,6 +135,110 @@ def get_wallet_balance(
     return BalanceResponse(**balance_data)
 
 
+@router.get("/wallets/status")
+def get_wallet_status(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+) -> dict:
+    """
+    Get current wallet status including suspension information.
+
+    Returns wallet status (active, grace_period, suspended) and
+    relevant dates/reasons if applicable.
+    """
+    from app.models.wallet import WalletStatus
+
+    wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
+
+    response = {
+        "wallet_id": wallet.id,
+        "status": wallet.status.value,
+        "is_active": wallet.status == WalletStatus.ACTIVE,
+        "can_accept_shifts": wallet.status != WalletStatus.SUSPENDED,
+    }
+
+    if wallet.status == WalletStatus.GRACE_PERIOD:
+        response["grace_period_ends_at"] = wallet.grace_period_ends_at.isoformat() if wallet.grace_period_ends_at else None
+        response["last_failed_topup_at"] = wallet.last_failed_topup_at.isoformat() if wallet.last_failed_topup_at else None
+        response["suspension_reason"] = wallet.suspension_reason
+
+    elif wallet.status == WalletStatus.SUSPENDED:
+        response["suspension_reason"] = wallet.suspension_reason
+        response["last_failed_topup_at"] = wallet.last_failed_topup_at.isoformat() if wallet.last_failed_topup_at else None
+
+    return response
+
+
+@router.post("/wallets/reactivate")
+async def reactivate_wallet(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    minimum_balance: Decimal = Query(
+        default=Decimal("0.00"),
+        ge=0,
+        description="Minimum balance required for reactivation (optional)",
+    ),
+) -> dict:
+    """
+    Reactivate a suspended or grace-period wallet.
+
+    Verifies user has sufficient balance before reactivation.
+    Resets wallet status to ACTIVE and clears grace period fields.
+    Sends reactivation email notification.
+
+    Requirements:
+    - Wallet must be in GRACE_PERIOD or SUSPENDED status
+    - Wallet must have at least the minimum_balance specified (if any)
+    """
+    from app.models.wallet import WalletStatus
+
+    payment_service = PaymentService(session)
+    wallet = wallet_crud.get_by_user(session, user_id=current_user.id)
+
+    if not wallet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Wallet not found",
+        )
+
+    if wallet.status == WalletStatus.ACTIVE:
+        return {
+            "wallet_id": wallet.id,
+            "status": wallet.status.value,
+            "message": "Wallet is already active",
+        }
+
+    try:
+        reactivated_wallet = await payment_service.reactivate_wallet(
+            wallet_id=wallet.id,
+            minimum_balance=minimum_balance if minimum_balance > 0 else None,
+        )
+
+        return {
+            "wallet_id": reactivated_wallet.id,
+            "status": reactivated_wallet.status.value,
+            "available_balance": str(reactivated_wallet.available_balance),
+            "message": "Wallet reactivated successfully",
+        }
+
+    except InsufficientFundsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "error": "insufficient_funds",
+                "message": e.message,
+                "required": str(e.required),
+                "available": str(e.available),
+                "shortfall": str(e.shortfall),
+            },
+        )
+    except PaymentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+
 # ==================== Shift Payment Flow ====================
 
 
