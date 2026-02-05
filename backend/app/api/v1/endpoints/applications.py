@@ -115,8 +115,10 @@ def update_application(
         )
 
     if current_user.user_type == UserType.ADMIN:
-        # Admin can do anything
-        pass
+        # Admin bypass: Admins have full access to update any application.
+        # This is intentional for administrative operations and support cases.
+        # All application updates are tracked via database timestamps (updated_at).
+        pass  # No additional restrictions for admin users
     elif current_user.user_type == UserType.COMPANY:
         # Company can only update applications to their shifts
         shift = shift_crud.get(session, id=application.shift_id)

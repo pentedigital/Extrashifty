@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
+import { api, ApiClientError } from '@/lib/api'
 
 const resetSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -19,12 +21,19 @@ const resetSchema = z.object({
 
 type ResetFormData = z.infer<typeof resetSchema>
 
+const searchParamsSchema = z.object({
+  token: z.string().optional(),
+})
+
 export const Route = createFileRoute('/reset-password')({
   component: ResetPasswordPage,
+  validateSearch: searchParamsSchema,
 })
 
 function ResetPasswordPage() {
   const navigate = useNavigate()
+  const { token } = useSearch({ from: '/reset-password' })
+  const { addToast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -36,14 +45,37 @@ function ResetPasswordPage() {
     resolver: zodResolver(resetSchema),
   })
 
-  const onSubmit = async (_data: ResetFormData) => {
+  const onSubmit = async (data: ResetFormData) => {
+    if (!token) {
+      addToast({
+        type: 'error',
+        title: 'Invalid reset link',
+        description: 'The password reset link is invalid or has expired.',
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // TODO: Call API to reset password
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await api.auth.resetPassword({
+        token,
+        new_password: data.password,
+      })
+      addToast({
+        type: 'success',
+        title: 'Password reset successful',
+        description: 'You can now sign in with your new password.',
+      })
       navigate({ to: '/login' })
-    } catch {
-      // Error handled silently
+    } catch (error) {
+      const message = error instanceof ApiClientError
+        ? error.message
+        : 'Failed to reset password. Please try again.'
+      addToast({
+        type: 'error',
+        title: 'Reset failed',
+        description: message,
+      })
     } finally {
       setIsSubmitting(false)
     }

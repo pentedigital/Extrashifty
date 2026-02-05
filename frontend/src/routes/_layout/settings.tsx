@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,13 +17,14 @@ import {
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { Loader2 } from 'lucide-react'
+import { api, ApiClientError } from '@/lib/api'
 
 export const Route = createFileRoute('/_layout/settings')({
   component: SettingsPage,
 })
 
 function SettingsPage() {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -31,21 +32,41 @@ function SettingsPage() {
   const [isSavingName, setIsSavingName] = useState(false)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
 
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const currentPasswordRef = useRef<HTMLInputElement>(null)
+  const newPasswordRef = useRef<HTMLInputElement>(null)
+  const confirmPasswordRef = useRef<HTMLInputElement>(null)
+
   const handleSaveName = async () => {
+    const newName = nameInputRef.current?.value?.trim()
+    if (!newName) {
+      addToast({
+        type: 'error',
+        title: 'Invalid name',
+        description: 'Please enter a valid name.',
+      })
+      return
+    }
+
     setIsSavingName(true)
     try {
-      // TODO: Call API to update name
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await api.users.update({ full_name: newName })
+      if (refreshUser) {
+        await refreshUser()
+      }
       addToast({
         type: 'success',
         title: 'Name updated',
         description: 'Your name has been saved successfully.',
       })
-    } catch {
+    } catch (error) {
+      const message = error instanceof ApiClientError
+        ? error.message
+        : 'Please try again.'
       addToast({
         type: 'error',
         title: 'Failed to update name',
-        description: 'Please try again.',
+        description: message,
       })
     } finally {
       setIsSavingName(false)
@@ -53,20 +74,60 @@ function SettingsPage() {
   }
 
   const handleUpdatePassword = async () => {
+    const currentPassword = currentPasswordRef.current?.value
+    const newPassword = newPasswordRef.current?.value
+    const confirmPassword = confirmPasswordRef.current?.value
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      addToast({
+        type: 'error',
+        title: 'Missing fields',
+        description: 'Please fill in all password fields.',
+      })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      addToast({
+        type: 'error',
+        title: 'Passwords do not match',
+        description: 'New password and confirmation must match.',
+      })
+      return
+    }
+
+    if (newPassword.length < 8) {
+      addToast({
+        type: 'error',
+        title: 'Password too short',
+        description: 'Password must be at least 8 characters.',
+      })
+      return
+    }
+
     setIsSavingPassword(true)
     try {
-      // TODO: Call API to update password
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await api.users.updatePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      // Clear password fields on success
+      if (currentPasswordRef.current) currentPasswordRef.current.value = ''
+      if (newPasswordRef.current) newPasswordRef.current.value = ''
+      if (confirmPasswordRef.current) confirmPasswordRef.current.value = ''
       addToast({
         type: 'success',
         title: 'Password updated',
         description: 'Your password has been changed successfully.',
       })
-    } catch {
+    } catch (error) {
+      const message = error instanceof ApiClientError
+        ? error.message
+        : 'Please check your current password and try again.'
       addToast({
         type: 'error',
         title: 'Failed to update password',
-        description: 'Please check your current password and try again.',
+        description: message,
       })
     } finally {
       setIsSavingPassword(false)
@@ -106,6 +167,7 @@ function SettingsPage() {
               id="name"
               type="text"
               defaultValue={user?.full_name || ''}
+              ref={nameInputRef}
             />
           </div>
 
@@ -125,17 +187,17 @@ function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="current_password">Current Password</Label>
-            <Input id="current_password" type="password" />
+            <Input id="current_password" type="password" ref={currentPasswordRef} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="new_password">New Password</Label>
-            <Input id="new_password" type="password" />
+            <Input id="new_password" type="password" ref={newPasswordRef} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="confirm_password">Confirm New Password</Label>
-            <Input id="confirm_password" type="password" />
+            <Input id="confirm_password" type="password" ref={confirmPasswordRef} />
           </div>
 
           <Button onClick={handleUpdatePassword} disabled={isSavingPassword}>
@@ -194,12 +256,23 @@ function SettingsPage() {
               onClick={async () => {
                 setIsDeleting(true)
                 try {
-                  // TODO: Call API to delete account
-                  await new Promise(resolve => setTimeout(resolve, 1000))
+                  await api.users.delete()
+                  addToast({
+                    type: 'success',
+                    title: 'Account deleted',
+                    description: 'Your account has been permanently deleted.',
+                  })
                   logout()
                   navigate({ to: '/' })
-                } catch {
-                  // Error handled silently
+                } catch (error) {
+                  const message = error instanceof ApiClientError
+                    ? error.message
+                    : 'Failed to delete account. Please try again.'
+                  addToast({
+                    type: 'error',
+                    title: 'Failed to delete account',
+                    description: message,
+                  })
                 } finally {
                   setIsDeleting(false)
                 }

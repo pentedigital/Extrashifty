@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useToast } from '@/components/ui/toast'
+import { api, ApiClientError } from '@/lib/api'
 
 export const Route = createFileRoute('/_layout/agency/staff/invite')({
   component: InviteStaffPage,
@@ -23,6 +25,7 @@ type InviteFormData = z.infer<typeof inviteSchema>
 
 function InviteStaffPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emails, setEmails] = useState<string[]>([])
   const [emailInput, setEmailInput] = useState('')
@@ -65,7 +68,7 @@ function InviteStaffPage() {
     }
   }
 
-  const onSubmit = async (_data: InviteFormData) => {
+  const onSubmit = async (data: InviteFormData) => {
     if (emails.length === 0) {
       setEmailError('Please add at least one email address')
       return
@@ -73,11 +76,23 @@ function InviteStaffPage() {
 
     setIsSubmitting(true)
     try {
-      // TODO: Call API to send invitations
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await api.agency.inviteStaff({
+        emails,
+        message: data.message,
+      })
+      addToast({
+        type: 'success',
+        title: 'Invitations sent',
+        description: `Successfully sent ${emails.length} invitation${emails.length !== 1 ? 's' : ''}.`,
+      })
       navigate({ to: '/agency/staff' })
-    } catch {
-      // Error handled silently
+    } catch (error) {
+      const message = error instanceof ApiClientError ? error.message : 'Failed to send invitations'
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: message,
+      })
     } finally {
       setIsSubmitting(false)
     }

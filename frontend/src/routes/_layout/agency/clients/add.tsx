@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
+import { api, ApiClientError } from '@/lib/api'
 
 export const Route = createFileRoute('/_layout/agency/clients/add')({
   component: AddClientPage,
@@ -24,6 +26,7 @@ type AddClientFormData = z.infer<typeof addClientSchema>
 
 function AddClientPage() {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
@@ -37,14 +40,27 @@ function AddClientPage() {
     },
   })
 
-  const onSubmit = async (_data: AddClientFormData) => {
+  const onSubmit = async (data: AddClientFormData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Call API to add client
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await api.agency.addClient({
+        business_email: data.business_email,
+        billing_rate_markup: data.billing_rate_markup,
+        notes: data.notes,
+      })
+      addToast({
+        type: 'success',
+        title: 'Client invitation sent',
+        description: 'The business will receive an email to connect with your agency.',
+      })
       navigate({ to: '/agency/clients' })
-    } catch {
-      // Error handled silently
+    } catch (error) {
+      const message = error instanceof ApiClientError ? error.message : 'Failed to add client'
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: message,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -108,7 +124,7 @@ function AddClientPage() {
                   type="number"
                   min="0"
                   max="100"
-                  {...register('billing_rate_markup')}
+                  {...register('billing_rate_markup', { valueAsNumber: true })}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   %

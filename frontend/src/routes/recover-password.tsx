@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
+import { api, ApiClientError } from '@/lib/api'
 
 const recoverSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -20,6 +22,7 @@ export const Route = createFileRoute('/recover-password')({
 })
 
 function RecoverPasswordPage() {
+  const { addToast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
@@ -31,14 +34,27 @@ function RecoverPasswordPage() {
     resolver: zodResolver(recoverSchema),
   })
 
-  const onSubmit = async (_data: RecoverFormData) => {
+  const onSubmit = async (data: RecoverFormData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Call API to send recovery email
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await api.auth.passwordRecovery(data.email)
       setIsSuccess(true)
-    } catch {
-      // Error handled silently
+    } catch (error) {
+      // Even on error, we show success to prevent email enumeration attacks
+      // The backend should also handle this, but we add it here as well
+      if (error instanceof ApiClientError && error.status === 404) {
+        // User not found - still show success message
+        setIsSuccess(true)
+      } else {
+        const message = error instanceof ApiClientError
+          ? error.message
+          : 'Failed to send recovery email. Please try again.'
+        addToast({
+          type: 'error',
+          title: 'Request failed',
+          description: message,
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }

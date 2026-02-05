@@ -190,6 +190,36 @@ export const api = {
     me: () => baseFetch<import('@/types/user').User>('/auth/me'),
 
     logout: () => baseFetch<void>('/auth/logout', { method: 'POST' }),
+
+    passwordRecovery: (email: string) =>
+      baseFetch<void>(`/auth/password-recovery/${encodeURIComponent(email)}`, {
+        method: 'POST',
+      }),
+
+    resetPassword: (data: { token: string; new_password: string }) =>
+      baseFetch<void>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  users: {
+    update: (data: { full_name?: string }) =>
+      baseFetch<import('@/types/user').User>('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    updatePassword: (data: { current_password: string; new_password: string }) =>
+      baseFetch<void>('/users/me/password', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    delete: () =>
+      baseFetch<void>('/users/me', {
+        method: 'DELETE',
+      }),
   },
 
   shifts: {
@@ -307,7 +337,7 @@ export const api = {
       return baseFetch<{ items: import('@/types/agency').AgencyStaffMember[]; total: number }>(`/agency/staff${query}`)
     },
 
-    inviteStaff: (data: { email: string; message?: string }) =>
+    inviteStaff: (data: { emails: string[]; message?: string }) =>
       baseFetch<void>('/agency/staff/invite', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -325,7 +355,7 @@ export const api = {
       return baseFetch<{ items: import('@/types/agency').AgencyClient[]; total: number }>(`/agency/clients${query}`)
     },
 
-    addClient: (data: { business_email: string; billing_rate_markup?: number }) =>
+    addClient: (data: { business_email: string; billing_rate_markup?: number; notes?: string }) =>
       baseFetch<import('@/types/agency').AgencyClient>('/agency/clients', {
         method: 'POST',
         body: JSON.stringify(data),
