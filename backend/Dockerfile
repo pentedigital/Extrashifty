@@ -22,9 +22,18 @@ WORKDIR /app
 # Create non-root user for security
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
-# Install runtime dependencies
+# Install runtime dependencies (including WeasPrint dependencies for PDF generation)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    libcairo2 \
+    libgirepository-1.0-1 \
+    gir1.2-pango-1.0 \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy wheels from builder and install

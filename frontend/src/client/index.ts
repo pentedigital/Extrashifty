@@ -11,8 +11,9 @@
 // API Configuration
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
-// Re-export generated types when available
-// export * from './generated'
+// Re-export generated types and SDK when available
+// These exports will work once `npm run sync-api` has been run
+export * from './generated'
 
 // Token management
 const TOKEN_KEY = 'extrashifty_access_token'

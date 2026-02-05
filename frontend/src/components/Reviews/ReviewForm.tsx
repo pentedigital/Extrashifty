@@ -1,11 +1,28 @@
-import { useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { StarRating } from '@/components/Ratings/StarRating'
 import { Spinner } from '@/components/ui/spinner'
+import { FormFieldWrapper } from '@/components/ui/form-field'
 import { useCreateReview, type CreateReviewData, type ReviewType } from '@/hooks/api/useReviewsApi'
 import { cn } from '@/lib/utils'
+
+// Zod schema for review form validation
+const reviewFormSchema = z.object({
+  rating: z
+    .number()
+    .min(1, 'Please select a rating')
+    .max(5, 'Rating must be between 1 and 5'),
+  comment: z
+    .string()
+    .max(500, 'Comment must be 500 characters or less')
+    .optional()
+    .transform((val) => val?.trim() || undefined),
+})
+
+type ReviewFormData = z.infer<typeof reviewFormSchema>
 
 export interface ReviewFormProps {
   /** The ID of the user being reviewed */
@@ -26,6 +43,7 @@ export interface ReviewFormProps {
 
 /**
  * ReviewForm - Form for submitting a new review
+ * Uses react-hook-form with Zod validation
  * Includes star rating selector and comment textarea
  */
 export function ReviewForm({
@@ -37,90 +55,110 @@ export function ReviewForm({
   onCancel,
   className,
 }: ReviewFormProps) {
-  const [rating, setRating] = useState(0)
-  const [comment, setComment] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
   const createReview = useCreateReview()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+  const {
+    control,
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ReviewFormData>({
+    resolver: zodResolver(reviewFormSchema),
+    defaultValues: {
+      rating: 0,
+      comment: '',
+    },
+  })
 
-    if (rating === 0) {
-      setError('Please select a rating')
-      return
-    }
+  const rating = watch('rating')
+  const comment = watch('comment') || ''
 
-    const data: CreateReviewData = {
+  const onSubmit = async (data: ReviewFormData) => {
+    const reviewData: CreateReviewData = {
       reviewee_id: revieweeId,
       shift_id: shiftId,
-      rating,
+      rating: data.rating,
       review_type: reviewType,
-      ...(comment.trim() && { comment: comment.trim() }),
+      ...(data.comment && { comment: data.comment }),
     }
 
     try {
-      await createReview.mutateAsync(data)
-      setRating(0)
-      setComment('')
+      await createReview.mutateAsync(reviewData)
+      reset()
       onSuccess?.()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to submit review'
-      setError(errorMessage)
       onError?.(err instanceof Error ? err : new Error(errorMessage))
     }
   }
 
-  const isSubmitting = createReview.isPending
+  const isPending = isSubmitting || createReview.isPending
 
   return (
-    <form onSubmit={handleSubmit} className={cn('space-y-4', className)}>
+    <form onSubmit={handleSubmit(onSubmit)} className={cn('space-y-4', className)}>
       {/* Rating selector */}
-      <div className="space-y-2">
-        <Label htmlFor="rating" className="text-sm font-medium">
-          Rating <span className="text-destructive">*</span>
-        </Label>
-        <div className="flex items-center gap-3">
-          <StarRating
-            value={rating}
-            onChange={setRating}
-            size="lg"
-          />
-          {rating > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {rating} star{rating !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Click on a star to select your rating
-        </p>
-      </div>
+      <Controller
+        name="rating"
+        control={control}
+        render={({ field, fieldState }) => (
+          <FormFieldWrapper
+            id="rating"
+            label="Rating"
+            error={fieldState.error}
+            required
+            helperText={!fieldState.error ? 'Click on a star to select your rating' : undefined}
+          >
+            <div className="flex items-center gap-3">
+              <StarRating
+                value={field.value}
+                onChange={field.onChange}
+                size="lg"
+              />
+              {field.value > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {field.value} star{field.value !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </FormFieldWrapper>
+        )}
+      />
 
       {/* Comment textarea */}
       <div className="space-y-2">
-        <Label htmlFor="comment" className="text-sm font-medium">
-          Comment <span className="text-muted-foreground">(optional)</span>
-        </Label>
-        <Textarea
+        <FormFieldWrapper
           id="comment"
-          placeholder="Share your experience..."
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={4}
-          maxLength={500}
-          disabled={isSubmitting}
-        />
-        <p className="text-xs text-muted-foreground text-right">
-          {comment.length}/500 characters
-        </p>
+          label="Comment"
+          error={errors.comment}
+          required={false}
+        >
+          <Textarea
+            id="comment"
+            placeholder="Share your experience..."
+            rows={4}
+            maxLength={500}
+            disabled={isPending}
+            aria-invalid={errors.comment ? 'true' : 'false'}
+            aria-describedby={errors.comment ? 'comment-error' : 'comment-helper'}
+            className={cn(errors.comment && 'border-destructive')}
+            {...register('comment')}
+          />
+        </FormFieldWrapper>
+        {!errors.comment && (
+          <p id="comment-helper" className="text-xs text-muted-foreground text-right">
+            {comment.length}/500 characters
+          </p>
+        )}
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-          {error}
+      {/* API Error message */}
+      {createReview.isError && (
+        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md" role="alert">
+          {createReview.error instanceof Error
+            ? createReview.error.message
+            : 'Failed to submit review'}
         </div>
       )}
 
@@ -131,13 +169,13 @@ export function ReviewForm({
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isSubmitting}
+            disabled={isPending}
           >
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isSubmitting || rating === 0}>
-          {isSubmitting ? (
+        <Button type="submit" disabled={isPending || rating === 0}>
+          {isPending ? (
             <>
               <Spinner size="sm" className="mr-2" />
               Submitting...

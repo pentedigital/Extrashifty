@@ -1,0 +1,6 @@
+dist/
+node_modules/
+src/client/generated/
+src/routeTree.gen.ts
+coverage/
+*.min.js

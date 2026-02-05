@@ -1,6 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '@/lib/apiClient'
 import { api } from '@/lib/api'
-import type { Shift, ShiftFilters } from '@/types/shift'
+import type { ShiftRead, ShiftCreate, ShiftUpdate } from '@/lib/apiClient'
+
+// Re-export types for consumers of this hook
+export type { ShiftRead, ShiftCreate, ShiftUpdate }
+
+// Filter types that match the generated types
+export interface ShiftFilters {
+  search?: string
+  city?: string
+  shift_type?: string
+  min_rate?: number
+  max_rate?: number
+  date_from?: string
+  date_to?: string
+  status?: string
+}
 
 export const shiftKeys = {
   all: ['shifts'] as const,
@@ -29,34 +45,52 @@ function filtersToParams(filters?: ShiftFilters): Record<string, string> {
   return params
 }
 
+/**
+ * Hook to fetch paginated shifts list
+ * Uses generated ShiftRead type from OpenAPI spec
+ */
 export function useShifts(filters?: ShiftFilters) {
   return useQuery({
     queryKey: shiftKeys.list(filters),
-    queryFn: () => api.shifts.list(filtersToParams(filters)),
+    queryFn: () => apiClient.shifts.list(filtersToParams(filters)),
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }
 
+/**
+ * Hook to fetch a single shift by ID
+ * Returns typed ShiftRead from generated client
+ */
 export function useShift(id: string) {
   return useQuery({
     queryKey: shiftKeys.detail(id),
-    queryFn: () => api.shifts.get(id),
+    queryFn: () => apiClient.shifts.get(id),
     enabled: !!id,
   })
 }
 
+/**
+ * Hook to fetch company's own shifts
+ * Note: This uses the legacy api for now until company endpoints are in apiClient
+ */
 export function useCompanyShifts(filters?: Record<string, string>) {
+  // Uses legacy api for company-specific endpoints
+  // These will be migrated to apiClient when the generated SDK is available
   return useQuery({
     queryKey: shiftKeys.companyList(filters),
     queryFn: () => api.company.getShifts(filters),
   })
 }
 
+/**
+ * Hook to create a new shift
+ * Uses generated ShiftCreate type for input validation
+ */
 export function useCreateShift() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Partial<Shift>) => api.shifts.create(data),
+    mutationFn: (data: ShiftCreate) => apiClient.shifts.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shiftKeys.lists() })
       queryClient.invalidateQueries({ queryKey: shiftKeys.company() })
@@ -64,12 +98,16 @@ export function useCreateShift() {
   })
 }
 
+/**
+ * Hook to update an existing shift
+ * Uses generated ShiftUpdate type for partial updates
+ */
 export function useUpdateShift() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Shift> }) =>
-      api.shifts.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: ShiftUpdate }) =>
+      apiClient.shifts.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: shiftKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: shiftKeys.lists() })
@@ -78,11 +116,14 @@ export function useUpdateShift() {
   })
 }
 
+/**
+ * Hook to delete a shift
+ */
 export function useDeleteShift() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => api.shifts.delete(id),
+    mutationFn: (id: string) => apiClient.shifts.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shiftKeys.lists() })
       queryClient.invalidateQueries({ queryKey: shiftKeys.company() })
@@ -90,12 +131,15 @@ export function useDeleteShift() {
   })
 }
 
+/**
+ * Hook to apply to a shift
+ */
 export function useApplyToShift() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ shiftId, coverMessage }: { shiftId: string; coverMessage?: string }) =>
-      api.shifts.apply(shiftId, coverMessage),
+      apiClient.shifts.apply(shiftId, coverMessage),
     onSuccess: (_, { shiftId }) => {
       // Invalidate the specific shift to reflect application status
       queryClient.invalidateQueries({ queryKey: shiftKeys.detail(shiftId) })
@@ -107,10 +151,14 @@ export function useApplyToShift() {
   })
 }
 
+/**
+ * Hook to fetch current user's shifts
+ * Returns array of ShiftRead
+ */
 export function useMyShifts(params?: Record<string, string>) {
   return useQuery({
     queryKey: [...shiftKeys.all, 'my-shifts', params] as const,
-    queryFn: () => api.shifts.getMyShifts(params),
+    queryFn: () => apiClient.shifts.getMyShifts(params),
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 }

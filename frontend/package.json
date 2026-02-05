@@ -18,7 +18,9 @@
     "test:all": "vitest run && playwright test",
     "generate-client": "openapi-ts",
     "fetch-openapi": "curl -s http://localhost:8001/openapi.json -o openapi.json",
-    "sync-api": "npm run fetch-openapi && npm run generate-client"
+    "sync-api": "npm run fetch-openapi && npm run generate-client",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -41,6 +43,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.9",
     "@hey-api/openapi-ts": "^0.91.1",
     "@playwright/test": "^1.49.0",
     "@tanstack/router-devtools": "^1.158.0",
