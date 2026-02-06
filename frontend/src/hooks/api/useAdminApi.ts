@@ -394,9 +394,11 @@ export function useAdminReports(filters?: { period?: string; start_date?: string
   return useQuery({
     queryKey: adminKeys.reports(filters as Record<string, string>),
     queryFn: async (): Promise<{ data: ReportData[]; summary: Record<string, number> }> => {
-      // Backend endpoint not implemented: GET /admin/reports
-      // When available, replace with: return await api.admin.getReports(filters)
-      return { data: [], summary: {} }
+      const params: Record<string, string> = {}
+      if (filters?.period) params.period = filters.period
+      if (filters?.start_date) params.start_date = filters.start_date
+      if (filters?.end_date) params.end_date = filters.end_date
+      return await api.admin.getReports(Object.keys(params).length > 0 ? params : undefined)
     },
     staleTime: STALE_TIME.MEDIUM, // Reports are more stable, 5 minutes
   })

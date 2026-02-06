@@ -778,8 +778,22 @@ export const api = {
 
     getWallet: () => baseFetch<import('@/types/agency').AgencyWallet>('/agency/wallet'),
 
+    // Payouts
+    requestPayout: (data: { amount: number; bank_account_id: string }) =>
+      baseFetch<{ id: number; status: string; message: string }>('/agency/payouts/request', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     // Stats
     getStats: () => baseFetch<import('@/types/agency').AgencyStats>('/agency/stats'),
+  },
+
+  admin: {
+    getReports: (filters?: Record<string, string>) => {
+      const query = filters ? '?' + new URLSearchParams(filters).toString() : ''
+      return baseFetch<{ data: Array<{ period: string; total_revenue: number; total_shifts: number; new_users: number; active_users: number; completion_rate: number }>; summary: Record<string, number> }>(`/admin/reports${query}`)
+    },
   },
 
   marketplace: {
@@ -1259,6 +1273,13 @@ export const api = {
         method: 'POST',
       })
     },
+
+    // Get Stripe Connect onboarding link
+    getConnectOnboardingLink: (accountType: 'express' | 'standard') =>
+      baseFetch<{ url: string }>('/payments/connect/onboarding-link', {
+        method: 'POST',
+        body: JSON.stringify({ account_type: accountType }),
+      }),
 
     // Request instant payout (1.5% fee)
     requestInstantPayout: (data?: { amount?: number; idempotency_key?: string }) =>

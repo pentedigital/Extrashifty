@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from sqlmodel import Session, func, select
 
+from app.models.notification import Notification
 from app.models.tax import TaxDocument, TaxFormStatus, TaxFormType, TaxYear
 from app.models.user import User, UserType
 from app.schemas.tax import TaxYearSummary, W9SubmitRequest
@@ -119,7 +120,20 @@ class TaxService:
                 f"New total: {tax_year_record.total_earnings}"
             )
 
-            # TODO: Implement W9 request notification when notification_service is integrated
+            notification = Notification(
+                user_id=user_id,
+                type="w9_required",
+                title="W9 Form Required",
+                message=(
+                    f"Your earnings have exceeded ${self.US_1099_THRESHOLD} for tax year "
+                    f"{tax_year_record.tax_year}. Please submit your W9 form."
+                ),
+                data={
+                    "tax_year": tax_year_record.tax_year,
+                    "total_earnings": str(tax_year_record.total_earnings),
+                },
+            )
+            self.db.add(notification)
 
         self.db.add(tax_year_record)
         self.db.commit()

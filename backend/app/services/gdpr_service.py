@@ -25,6 +25,7 @@ from app.models.review import Review
 from app.models.shift import Shift
 from app.models.user import User
 from app.models.wallet import PaymentMethod, Wallet
+from app.services.email_service import EmailService
 from app.services.stripe_service import StripeService, StripeServiceError
 
 logger = logging.getLogger(__name__)
@@ -116,8 +117,11 @@ class GDPRService:
             f"request ID: {deletion_request.id}"
         )
 
-        # TODO: Send confirmation email with cancellation link
-        # await email_service.send_deletion_confirmation(user.email, deletion_request.id)
+        email_svc = EmailService(db=self.db)
+        await email_svc.send_deletion_confirmation(
+            user_id=user_id,
+            deletion_request_id=deletion_request.id,
+        )
 
         return deletion_request
 
@@ -444,7 +448,11 @@ class GDPRService:
 
         logger.info(f"Data export generated for user {user_id}")
 
-        # TODO: In production, save export_json to cloud storage and return presigned URL
+        from app.services.storage_service import StorageService
+
+        storage = StorageService()
+        storage.save_export(user_id, export_json)
+
         return export_url
 
     async def process_deletion(self, deletion_request_id: int) -> bool:
@@ -642,11 +650,27 @@ class GDPRService:
             self.db.add(payout)
 
         # If there's remaining balance, create final payout
-        if wallet.balance > Decimal("0.00"):
-            # In production, transfer to user's bank account
+        if wallet.balance > Decimal("0.00") and wallet.stripe_account_id:
+            try:
+                amount_cents = int(wallet.balance * 100)
+                payout = self.stripe_service.create_payout(
+                    amount=amount_cents,
+                    connected_account_id=wallet.stripe_account_id,
+                    currency="eur",
+                    description=f"Final payout - account deletion (user {user_id})",
+                    metadata={"reason": "account_deletion", "user_id": str(user_id)},
+                )
+                result["final_payout_amount"] = str(wallet.balance)
+                result["final_payout_status"] = "initiated"
+                result["stripe_payout_id"] = payout.id
+            except StripeServiceError as e:
+                logger.warning(f"Could not create final payout for user {user_id}: {e}")
+                result["final_payout_amount"] = str(wallet.balance)
+                result["final_payout_status"] = "failed"
+                result["final_payout_error"] = str(e)
+        elif wallet.balance > Decimal("0.00"):
             result["final_payout_amount"] = str(wallet.balance)
-            result["final_payout_status"] = "scheduled"
-            # TODO: Create actual payout via Stripe
+            result["final_payout_status"] = "no_stripe_account"
 
         # Delete Stripe Connect account
         if wallet.stripe_account_id:
@@ -812,7 +836,15 @@ class GDPRService:
 
         count = len(payment_methods)
         for pm in payment_methods:
-            # TODO: Delete from Stripe as well
+            if pm.external_id:
+                try:
+                    import stripe
+
+                    stripe.PaymentMethod.detach(pm.external_id)
+                except Exception as e:
+                    logger.warning(
+                        f"Could not detach payment method {pm.external_id} from Stripe: {e}"
+                    )
             self.db.delete(pm)
 
         return count

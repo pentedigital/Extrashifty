@@ -232,6 +232,7 @@ async def dispute_deadline_check_job() -> None:
     2. Auto-resolve overdue disputes in favor of the worker (per platform policy)
     """
     from app.services.dispute_service import dispute_service
+    from app.models.notification import Notification
     from app.models.user import User, UserType
     from sqlmodel import select
 
@@ -259,7 +260,24 @@ async def dispute_deadline_check_job() -> None:
                         f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
                         f"was auto-resolved in favor of worker due to exceeded deadline"
                     )
-                    # TODO: Implement admin notifications when notification_service is integrated
+                    for admin in admins:
+                        admin_notification = Notification(
+                            user_id=admin.id,
+                            type="dispute_auto_resolved",
+                            title="Dispute Auto-Resolved",
+                            message=(
+                                f"Dispute #{dispute.id} (Shift #{dispute.shift_id}, "
+                                f"€{dispute.amount_disputed}) auto-resolved in favor of worker"
+                            ),
+                            data={
+                                "dispute_id": dispute.id,
+                                "shift_id": dispute.shift_id,
+                                "amount": str(dispute.amount_disputed),
+                            },
+                        )
+                        session.add(admin_notification)
+
+                session.commit()
 
             # STEP 2: Get disputes approaching deadline (within 24 hours)
             approaching = await dispute_service.get_disputes_approaching_deadline(
@@ -292,7 +310,24 @@ async def dispute_deadline_check_job() -> None:
                         f"(Shift: {dispute.shift_id}, Amount: {dispute.amount_disputed}) "
                         f"needs resolution within {hours_left:.1f} hours"
                     )
-                    # TODO: Implement admin notifications when notification_service is integrated
+                    for admin in admins:
+                        admin_notification = Notification(
+                            user_id=admin.id,
+                            type="dispute_deadline_approaching",
+                            title="Dispute Deadline Approaching",
+                            message=(
+                                f"Dispute #{dispute.id} (Shift #{dispute.shift_id}) "
+                                f"needs resolution within {hours_left:.1f} hours"
+                            ),
+                            data={
+                                "dispute_id": dispute.id,
+                                "shift_id": dispute.shift_id,
+                                "hours_left": round(hours_left, 1),
+                            },
+                        )
+                        session.add(admin_notification)
+
+                session.commit()
 
             else:
                 logger.debug("No disputes approaching deadline")
@@ -536,10 +571,14 @@ async def cleanup_expired_exports_job() -> None:
                 logger.debug("No expired exports to clean up")
                 return
 
+            from app.services.storage_service import StorageService
+
+            storage = StorageService()
+
             count = 0
             for request in expired_exports:
-                # TODO: In production, delete the actual file from cloud storage
-                # await cloud_storage.delete(request.data_export_url)
+                if request.data_export_url:
+                    storage.delete_export(request.data_export_url)
 
                 # Clear the URL
                 request.data_export_url = None

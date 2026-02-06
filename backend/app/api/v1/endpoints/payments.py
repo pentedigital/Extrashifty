@@ -5,8 +5,10 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
+from app.core.config import settings
 from app.crud.wallet import wallet as wallet_crud
 from app.models.user import UserType
 from app.schemas.payment import (
@@ -618,4 +620,67 @@ def get_payout_history(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
+        )
+
+
+# ==================== Stripe Connect Onboarding ====================
+
+
+class ConnectOnboardingRequest(BaseModel):
+    account_type: str = "express"
+
+
+class ConnectOnboardingResponse(BaseModel):
+    url: str
+
+
+@router.post("/connect/onboarding-link", response_model=ConnectOnboardingResponse)
+async def get_connect_onboarding_link(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: ConnectOnboardingRequest,
+) -> ConnectOnboardingResponse:
+    """
+    Create a Stripe Connect onboarding link for the current user.
+
+    If the user doesn't have a Connect account yet, one is created first.
+    """
+    from app.services.stripe_service import StripeService, StripeServiceError
+
+    wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
+    stripe_svc = StripeService()
+
+    try:
+        # Create Connect account if needed
+        if not wallet.stripe_account_id:
+            if request.account_type == "express":
+                account = stripe_svc.create_express_account(
+                    email=current_user.email,
+                    country="IE",
+                    metadata={"user_id": str(current_user.id)},
+                )
+            else:
+                account = stripe_svc.create_custom_account(
+                    email=current_user.email,
+                    country="IE",
+                    metadata={"user_id": str(current_user.id)},
+                )
+            wallet.stripe_account_id = account.id
+            session.add(wallet)
+            session.commit()
+
+        # Create onboarding link
+        base_url = settings.BACKEND_CORS_ORIGINS[0] if settings.BACKEND_CORS_ORIGINS else "http://localhost:5173"
+        account_link = stripe_svc.create_account_link(
+            account_id=wallet.stripe_account_id,
+            refresh_url=f"{base_url}/dashboard/wallet?stripe_refresh=true",
+            return_url=f"{base_url}/dashboard/wallet?stripe_onboarding=complete",
+        )
+
+        return ConnectOnboardingResponse(url=account_link.url)
+
+    except StripeServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e.message),
         )

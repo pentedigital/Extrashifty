@@ -582,14 +582,8 @@ export function useConnectAccountStatus() {
 export function useConnectOnboardingLink() {
   return useMutation({
     mutationFn: async (accountType: 'express' | 'standard'): Promise<{ url: string }> => {
-      // Call real API endpoint for Stripe Connect onboarding
-      // Falls back to demo URL if API not available
       try {
-        // TODO: Replace with real API call when endpoint is available
-        // return await api.payments.getConnectOnboardingLink(accountType)
-        return {
-          url: `https://connect.stripe.com/setup/${accountType}/demo`,
-        }
+        return await api.payments.getConnectOnboardingLink(accountType)
       } catch {
         return {
           url: `https://connect.stripe.com/setup/${accountType}/demo`,
@@ -663,13 +657,7 @@ export function useRequestAgencyPayout() {
 
   return useMutation({
     mutationFn: async (data: { amount: number; bank_account_id: string }): Promise<{ id: number; status: string; message: string }> => {
-      // TODO: Replace with real API call when endpoint is available
-      // return await api.agency.requestPayout(data)
-      return {
-        id: Math.floor(Math.random() * 10000),
-        status: 'pending',
-        message: 'Payout request submitted. Funds will be transferred within 2-3 business days.',
-      }
+      return await api.agency.requestPayout(data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: paymentKeys.all })

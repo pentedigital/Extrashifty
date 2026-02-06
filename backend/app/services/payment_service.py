@@ -6,9 +6,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+import stripe
 from sqlmodel import Session, select
 
-from app.core.utils import quantize_amount
+from app.core.config import settings
+from app.core.utils import calculate_shift_cost, quantize_amount
 
 from app.models.payment import (
     Dispute,
@@ -21,6 +23,7 @@ from app.models.payment import (
     TransactionStatus,
     TransactionType,
 )
+from app.models.notification import Notification
 from app.models.shift import Shift, ShiftStatus
 from app.models.wallet import PaymentMethod, Wallet, WalletStatus
 
@@ -258,17 +261,73 @@ class PaymentService:
         payment_method_external_id: str | None,
         idempotency_key: str,
     ) -> tuple[bool, str | None]:
-        """
-        Process payment through Stripe.
+        """Process payment through Stripe.
 
-        In production, this would call stripe.PaymentIntent.create() and confirm().
+        Creates a Stripe PaymentIntent for the given amount and payment method.
         Returns (success: bool, error_message: str | None).
-        """
-        # TODO: Integrate Stripe PaymentIntent in production.
-        # This stub simulates success for development/testing.
-        # See Stripe docs: https://stripe.com/docs/api/payment_intents
 
-        return True, None
+        Args:
+            amount: Amount in EUR (will be converted to cents)
+            payment_method_external_id: Stripe payment method ID
+            idempotency_key: Unique key to prevent duplicate charges
+        """
+        if not settings.STRIPE_SECRET_KEY:
+            logger.warning("Stripe not configured, skipping payment processing")
+            return True, None
+
+        try:
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+
+            # Convert EUR to cents for Stripe
+            amount_cents = int(amount * 100)
+
+            # Build PaymentIntent params
+            intent_params: dict = {
+                "amount": amount_cents,
+                "currency": "eur",
+                "metadata": {
+                    "platform": "extrashifty",
+                    "idempotency_key": idempotency_key,
+                },
+            }
+
+            if payment_method_external_id:
+                intent_params["payment_method"] = payment_method_external_id
+                intent_params["confirm"] = True
+            else:
+                intent_params["automatic_payment_methods"] = {
+                    "enabled": True,
+                    "allow_redirects": "never",
+                }
+
+            # Create PaymentIntent with idempotency key
+            payment_intent = stripe.PaymentIntent.create(
+                **intent_params,
+                idempotency_key=idempotency_key,
+            )
+
+            if payment_intent.status in ("succeeded", "requires_capture"):
+                logger.info(
+                    f"Stripe payment succeeded: {payment_intent.id}"
+                )
+                return True, None
+            elif payment_intent.status == "requires_action":
+                logger.info(
+                    f"Stripe payment requires action: {payment_intent.id}"
+                )
+                return False, f"Payment requires additional action (intent: {payment_intent.id})"
+            else:
+                logger.warning(
+                    f"Stripe payment failed with status: {payment_intent.status}"
+                )
+                return False, f"Payment failed with status: {payment_intent.status}"
+
+        except stripe.StripeError as e:
+            logger.error(f"Stripe payment error: {e}")
+            return False, str(e)
+        except Exception as e:
+            logger.error(f"Unexpected payment error: {e}")
+            return False, str(e)
 
     def configure_auto_topup(
         self,
@@ -878,7 +937,7 @@ class PaymentService:
             end += timedelta(days=1)
 
         hours = Decimal(str((end - start).total_seconds() / 3600))
-        return quantize_amount(hours * shift.hourly_rate)
+        return calculate_shift_cost(hours, shift.hourly_rate)
 
     # ==================== Payout Operations ====================
 
@@ -1777,7 +1836,19 @@ class PaymentService:
                 f"Failed to execute scheduled reserve {scheduled_reserve_id}: {e}"
             )
 
-            # TODO: Create notification for company about failed reserve
+            notification = Notification(
+                user_id=wallet.user_id,
+                type="reserve_failed",
+                title="Scheduled Reserve Failed",
+                message=f"Failed to reserve funds for shift: {str(e)}",
+                data={
+                    "scheduled_reserve_id": scheduled_reserve_id,
+                    "shift_id": scheduled_reserve.shift_id,
+                },
+            )
+            self.db.add(notification)
+            self.db.commit()
+
             return None
 
         except Exception as e:

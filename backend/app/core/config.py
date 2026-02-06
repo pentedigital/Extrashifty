@@ -81,6 +81,9 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_EMAIL: str = "admin@extrashifty.com"
     FIRST_SUPERUSER_PASSWORD: str = "changeme"
 
+    # Storage
+    DATA_EXPORT_DIR: str | None = None
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
@@ -88,35 +91,46 @@ class Settings(BaseSettings):
     STRIPE_PLATFORM_ACCOUNT_ID: str = ""
 
     @model_validator(mode="after")
-    def warn_default_secrets(self) -> Self:
+    def _enforce_non_default_secrets(self) -> Self:
         """
-        Log warnings if default/insecure secrets are being used.
-
-        This validator runs after model initialization and logs warnings
-        for any secrets that contain 'changeme', indicating they haven't
-        been properly configured for production use.
+        Enforce that default secrets are not used in production/staging.
+        Logs warnings in development, raises ValueError in production/staging.
         """
-        warnings_issued = []
+        default_secrets = []
 
         if "changeme" in self.SECRET_KEY.lower():
-            warnings_issued.append("SECRET_KEY")
+            default_secrets.append("SECRET_KEY")
 
         if "changeme" in self.REFRESH_SECRET_KEY.lower():
-            warnings_issued.append("REFRESH_SECRET_KEY")
+            default_secrets.append("REFRESH_SECRET_KEY")
 
         if "changeme" in self.FIRST_SUPERUSER_PASSWORD.lower():
-            warnings_issued.append("FIRST_SUPERUSER_PASSWORD")
+            default_secrets.append("FIRST_SUPERUSER_PASSWORD")
 
-        if warnings_issued:
-            logger.warning(
-                "=" * 60 + "\n"
-                "SECURITY WARNING: Default secrets detected!\n"
-                "The following settings contain 'changeme' and MUST be updated:\n"
-                f"  - {', '.join(warnings_issued)}\n"
-                "These default values are NOT secure for production use.\n"
-                "Generate secure secrets using: openssl rand -hex 32\n"
-                + "=" * 60
+        if self.POSTGRES_PASSWORD == "postgres":
+            default_secrets.append("POSTGRES_PASSWORD")
+
+        if not default_secrets:
+            return self
+
+        secret_list = ", ".join(default_secrets)
+
+        if self.ENVIRONMENT in ("production", "staging"):
+            raise ValueError(
+                f"Default secrets detected in {self.ENVIRONMENT} environment! "
+                f"The following settings MUST be changed: {secret_list}. "
+                "Generate secure values using: openssl rand -hex 32"
             )
+
+        logger.warning(
+            "=" * 60 + "\n"
+            "SECURITY WARNING: Default secrets detected!\n"
+            "The following settings contain default values and MUST be updated:\n"
+            f"  - {secret_list}\n"
+            "These default values are NOT secure for production use.\n"
+            "Generate secure secrets using: openssl rand -hex 32\n"
+            + "=" * 60
+        )
 
         return self
 

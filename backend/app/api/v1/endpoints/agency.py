@@ -3233,3 +3233,88 @@ def list_agency_mode_shifts(
         ))
 
     return result
+
+
+# ==================== Agency Payouts ====================
+
+
+class AgencyPayoutRequest(BaseModel):
+    amount: float = Field(gt=0, description="Amount to payout")
+    bank_account_id: str = Field(description="Bank account identifier")
+
+
+class AgencyPayoutResponse(BaseModel):
+    id: int
+    status: str
+    message: str
+
+
+@router.post("/payouts/request", response_model=AgencyPayoutResponse)
+async def request_agency_payout(
+    session: SessionDep,
+    current_user: ActiveUserDep,
+    request: AgencyPayoutRequest,
+):
+    """Request a payout for agency wallet balance."""
+    from app.models.wallet import Wallet
+    from app.models.payment import Payout, PayoutStatus as PayoutStatusEnum, PayoutType
+    from app.services.stripe_service import StripeService, StripeServiceError
+
+    require_permission(
+        current_user.user_type == UserType.AGENCY,
+        "Agency access required",
+    )
+
+    wallet = session.exec(
+        select(Wallet).where(Wallet.user_id == current_user.id)
+    ).first()
+
+    if not wallet:
+        raise_not_found("Wallet", "current user")
+
+    if wallet.available_balance < Decimal(str(request.amount)):
+        raise_bad_request(
+            f"Insufficient balance. Available: €{wallet.available_balance}, "
+            f"Requested: €{request.amount}"
+        )
+
+    amount_decimal = Decimal(str(request.amount))
+
+    # Create payout record
+    payout = Payout(
+        wallet_id=wallet.id,
+        amount=amount_decimal,
+        fee=Decimal("0.00"),
+        net_amount=amount_decimal,
+        payout_type=PayoutType.STANDARD,
+        status=PayoutStatusEnum.PENDING,
+        scheduled_date=date.today(),
+    )
+    session.add(payout)
+
+    # Attempt Stripe payout if connected
+    if wallet.stripe_account_id:
+        try:
+            stripe_svc = StripeService()
+            amount_cents = int(amount_decimal * 100)
+            stripe_payout = stripe_svc.create_payout(
+                amount=amount_cents,
+                connected_account_id=wallet.stripe_account_id,
+                currency=wallet.currency.lower(),
+                description=f"Agency payout request (user {current_user.id})",
+                metadata={"user_id": str(current_user.id), "payout_type": "agency"},
+            )
+            payout.stripe_payout_id = stripe_payout.id
+            payout.status = PayoutStatusEnum.PROCESSING
+        except StripeServiceError as e:
+            logger.warning(f"Stripe payout failed for agency {current_user.id}: {e}")
+            payout.status = PayoutStatusEnum.FAILED
+
+    session.commit()
+    session.refresh(payout)
+
+    return AgencyPayoutResponse(
+        id=payout.id,
+        status=payout.status.value,
+        message="Payout request submitted. Funds will be transferred within 2-3 business days.",
+    )

@@ -24,6 +24,7 @@ from app.models.penalty import (
 )
 from app.models.user import User, UserType
 from app.models.wallet import Wallet
+from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -649,7 +650,24 @@ class AppealService:
         db.add(notification)
         db.commit()
 
-        # TODO: Send email notification as well
+        email_svc = EmailService(db=db)
+        if appeal.status == AppealStatus.APPROVED:
+            await email_svc.send_appeal_approved(
+                user_id=appeal.user_id,
+                appeal_type=appeal.appeal_type.value,
+                appeal_id=appeal.id,
+                reviewer_notes=appeal.reviewer_notes or "",
+                emergency_waiver_used=appeal.emergency_waiver_used,
+            )
+        else:
+            await email_svc.send_appeal_denied(
+                user_id=appeal.user_id,
+                appeal_type=appeal.appeal_type.value,
+                appeal_id=appeal.id,
+                reviewer_notes=appeal.reviewer_notes or "",
+                frivolous_fee_charged=appeal.frivolous_fee_charged,
+            )
+
         logger.info(f"Notified user {appeal.user_id} about appeal {appeal.id} review")
 
 

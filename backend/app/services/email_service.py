@@ -474,6 +474,61 @@ class EmailService:
             html_content=html_content,
         )
 
+    # =========================================================================
+    # GDPR-related email notifications
+    # =========================================================================
+
+    async def send_deletion_confirmation(
+        self,
+        user_id: int,
+        deletion_request_id: int,
+    ) -> bool:
+        """
+        Send account deletion confirmation with cancellation link.
+
+        Includes 30-day grace period information.
+        """
+        user = self._get_user(user_id)
+        if not user:
+            logger.warning(f"Cannot send deletion confirmation: user {user_id} not found")
+            return False
+
+        cancel_url = (
+            f"{self.base_url}/dashboard/settings/gdpr?cancel={deletion_request_id}"
+        )
+
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Account Deletion Requested - ExtraShifty</h2>
+            <p>Hi {user.full_name},</p>
+            <p>We've received your request to delete your ExtraShifty account.</p>
+
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                <h4 style="margin-top: 0;">30-Day Grace Period</h4>
+                <p>Your account will be permanently deleted after a <strong>30-day grace period</strong>. During this time:</p>
+                <ul>
+                    <li>Your account will remain accessible</li>
+                    <li>You can cancel the deletion at any time</li>
+                    <li>Any remaining wallet balance will be paid out before deletion</li>
+                </ul>
+            </div>
+
+            <p>If you did not request this, or if you change your mind, you can cancel the deletion:</p>
+            <p><a href="{cancel_url}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">Cancel Deletion</a></p>
+
+            <p>If you have questions, please contact support.</p>
+            <p>Thank you,<br>The ExtraShifty Team</p>
+        </body>
+        </html>
+        """
+
+        return self._send_email(
+            to_email=user.email,
+            subject="Account Deletion Requested - ExtraShifty",
+            html_content=html_content,
+        )
+
 
 # Singleton instance for use without database context
 email_service = EmailService()
