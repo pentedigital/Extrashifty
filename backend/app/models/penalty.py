@@ -74,7 +74,6 @@ class Penalty(SQLModel, table=True):
     __tablename__ = "penalties"
     __table_args__ = (
         Index("ix_penalties_user_id_status", "user_id", "status"),
-        Index("ix_penalties_shift_id", "shift_id"),
         Index("ix_penalties_created_at", "created_at"),
     )
 
@@ -111,8 +110,6 @@ class PenaltyAppeal(SQLModel, table=True):
 
     __tablename__ = "penalty_appeals"
     __table_args__ = (
-        Index("ix_penalty_appeals_penalty_id", "penalty_id"),
-        Index("ix_penalty_appeals_user_id", "user_id"),
         Index("ix_penalty_appeals_status", "status"),
     )
 
@@ -184,7 +181,6 @@ class NegativeBalance(SQLModel, table=True):
 
     __tablename__ = "negative_balances"
     __table_args__ = (
-        Index("ix_negative_balances_user_id", "user_id", unique=True),
         Index("ix_negative_balances_last_activity_at", "last_activity_at"),
     )
 

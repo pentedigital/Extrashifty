@@ -10,7 +10,7 @@ It also provides emergency waiver tracking for one-time yearly exceptions.
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlmodel import Column, Field, Index, JSON, Relationship, SQLModel
 
@@ -65,7 +65,6 @@ class Appeal(SQLModel, table=True):
 
     __tablename__ = "appeals"
     __table_args__ = (
-        Index("ix_appeals_user_id", "user_id"),
         Index("ix_appeals_status", "status"),
         Index("ix_appeals_appeal_type", "appeal_type"),
         Index("ix_appeals_created_at", "created_at"),
@@ -119,10 +118,10 @@ class Appeal(SQLModel, table=True):
         back_populates="appeals",
         sa_relationship_kwargs={"foreign_keys": "[Appeal.user_id]"},
     )
-    reviewer: "User | None" = Relationship(
+    reviewer: Optional["User"] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Appeal.reviewed_by]"}
     )
-    emergency_waiver: "EmergencyWaiver | None" = Relationship(back_populates="appeal")
+    emergency_waiver: Optional["EmergencyWaiver"] = Relationship(back_populates="appeal")
 
 
 class EmergencyWaiver(SQLModel, table=True):

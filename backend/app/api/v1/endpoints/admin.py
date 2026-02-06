@@ -57,7 +57,7 @@ def _compute_change(current: float, previous: float) -> float:
 async def get_admin_reports(
     session: SessionDep,
     admin: AdminUserDep,
-    period: str = Query(default="monthly", regex="^(monthly|weekly)$"),
+    period: str = Query(default="monthly", pattern="^(monthly|weekly)$"),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
 ) -> ReportsResponse:

@@ -94,7 +94,6 @@ class TaxDocument(SQLModel, table=True):
 
     __tablename__ = "tax_documents"
     __table_args__ = (
-        Index("ix_tax_documents_tax_year_id", "tax_year_id"),
         Index("ix_tax_documents_document_type", "document_type"),
     )
 

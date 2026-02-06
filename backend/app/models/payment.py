@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlmodel import JSON, Column, Field, Index, Relationship, SQLModel
 
@@ -119,7 +119,7 @@ class Transaction(SQLModel, table=True):
     completed_at: datetime | None = Field(default=None)
 
     # Relationships
-    related_shift: "Shift | None" = Relationship()
+    related_shift: Optional["Shift"] = Relationship()
 
 
 class FundsHold(SQLModel, table=True):
@@ -128,7 +128,6 @@ class FundsHold(SQLModel, table=True):
     __tablename__ = "funds_holds"
     __table_args__ = (
         Index("ix_funds_holds_wallet_id_status", "wallet_id", "status"),
-        Index("ix_funds_holds_shift_id", "shift_id"),
         Index("ix_funds_holds_expires_at", "expires_at"),
     )
 
@@ -177,9 +176,6 @@ class Dispute(SQLModel, table=True):
 
     __tablename__ = "disputes"
     __table_args__ = (
-        Index("ix_disputes_shift_id", "shift_id"),
-        Index("ix_disputes_raised_by_user_id", "raised_by_user_id"),
-        Index("ix_disputes_against_user_id", "against_user_id"),
         Index("ix_disputes_status", "status"),
         Index("ix_disputes_created_at", "created_at"),
         Index("ix_disputes_resolution_deadline", "resolution_deadline"),
@@ -242,8 +238,6 @@ class ScheduledReserve(SQLModel, table=True):
 
     __tablename__ = "scheduled_reserves"
     __table_args__ = (
-        Index("ix_scheduled_reserves_shift_id", "shift_id"),
-        Index("ix_scheduled_reserves_wallet_id", "wallet_id"),
         Index("ix_scheduled_reserves_status_execute_at", "status", "execute_at"),
     )
 

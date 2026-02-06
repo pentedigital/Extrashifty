@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -47,13 +47,16 @@ class User(SQLModel, table=True):
     anonymized_id: str | None = Field(default=None, max_length=50, index=True)
 
     # Relationships
-    shifts: list["Shift"] = Relationship(back_populates="company")
+    shifts: list["Shift"] = Relationship(
+        back_populates="company",
+        sa_relationship_kwargs={"foreign_keys": "[Shift.company_id]"},
+    )
     applications: list["Application"] = Relationship(back_populates="applicant")
     notifications: list["Notification"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"lazy": "noload"},
     )
-    notification_preference: "NotificationPreference | None" = Relationship(
+    notification_preference: Optional["NotificationPreference"] = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"lazy": "noload", "uselist": False},
     )

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
@@ -88,7 +88,7 @@ class ClockRecord(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    shift: "Shift | None" = Relationship()
+    shift: Optional["Shift"] = Relationship()
 
 
 class Venue(SQLModel, table=True):

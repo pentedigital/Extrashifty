@@ -42,7 +42,7 @@ class Invoice(SQLModel, table=True):
     )
 
     id: int | None = Field(default=None, primary_key=True)
-    invoice_number: str = Field(max_length=50, index=True)  # Format: INV-YYYY-NNNNNN
+    invoice_number: str = Field(max_length=50)  # Format: INV-YYYY-NNNNNN (unique index in __table_args__)
     invoice_type: InvoiceType = Field(default=InvoiceType.COMPANY_RECEIPT)
     user_id: int = Field(foreign_key="users.id", index=True)
     amount: Decimal = Field(max_digits=12, decimal_places=2)
