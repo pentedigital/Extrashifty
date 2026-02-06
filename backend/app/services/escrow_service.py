@@ -17,7 +17,7 @@ from app.models.payment import (
 from app.models.wallet import Wallet
 
 if TYPE_CHECKING:
-    from app.models.shift import Shift
+    pass
 
 
 class EscrowService:

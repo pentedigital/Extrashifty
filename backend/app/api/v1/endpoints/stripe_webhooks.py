@@ -13,13 +13,8 @@ from app.core.config import settings
 from app.crud.notification import notification as notification_crud
 from app.crud.payment import dispute as dispute_crud
 from app.crud.payment import payout as payout_crud
-from app.crud.payment import transaction as transaction_crud
 from app.crud.wallet import wallet as wallet_crud
 from app.models.payment import (
-    Dispute,
-    DisputeStatus,
-    Payout,
-    PayoutStatus,
     ProcessedWebhookEvent,
     Transaction,
     TransactionStatus,
@@ -505,7 +500,7 @@ async def handle_charge_dispute_created(
     dispute_status = stripe_dispute.get("status", "unknown")
     evidence_details = stripe_dispute.get("evidence_details", {})
     due_by = evidence_details.get("due_by")
-    metadata = stripe_dispute.get("metadata", {})
+    _metadata = stripe_dispute.get("metadata", {})
 
     logger.warning(
         f"Dispute created: {dispute_id} for charge {charge_id}, "
@@ -894,7 +889,7 @@ async def stripe_webhook(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Webhook signature verification failed: {e.message}",
-        )
+        ) from e
 
     # Extract event data
     event_id = event.id

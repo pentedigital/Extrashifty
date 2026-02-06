@@ -46,6 +46,8 @@ packages = ["app"]
 [tool.ruff]
 target-version = "py311"
 line-length = 88
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -59,6 +61,11 @@ ignore = [
     "E501",  # line too long, handled by formatter
     "B008",  # do not perform function calls in argument defaults
     "W191",  # indentation contains tabs
+    "E712",  # == True/False comparisons — required for SQLAlchemy column filters
+    "UP006", # Use `list` instead of `List` — keep for consistency
+    "UP035", # `typing.List` deprecated — keep for consistency
+    "UP042", # Use `StrEnum` instead of `str, Enum` — SQLModel compatibility
+    "UP045", # Use `X | None` instead of `Optional[X]` — Pydantic 3.14 compat
 ]
 
 [tool.ruff.format]

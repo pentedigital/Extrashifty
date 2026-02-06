@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlmodel import Session, and_, or_, select
+from sqlmodel import Session, select
 
 from app.models.application import Application, ApplicationStatus
 from app.models.payment import FundsHold, FundsHoldStatus
@@ -129,7 +129,7 @@ class VerificationService:
         gross_amount = shift.hourly_rate * approved_hours
 
         # Process settlement
-        settlement_result = await self._process_settlement(
+        _settlement_result = await self._process_settlement(
             db, shift, actual_hours=approved_hours
         )
 

@@ -8,7 +8,6 @@ from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .shift import Shift
-    from .user import User
 
 
 class StaffProfile(SQLModel, table=True):

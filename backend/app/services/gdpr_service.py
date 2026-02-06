@@ -579,7 +579,7 @@ class GDPRService:
             self.db.commit()
 
             logger.error(f"Account deletion failed for user {user_id}: {e}")
-            raise GDPRServiceError(f"Deletion failed: {str(e)}", "deletion_failed")
+            raise GDPRServiceError(f"Deletion failed: {str(e)}", "deletion_failed") from e
 
     async def close_wallet(self, user_id: int) -> dict:
         """

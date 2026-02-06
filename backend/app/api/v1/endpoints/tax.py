@@ -75,7 +75,7 @@ async def get_tax_status(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/w9", response_model=W9SubmitResponse)
@@ -128,7 +128,7 @@ async def submit_w9(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/documents", response_model=TaxDocumentListResponse)
@@ -277,7 +277,7 @@ async def get_pending_w9_list(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/admin/pending-1099", response_model=PendingW9Response)
@@ -308,7 +308,7 @@ async def get_pending_1099_list(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/admin/generate-1099s", response_model=Generate1099Response)
@@ -347,4 +347,4 @@ async def batch_generate_1099s(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e

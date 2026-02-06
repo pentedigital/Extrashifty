@@ -10,8 +10,6 @@ from sqlmodel import Session, select
 from app.models.payment import (
     Dispute,
     DisputeStatus,
-    FundsHold,
-    FundsHoldStatus,
 )
 from app.models.shift import Shift
 from app.models.user import User
@@ -147,7 +145,7 @@ class DisputeService:
             )
         except ValueError as e:
             db.rollback()
-            raise ValueError(f"Failed to escrow funds: {e}")
+            raise ValueError(f"Failed to escrow funds: {e}") from e
 
         db.commit()
         db.refresh(dispute)

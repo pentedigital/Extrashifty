@@ -6,13 +6,12 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
+from sqlmodel import func, select
 
 from app.api.deps import SessionDep
 from app.crud import shift as shift_crud
 from app.models.shift import ShiftStatus
-from app.models.user import User
 from app.schemas.shift import ShiftRead
-from sqlmodel import func, select
 
 router = APIRouter()
 
@@ -45,7 +44,6 @@ def list_marketplace_shifts(
 
     Returns only open shifts that are available for applications.
     """
-    from app.models.shift import Shift
 
     shifts, total = shift_crud.get_multi_with_count(
         session,

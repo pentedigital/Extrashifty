@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.penalty import AppealStatus, PenaltyStatus
 
-
 # ==================== Strike Schemas ====================
 
 

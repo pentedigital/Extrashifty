@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import JSON, Column, Field, Index, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from .payment import Payout, Transaction
     from .user import User
 
 

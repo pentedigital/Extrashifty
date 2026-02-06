@@ -10,9 +10,9 @@ It also provides emergency waiver tracking for one-time yearly exceptions.
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Column, Field, Index, JSON, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, Index, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .user import User

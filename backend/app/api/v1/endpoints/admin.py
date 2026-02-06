@@ -75,7 +75,7 @@ async def get_admin_reports(
         start_date = end_date - timedelta(days=180 if period == "monthly" else 56)
 
     end_dt = datetime.combine(end_date, datetime.max.time())
-    start_dt = datetime.combine(start_date, datetime.min.time())
+    _start_dt = datetime.combine(start_date, datetime.min.time())
 
     # ---- Build period data ----
     data: list[ReportDataItem] = []

@@ -7,7 +7,6 @@ from sqlmodel import Session, select
 
 from app.models.wallet import (
     PaymentMethod,
-    PaymentMethodType,
     Wallet,
     WalletType,
 )

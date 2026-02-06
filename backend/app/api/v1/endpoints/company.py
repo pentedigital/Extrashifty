@@ -864,7 +864,7 @@ def get_shift_applications(
     require_company_user(current_user)
 
     # Verify shift belongs to company
-    shift = get_company_shift(session, shift_id, current_user.id)
+    _shift = get_company_shift(session, shift_id, current_user.id)
 
     query = (
         select(Application)

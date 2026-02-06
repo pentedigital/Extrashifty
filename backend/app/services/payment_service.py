@@ -11,9 +11,8 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.utils import calculate_shift_cost, quantize_amount
-
+from app.models.notification import Notification
 from app.models.payment import (
-    Dispute,
     FundsHold,
     FundsHoldStatus,
     Payout,
@@ -23,12 +22,11 @@ from app.models.payment import (
     TransactionStatus,
     TransactionType,
 )
-from app.models.notification import Notification
 from app.models.shift import Shift, ShiftStatus
 from app.models.wallet import PaymentMethod, Wallet, WalletStatus
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -1212,9 +1210,9 @@ class PaymentService:
 
         # Record earnings for tax tracking and create pay stubs for each payout
         try:
+            from app.models.application import Application, ApplicationStatus
             from app.services.invoice_service import InvoiceService
             from app.services.tax_service import TaxService
-            from app.models.application import Application, ApplicationStatus
 
             invoice_service = InvoiceService(self.db)
             tax_service = TaxService(self.db)
@@ -1594,7 +1592,6 @@ class PaymentService:
 
         # Find shifts that completed more than 24 hours ago
         # and haven't been settled yet
-        from app.models.application import Application, ApplicationStatus
 
         # Get shifts with active holds that have passed the shift date
         holds = self.db.exec(

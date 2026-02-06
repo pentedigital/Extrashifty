@@ -7,21 +7,46 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, raise_conflict, require_found, require_permission
-from sqlmodel import Session, SQLModel, select, func
+from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, SessionDep
-from app.models.user import UserType
-from app.models.shift import Shift, ShiftStatus
-from app.models.application import Application, ApplicationStatus
+from app.core.errors import (
+    raise_bad_request,
+    raise_not_found,
+    require_found,
+    require_permission,
+)
 from app.models.agency import (
     AgencyClient,
     AgencyClientInvoice,
+    AgencyMode,
+    AgencyModeChangeRequest,
     AgencyShift,
     AgencyShiftAssignment,
     AgencyStaffMember,
     PayrollEntry,
     StaffInvitation,
+)
+from app.models.agency import (
+    AgencyProfile as AgencyProfileModel,
+)
+from app.models.application import Application, ApplicationStatus
+from app.models.shift import Shift, ShiftStatus
+from app.models.user import UserType
+from app.models.wallet import Wallet
+from app.schemas.agency import (
+    AgencyDashboardResponse,
+    AgencyModeRequirements,
+    AgencyModeUpdateRequest,
+    AgencyModeUpdateResponse,
+    AgencyProfileRead,
+    AgencyShiftCreateForClient,
+)
+from app.schemas.agency import (
+    AgencyProfileUpdate as AgencyProfileUpdateSchema,
+)
+from app.schemas.agency import (
+    AgencyShiftResponse as AgencyModeShiftResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -648,9 +673,9 @@ def list_staff(
 
     Optionally filter by status (active, inactive, pending).
     """
-    from app.models.user import User
     from app.models.profile import StaffProfile
     from app.models.review import Review, ReviewType
+    from app.models.user import User
 
     require_agency_user(current_user)
 
@@ -935,8 +960,14 @@ def get_agency_wallet(
     current_user: ActiveUserDep,
 ) -> AgencyWallet:
     """Get current agency's wallet information."""
+    from app.models.payment import (
+        Payout,
+        PayoutStatus,
+        Transaction,
+        TransactionStatus,
+        TransactionType,
+    )
     from app.models.wallet import Wallet
-    from app.models.payment import Transaction, TransactionType, TransactionStatus, Payout, PayoutStatus
 
     require_agency_user(current_user)
 
@@ -1015,9 +1046,9 @@ def add_staff(
 
     Creates a new agency-staff relationship with the specified user.
     """
-    from app.models.user import User
     from app.models.profile import StaffProfile
     from app.models.review import Review, ReviewType
+    from app.models.user import User
 
     require_agency_user(current_user)
 
@@ -1094,9 +1125,9 @@ def update_staff(
 
     Allows updating status, availability, and notes for a staff member.
     """
-    from app.models.user import User
     from app.models.profile import StaffProfile
     from app.models.review import Review, ReviewType
+    from app.models.user import User
 
     require_agency_user(current_user)
 
@@ -2194,7 +2225,10 @@ async def generate_client_invoice(
     """
     require_agency_user(current_user)
 
-    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+    from app.services.agency_billing_service import (
+        AgencyBillingError,
+        AgencyBillingService,
+    )
 
     billing_service = AgencyBillingService(session)
 
@@ -2215,7 +2249,7 @@ async def generate_client_invoice(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/clients/{client_id}/invoices", response_model=InvoiceListResponse)
@@ -2317,7 +2351,10 @@ def get_client_billing_summary(
     """
     require_agency_user(current_user)
 
-    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+    from app.services.agency_billing_service import (
+        AgencyBillingError,
+        AgencyBillingService,
+    )
 
     billing_service = AgencyBillingService(session)
 
@@ -2333,7 +2370,7 @@ def get_client_billing_summary(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/clients/{client_id}/unbilled-shifts", response_model=List[UnbilledShiftResponse])
@@ -2349,7 +2386,10 @@ def get_client_unbilled_shifts(
     """
     require_agency_user(current_user)
 
-    from app.services.agency_billing_service import AgencyBillingService, AgencyBillingError
+    from app.services.agency_billing_service import (
+        AgencyBillingError,
+        AgencyBillingService,
+    )
 
     billing_service = AgencyBillingService(session)
 
@@ -2365,7 +2405,7 @@ def get_client_unbilled_shifts(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message,
-        )
+        ) from e
 
 
 # --- Payroll Endpoints ---
@@ -2467,9 +2507,10 @@ def process_payroll(
     for the given period. Calculates hours and amounts based on completed shifts.
     """
     from decimal import Decimal
-    from app.models.user import User
+
     from app.models.profile import StaffProfile
     from app.models.review import Review, ReviewType
+    from app.models.user import User
 
     require_agency_user(current_user)
 
@@ -2701,27 +2742,15 @@ def get_payroll_entry(
 # ==================== Agency Mode Endpoints ====================
 
 
-from app.models.agency import AgencyMode, AgencyProfile, AgencyModeChangeRequest
-from app.models.wallet import Wallet
-from app.schemas.agency import (
-    AgencyDashboardResponse,
-    AgencyModeRequirements,
-    AgencyModeUpdateRequest,
-    AgencyModeUpdateResponse,
-    AgencyProfileRead,
-    AgencyProfileUpdate as AgencyProfileUpdateSchema,
-    AgencyShiftCreateForClient,
-    AgencyShiftResponse as AgencyModeShiftResponse,
-)
 
 
-def get_or_create_agency_profile(session: SessionDep, user_id: int) -> AgencyProfile:
+def get_or_create_agency_profile(session: SessionDep, user_id: int) -> AgencyProfileModel:
     """Get existing agency profile or create a new one."""
-    statement = select(AgencyProfile).where(AgencyProfile.user_id == user_id)
+    statement = select(AgencyProfileModel).where(AgencyProfileModel.user_id == user_id)
     profile = session.exec(statement).first()
 
     if not profile:
-        profile = AgencyProfile(user_id=user_id)
+        profile = AgencyProfileModel(user_id=user_id)
         session.add(profile)
         session.commit()
         session.refresh(profile)
@@ -2733,7 +2762,7 @@ def get_or_create_agency_profile(session: SessionDep, user_id: int) -> AgencyPro
 def get_agency_mode_profile(
     session: SessionDep,
     current_user: ActiveUserDep,
-) -> AgencyProfile:
+) -> AgencyProfileModel:
     """
     Get the agency's mode profile.
 
@@ -2749,7 +2778,7 @@ def update_agency_mode_profile(
     session: SessionDep,
     current_user: ActiveUserDep,
     profile_update: AgencyProfileUpdateSchema,
-) -> AgencyProfile:
+) -> AgencyProfileModel:
     """
     Update agency profile settings (not mode - use /mode endpoint for that).
 
@@ -3046,7 +3075,7 @@ def get_agency_dashboard(
 # ==================== Mode B: Client Shift Management ====================
 
 
-def require_full_intermediary_mode(session: SessionDep, user_id: int) -> AgencyProfile:
+def require_full_intermediary_mode(session: SessionDep, user_id: int) -> AgencyProfileModel:
     """Verify agency is in FULL_INTERMEDIARY mode."""
     profile = get_or_create_agency_profile(session, user_id)
 
@@ -3073,7 +3102,7 @@ def create_shift_for_client(
     Funds are reserved from the AGENCY's wallet, not the client's.
     """
     require_agency_user(current_user)
-    profile = require_full_intermediary_mode(session, current_user.id)
+    _profile = require_full_intermediary_mode(session, current_user.id)
 
     # Verify client exists and belongs to agency
     client_stmt = select(AgencyClient).where(
@@ -3256,8 +3285,9 @@ async def request_agency_payout(
     request: AgencyPayoutRequest,
 ):
     """Request a payout for agency wallet balance."""
+    from app.models.payment import Payout, PayoutType
+    from app.models.payment import PayoutStatus as PayoutStatusEnum
     from app.models.wallet import Wallet
-    from app.models.payment import Payout, PayoutStatus as PayoutStatusEnum, PayoutType
     from app.services.stripe_service import StripeService, StripeServiceError
 
     require_permission(

@@ -6,7 +6,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
+from app.core.errors import (
+    require_found,
+    require_permission,
+)
 from app.models.payment import Dispute, DisputeStatus
 from app.models.user import User
 from app.schemas.dispute import (
@@ -99,7 +102,7 @@ async def create_dispute(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -140,7 +143,7 @@ async def list_disputes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch disputes: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -211,7 +214,7 @@ async def add_evidence(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.post(
@@ -251,11 +254,12 @@ async def resolve_dispute(
             # Determine if raiser is worker or company
             from app.models.shift import Shift
 
-            shift = session.get(Shift, dispute.shift_id)
+            _shift = session.get(Shift, dispute.shift_id)
 
             # Get worker from applications
-            from app.models.application import Application, ApplicationStatus
             from sqlmodel import select
+
+            from app.models.application import Application, ApplicationStatus
 
             stmt = select(Application).where(
                 Application.shift_id == dispute.shift_id,
@@ -275,10 +279,11 @@ async def resolve_dispute(
         elif request.resolution == DisputeResolutionType.AGAINST_RAISER:
             from app.models.shift import Shift
 
-            shift = session.get(Shift, dispute.shift_id)
+            _shift = session.get(Shift, dispute.shift_id)
+
+            from sqlmodel import select
 
             from app.models.application import Application, ApplicationStatus
-            from sqlmodel import select
 
             stmt = select(Application).where(
                 Application.shift_id == dispute.shift_id,
@@ -313,7 +318,7 @@ async def resolve_dispute(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -349,7 +354,7 @@ async def get_pending_disputes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch pending disputes: {str(e)}",
-        )
+        ) from e
 
 
 @router.post(
@@ -383,7 +388,7 @@ async def check_dispute_deadlines(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Deadline check failed: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -420,7 +425,7 @@ async def get_overdue_disputes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch overdue disputes: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -463,7 +468,7 @@ async def get_disputes_approaching_deadline(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch disputes approaching deadline: {str(e)}",
-        )
+        ) from e
 
 
 @router.post(
@@ -498,4 +503,4 @@ async def auto_resolve_overdue_disputes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Auto-resolution failed: {str(e)}",
-        )
+        ) from e

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlmodel import Session, or_, select
+from sqlmodel import Session, select
 
 from app.models.appeal import (
     Appeal,
@@ -204,7 +204,7 @@ class AppealService:
             raise InvalidAppealError(f"Appeal {appeal_id} not found")
 
         if appeal.status != AppealStatus.PENDING:
-            raise InvalidAppealError(f"Appeal has already been reviewed")
+            raise InvalidAppealError("Appeal has already been reviewed")
 
         # Verify reviewer is admin
         reviewer = db.get(User, reviewer_id)

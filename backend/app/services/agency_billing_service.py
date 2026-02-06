@@ -7,7 +7,6 @@ When agency is in FULL_INTERMEDIARY mode (Mode B):
 """
 
 import logging
-import uuid
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
@@ -109,7 +108,11 @@ class AgencyBillingService:
         Returns:
             dict with invoice details
         """
-        from app.api.v1.endpoints.agency import AgencyClient, AgencyClientInvoice, AgencyShift
+        from app.api.v1.endpoints.agency import (
+            AgencyClient,
+            AgencyClientInvoice,
+            AgencyShift,
+        )
         from app.models.agency import AgencyMode, AgencyProfile
 
         # Verify agency exists and is in Mode B
@@ -414,7 +417,11 @@ class AgencyBillingService:
         Returns:
             list of shift details that haven't been invoiced
         """
-        from app.api.v1.endpoints.agency import AgencyClient, AgencyClientInvoice, AgencyShift
+        from app.api.v1.endpoints.agency import (
+            AgencyClient,
+            AgencyClientInvoice,
+            AgencyShift,
+        )
 
         # Verify client relationship
         client = self.db.exec(

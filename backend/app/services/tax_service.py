@@ -10,11 +10,11 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
 from app.models.notification import Notification
 from app.models.tax import TaxDocument, TaxFormStatus, TaxFormType, TaxYear
-from app.models.user import User, UserType
+from app.models.user import User
 from app.schemas.tax import TaxYearSummary, W9SubmitRequest
 
 logger = logging.getLogger(__name__)

@@ -41,7 +41,7 @@ from app.models.shift import Shift, ShiftStatus
 from app.models.wallet import Wallet, WalletType
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -1127,7 +1127,6 @@ class PenaltyService:
             self.db.refresh(agency_wallet)
 
         # Deduct penalty from agency wallet
-        original_balance = agency_wallet.balance
         agency_wallet.balance -= penalty_amount
         agency_wallet.updated_at = datetime.utcnow()
         self.db.add(agency_wallet)
@@ -1203,7 +1202,7 @@ class PenaltyService:
         from app.models.agency import AgencyProfile
 
         # Get or create agency profile
-        agency_profile = self.db.exec(
+        _agency_profile = self.db.exec(
             select(AgencyProfile).where(AgencyProfile.user_id == agency_id)
         ).first()
 

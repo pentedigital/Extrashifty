@@ -1,9 +1,9 @@
 """Application endpoints."""
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 
 from app.api.deps import ActiveUserDep, SessionDep
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
+from app.core.errors import raise_bad_request, require_found, require_permission
 from app.crud import application as application_crud
 from app.crud import shift as shift_crud
 from app.models.application import Application, ApplicationStatus

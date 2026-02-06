@@ -1,7 +1,6 @@
 """Appeal schemas for penalty dispute resolution."""
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

@@ -52,16 +52,16 @@ async def request_account_deletion(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=e.message,
-            )
+            ) from e
         elif e.code == "already_deleted":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=e.message,
-            )
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/cancel-deletion", response_model=dict)
@@ -84,16 +84,16 @@ async def cancel_deletion_request(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=e.message,
-            )
+            ) from e
         elif e.code == "grace_period_expired":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=e.message,
-            )
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/deletion-status", response_model=DeletionStatusResponse)
@@ -152,7 +152,7 @@ async def export_my_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/export-data/download", response_model=DataExportDownloadResponse)
@@ -302,7 +302,7 @@ async def admin_process_deletion(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/admin/deletion-requests/{request_id}", response_model=AdminDeletionRequestResponse)

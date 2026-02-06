@@ -51,7 +51,7 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         if token_data.sub is None:
             raise credentials_exception
     except (jwt.InvalidTokenError, ValidationError):
-        raise credentials_exception
+        raise credentials_exception from None
 
     user = user_crud.get(session, id=token_data.sub)
     if user is None:

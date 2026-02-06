@@ -1,7 +1,6 @@
 """Invoice service for ExtraShifty invoice/receipt auto-generation."""
 
 import logging
-import os
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -11,12 +10,10 @@ from jinja2 import Environment, FileSystemLoader
 from sqlmodel import Session, func, select
 
 from app.core.utils import quantize_amount
-
 from app.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from app.models.payment import Payout, Transaction
 from app.models.shift import Shift
 from app.models.user import User
-from app.models.wallet import PaymentMethod, Wallet
 
 if TYPE_CHECKING:
     pass
@@ -327,10 +324,10 @@ class InvoiceService:
             raise InvoiceServiceError("User not found", "user_not_found")
 
         # Select template based on invoice type
-        template_name = self._get_template_name(invoice.invoice_type)
+        _template_name = self._get_template_name(invoice.invoice_type)
 
         # Prepare context for template
-        context = self._prepare_template_context(invoice, user)
+        _context = self._prepare_template_context(invoice, user)
 
         # In production, render template and convert to PDF
         # For now, generate a placeholder URL

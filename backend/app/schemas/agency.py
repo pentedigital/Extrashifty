@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.agency import AgencyMode
 
-
 # ==================== Agency Profile Schemas ====================
 
 

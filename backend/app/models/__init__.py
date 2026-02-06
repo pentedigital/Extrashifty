@@ -20,6 +20,7 @@ from .appeal import (
     EmergencyWaiver,
 )
 from .application import Application, ApplicationStatus
+from .base import TimestampMixin
 from .gdpr import DeletionRequest, DeletionRequestStatus
 from .invoice import Invoice, InvoiceStatus, InvoiceType
 from .notification import Notification, NotificationPreference
@@ -36,6 +37,14 @@ from .payment import (
     TransactionStatus,
     TransactionType,
 )
+from .penalty import (
+    NegativeBalance,
+    Penalty,
+    PenaltyAppeal,
+    PenaltyStatus,
+    Strike,
+    UserSuspension,
+)
 from .profile import ClockRecord, CompanyProfile, StaffProfile, Venue
 from .review import Review, ReviewType
 from .shift import Shift, ShiftStatus
@@ -46,15 +55,6 @@ from .wallet import (
     PaymentMethodType,
     Wallet,
     WalletType,
-)
-from .base import TimestampMixin
-from .penalty import (
-    NegativeBalance,
-    Penalty,
-    PenaltyAppeal,
-    PenaltyStatus,
-    Strike,
-    UserSuspension,
 )
 
 __all__ = [

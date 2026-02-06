@@ -1,17 +1,5 @@
 """Pydantic schemas for ExtraShifty."""
 
-from .appeal import (
-    AdminPendingAppealsResponse,
-    AppealCreate,
-    AppealListResponse,
-    AppealResponse,
-    AppealReviewRequest,
-    AppealReviewResponse,
-    AppealWithdrawResponse,
-    EmergencyWaiverStatusResponse,
-    SuspensionListResponse,
-    SuspensionResponse,
-)
 from .agency import (
     AgencyClientForShift,
     AgencyClientListForShifts,
@@ -29,7 +17,39 @@ from .agency import (
     AgencyShiftListResponse,
     AgencyShiftResponse,
 )
+from .appeal import (
+    AdminPendingAppealsResponse,
+    AppealCreate,
+    AppealListResponse,
+    AppealResponse,
+    AppealReviewRequest,
+    AppealReviewResponse,
+    AppealWithdrawResponse,
+    EmergencyWaiverStatusResponse,
+    SuspensionListResponse,
+    SuspensionResponse,
+)
 from .application import ApplicationCreate, ApplicationRead, ApplicationUpdate
+from .dispute import (
+    DisputeCreate,
+    DisputeListResponse,
+    DisputeResolution,
+    DisputeResolutionResponse,
+    DisputeResolutionType,
+    DisputeResponse,
+    DisputeUpdate,
+    EvidenceCreate,
+    EvidenceResponse,
+)
+from .gdpr import (
+    AdminDeletionRequestResponse,
+    DataExportDownloadResponse,
+    DataExportResponse,
+    DeletionRequestCreate,
+    DeletionRequestListResponse,
+    DeletionRequestResponse,
+    DeletionStatusResponse,
+)
 from .notification import (
     NotificationCreate,
     NotificationListResponse,
@@ -61,25 +81,30 @@ from .payment import (
     TopupRequest,
     TopupResponse,
 )
-from .dispute import (
-    DisputeCreate,
-    DisputeListResponse,
-    DisputeResolution,
-    DisputeResolutionResponse,
-    DisputeResolutionType,
-    DisputeResponse,
-    DisputeUpdate,
-    EvidenceCreate,
-    EvidenceResponse,
+from .penalty import (
+    AdminPenaltySummaryResponse,
+    LiftSuspensionRequest,
+    NegativeBalanceResponse,
+    PenaltyAppealRequest,
+    PenaltyHistoryItem,
+    PenaltyHistoryResponse,
+    PenaltyListResponse,
+    PenaltyResponse,
+    PenaltySummaryResponse,
+    StrikeListResponse,
+    StrikeResponse,
 )
-from .gdpr import (
-    AdminDeletionRequestResponse,
-    DataExportDownloadResponse,
-    DataExportResponse,
-    DeletionRequestCreate,
-    DeletionRequestListResponse,
-    DeletionRequestResponse,
-    DeletionStatusResponse,
+from .penalty import (
+    AppealResponse as PenaltyAppealResponse,
+)
+from .penalty import (
+    AppealReviewRequest as PenaltyAppealReviewRequest,
+)
+from .penalty import (
+    AppealReviewResponse as PenaltyAppealReviewResponse,
+)
+from .penalty import (
+    SuspensionResponse as PenaltySuspensionResponse,
 )
 from .review import ReviewCreate, ReviewListResponse, ReviewRead, ReviewStats
 from .shift import ShiftCreate, ShiftRead, ShiftUpdate
@@ -116,23 +141,6 @@ from .wallet import (
     WalletRead,
     WithdrawRequest,
     WithdrawResponse,
-)
-from .penalty import (
-    AdminPenaltySummaryResponse,
-    AppealResponse as PenaltyAppealResponse,
-    AppealReviewRequest as PenaltyAppealReviewRequest,
-    AppealReviewResponse as PenaltyAppealReviewResponse,
-    LiftSuspensionRequest,
-    NegativeBalanceResponse,
-    PenaltyAppealRequest,
-    PenaltyHistoryItem,
-    PenaltyHistoryResponse,
-    PenaltyListResponse,
-    PenaltyResponse,
-    PenaltySummaryResponse,
-    StrikeListResponse,
-    StrikeResponse,
-    SuspensionResponse as PenaltySuspensionResponse,
 )
 
 __all__ = [

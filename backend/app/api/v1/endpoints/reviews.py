@@ -3,13 +3,12 @@
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.crud import application as application_crud
 from app.crud import review as review_crud
 from app.crud import shift as shift_crud
 from app.crud import user as user_crud
-from app.crud import application as application_crud
 from app.models.application import ApplicationStatus
 from app.models.review import ReviewType
 from app.models.user import UserType

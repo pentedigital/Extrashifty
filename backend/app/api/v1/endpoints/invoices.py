@@ -3,13 +3,15 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 from app.api.deps import ActiveUserDep, SessionDep
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
+from app.core.errors import (
+    require_found,
+    require_permission,
+)
 from app.models.invoice import InvoiceType as ModelInvoiceType
 from app.schemas.invoice import (
-    InvoiceCreate,
     InvoiceListItem,
     InvoiceListResponse,
     InvoiceResendResponse,
@@ -162,7 +164,7 @@ def download_invoice_pdf(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/{invoice_id}/resend", response_model=InvoiceResendResponse)
@@ -197,4 +199,4 @@ def resend_invoice_email(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e

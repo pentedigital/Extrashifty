@@ -1,14 +1,12 @@
 """Appeal endpoints for penalty dispute resolution."""
 
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
-from app.models.appeal import Appeal, AppealStatus, AppealType, EmergencyType
-from app.models.penalty import Penalty, Strike, UserSuspension
+from app.core.errors import raise_bad_request, require_found, require_permission
+from app.models.appeal import Appeal, AppealStatus, AppealType
 from app.models.user import User
 from app.schemas.appeal import (
     AdminPendingAppealsResponse,
@@ -26,8 +24,6 @@ from app.services.appeal_service import (
     DuplicateAppealError,
     InvalidAppealError,
     appeal_service,
-    PENALTY_APPEAL_WINDOW_DAYS,
-    SUSPENSION_APPEAL_WINDOW_HOURS,
 )
 
 router = APIRouter()
@@ -115,22 +111,22 @@ async def submit_appeal(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except DuplicateAppealError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e),
-        )
+        ) from e
     except InvalidAppealError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except AppealServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit appeal: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -175,7 +171,7 @@ async def list_appeals(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch appeals: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -207,7 +203,7 @@ async def get_emergency_waiver_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check waiver status: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -278,12 +274,12 @@ async def withdraw_appeal(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to withdraw appeal: {str(e)}",
-        )
+        ) from e
 
 
 # ============================================================================
@@ -340,7 +336,6 @@ async def get_pending_appeals(
             emergency_only=emergency_only,
         )
 
-        total = len(filtered)
         paginated = filtered[skip : skip + limit]
 
         items = [_build_appeal_response(a, session) for a in paginated]
@@ -359,7 +354,7 @@ async def get_pending_appeals(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch pending appeals: {str(e)}",
-        )
+        ) from e
 
 
 @router.post(
@@ -438,12 +433,12 @@ async def review_appeal(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to review appeal: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -487,7 +482,7 @@ async def get_user_appeals(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch user appeals: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -526,4 +521,4 @@ async def get_appeals_approaching_deadline(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch approaching deadline appeals: {str(e)}",
-        )
+        ) from e

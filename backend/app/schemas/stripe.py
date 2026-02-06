@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.payment import PayoutStatus
 
-
 # =========================================================================
 # Enums
 # =========================================================================

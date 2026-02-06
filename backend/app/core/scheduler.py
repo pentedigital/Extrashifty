@@ -9,7 +9,7 @@ This module sets up background tasks for:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Callable, Coroutine
 
 from sqlmodel import Session
@@ -231,10 +231,11 @@ async def dispute_deadline_check_job() -> None:
     1. Alert admins of disputes that need resolution within the next 24 hours
     2. Auto-resolve overdue disputes in favor of the worker (per platform policy)
     """
-    from app.services.dispute_service import dispute_service
+    from sqlmodel import select
+
     from app.models.notification import Notification
     from app.models.user import User, UserType
-    from sqlmodel import select
+    from app.services.dispute_service import dispute_service
 
     with Session(engine) as session:
         try:
@@ -346,8 +347,6 @@ async def reserve_upcoming_shift_days_job() -> None:
     This ensures funds are reserved before each day of a multi-day
     shift, protecting both the company and worker.
     """
-    from app.models.payment import ScheduledReserve, ScheduledReserveStatus
-    from sqlmodel import select
 
     with Session(engine) as session:
         payment_service = PaymentService(session)
@@ -439,9 +438,10 @@ async def check_w9_reminders_job() -> None:
     This job ensures tax compliance by prompting users to submit
     their W9 information for 1099-NEC reporting.
     """
+    from sqlmodel import select
+
     from app.models.tax import TaxFormStatus, TaxYear
     from app.models.user import User
-    from sqlmodel import select
 
     with Session(engine) as session:
         try:
@@ -780,7 +780,6 @@ async def mark_overdue_invoices_job() -> None:
     """
     from sqlmodel import select
 
-    from app.api.v1.endpoints.agency import AgencyClientInvoice
     from app.models.agency import AgencyMode, AgencyProfile
     from app.services.agency_billing_service import AgencyBillingService
 

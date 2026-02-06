@@ -15,9 +15,9 @@ from app.schemas.payment import (
     AutoTopupConfigRequest,
     AutoTopupConfigResponse,
     BalanceResponse,
+    CancellationPolicy,
     CancellationRequest,
     CancellationResponse,
-    CancellationPolicy,
     InsufficientFundsResponse,
     MinimumBalanceRequest,
     MinimumBalanceResponse,
@@ -86,7 +86,7 @@ async def topup_wallet(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/wallets/auto-topup/configure", response_model=AutoTopupConfigResponse)
@@ -123,7 +123,7 @@ def configure_auto_topup(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/wallets/balance", response_model=BalanceResponse)
@@ -276,12 +276,12 @@ async def reactivate_wallet(
                 "available": str(e.available),
                 "shortfall": str(e.shortfall),
             },
-        )
+        ) from e
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 # ==================== Shift Payment Flow ====================
@@ -345,7 +345,7 @@ async def reserve_shift_funds(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/shifts/{shift_id}/settle", response_model=SettlementResponse)
@@ -412,7 +412,7 @@ async def settle_shift(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/shifts/{shift_id}/cancel", response_model=CancellationResponse)
@@ -480,7 +480,7 @@ async def cancel_shift(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 # ==================== Payout Operations ====================
@@ -531,12 +531,12 @@ async def request_instant_payout(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
     except PaymentError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/payouts/schedule", response_model=PayoutScheduleResponse)
@@ -568,7 +568,7 @@ def get_payout_schedule(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/payouts/history", response_model=PayoutHistoryResponse)
@@ -620,7 +620,7 @@ def get_payout_history(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 # ==================== Stripe Connect Onboarding ====================
@@ -683,4 +683,4 @@ async def get_connect_onboarding_link(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.message),
-        )
+        ) from e

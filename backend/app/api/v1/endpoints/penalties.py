@@ -7,7 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
-from app.core.errors import raise_not_found, raise_forbidden, raise_bad_request, require_found, require_permission
+from app.core.errors import (
+    require_found,
+)
 from app.models.penalty import (
     AppealStatus,
     NegativeBalance,
@@ -17,23 +19,20 @@ from app.models.penalty import (
     Strike,
     UserSuspension,
 )
-from app.models.user import UserType
 from app.schemas.penalty import (
+    AdminPenaltySummaryResponse,
     AppealResponse,
     AppealReviewRequest,
     AppealReviewResponse,
     LiftSuspensionRequest,
     NegativeBalanceResponse,
     PenaltyAppealRequest,
-    PenaltyHistoryItem,
-    PenaltyHistoryResponse,
     PenaltyListResponse,
     PenaltyResponse,
     PenaltySummaryResponse,
     StrikeListResponse,
     StrikeResponse,
     SuspensionResponse,
-    AdminPenaltySummaryResponse,
 )
 from app.services.penalty_service import PenaltyError, PenaltyService
 
@@ -54,7 +53,6 @@ def get_user_strikes(
     Returns all strikes (active and inactive) for the current user,
     with counts of active and warning-only strikes.
     """
-    penalty_service = PenaltyService(session)
     now = datetime.utcnow()
 
     # Get all strikes for user
@@ -358,7 +356,7 @@ async def appeal_penalty(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.get("/appeals", response_model=list[AppealResponse])
@@ -543,7 +541,7 @@ async def review_appeal(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
-        )
+        ) from e
 
 
 @router.post("/admin/suspensions/{user_id}/lift", response_model=SuspensionResponse)

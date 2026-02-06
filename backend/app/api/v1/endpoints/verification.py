@@ -1,11 +1,10 @@
 """Verification endpoints for ExtraShifty shift verification workflow."""
 
-from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import ActiveUserDep, AdminUserDep, CompanyUserDep, SessionDep
+from app.api.deps import AdminUserDep, CompanyUserDep, SessionDep
 from app.models.user import UserType
 from app.schemas.verification import (
     HoursAdjustmentRequest,
@@ -62,12 +61,12 @@ async def approve_shift(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.post(
@@ -110,12 +109,12 @@ async def reject_shift(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -180,7 +179,7 @@ async def get_pending_shifts(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch pending shifts: {str(e)}",
-        )
+        ) from e
 
 
 @router.post(
@@ -217,12 +216,12 @@ async def adjust_shift_hours(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.post(
@@ -256,4 +255,4 @@ async def trigger_auto_approve(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Auto-approve check failed: {str(e)}",
-        )
+        ) from e

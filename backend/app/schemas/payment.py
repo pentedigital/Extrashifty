@@ -7,7 +7,6 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.payment import PayoutStatus
-from ..models.wallet import PaymentMethodType
 
 
 class TopupRequest(BaseModel):
