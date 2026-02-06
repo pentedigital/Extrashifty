@@ -39,4 +39,4 @@ class Review(SQLModel, table=True):
     reviewee: Optional["User"] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Review.reviewee_id]"}
     )
-    shift: Optional["Shift"] = Relationship()
+    shift: Optional["Shift"] = Relationship(back_populates="reviews")

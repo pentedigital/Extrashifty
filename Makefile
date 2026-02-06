@@ -64,7 +64,7 @@ shell:
 	docker compose exec backend bash
 
 psql:
-	docker compose exec db psql -U postgres -d app
+	docker compose exec db psql -U postgres -d extrashifty
 
 clean:
 	docker compose down -v --remove-orphans

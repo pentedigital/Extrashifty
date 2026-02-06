@@ -20,7 +20,8 @@ def test_create_user(session: Session):
     assert user.full_name == user_in.full_name
     # Password should be hashed
     assert user.hashed_password != user_in.password
-    assert verify_password(user_in.password, user.hashed_password)
+    valid, _updated_hash = verify_password(user_in.password, user.hashed_password)
+    assert valid
 
 
 def test_get_user_by_email(session: Session, test_user: User):

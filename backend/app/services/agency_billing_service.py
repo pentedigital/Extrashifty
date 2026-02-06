@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, func, select
 
+from app.core.utils import calculate_shift_cost
 from app.models.shift import Shift, ShiftStatus
 
 if TYPE_CHECKING:
@@ -76,7 +77,7 @@ class AgencyBillingService:
     def _calculate_shift_value(self, shift: Shift) -> Decimal:
         """Calculate the total value of a shift based on hours and rate."""
         hours = self._calculate_shift_hours(shift)
-        return self._quantize_amount(hours * shift.hourly_rate)
+        return calculate_shift_cost(hours, shift.hourly_rate)
 
     async def create_client_invoice(
         self,

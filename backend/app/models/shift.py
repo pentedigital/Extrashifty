@@ -9,6 +9,7 @@ from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .application import Application
+    from .review import Review
     from .user import User
 
 
@@ -65,3 +66,4 @@ class Shift(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "[Shift.company_id]"}
     )
     applications: list["Application"] = Relationship(back_populates="shift")
+    reviews: list["Review"] = Relationship(back_populates="shift")

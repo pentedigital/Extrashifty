@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -20,12 +21,12 @@ from app.core.middleware import (
 from app.core.rate_limit import limiter
 from app.core.scheduler import start_scheduler, stop_scheduler
 
-# Initialize Sentry for error tracking
-if settings.SENTRY_DSN:
+# Initialize Sentry for error tracking (skip in development)
+if settings.SENTRY_DSN and settings.ENVIRONMENT != "development":
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        traces_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
+        profiles_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
         environment=settings.ENVIRONMENT,
     )
 
@@ -53,6 +54,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     stop_scheduler()
 
 
+def custom_generate_unique_id(route: APIRoute) -> str:
+    """Generate clean OpenAPI operation IDs using route tags and name."""
+    if route.tags:
+        return f"{route.tags[0]}-{route.name}"
+    return route.name
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="ExtraShifty - Shift Management API",
@@ -61,6 +69,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    generate_unique_id_function=custom_generate_unique_id,
 )
 
 # Add rate limiter to app state

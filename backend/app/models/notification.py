@@ -24,7 +24,7 @@ class Notification(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    user: "User" = Relationship()
+    user: "User" = Relationship(back_populates="notifications")
 
 
 class NotificationPreference(SQLModel, table=True):
@@ -41,4 +41,4 @@ class NotificationPreference(SQLModel, table=True):
     marketing: bool = Field(default=False)
 
     # Relationships
-    user: "User" = Relationship()
+    user: "User" = Relationship(back_populates="notification_preference")

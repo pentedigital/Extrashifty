@@ -137,7 +137,8 @@ def update_my_password(
     Requires the current password for verification before allowing the change.
     """
     # Verify current password
-    if not verify_password(request.current_password, current_user.hashed_password):
+    valid, _updated_hash = verify_password(request.current_password, current_user.hashed_password)
+    if not valid:
         raise_bad_request("Current password is incorrect")
 
     # Ensure new password is different

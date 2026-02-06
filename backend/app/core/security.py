@@ -3,14 +3,23 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import bcrypt
 import jwt
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 from app.core.config import settings
 
 # Token types
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
+
+# Password hashing: Argon2 (primary) + Bcrypt (legacy fallback)
+# This allows transparent migration from bcrypt to Argon2:
+# - New passwords are hashed with Argon2
+# - Old bcrypt hashes still verify successfully
+# - verify_password() returns an updated Argon2 hash when a bcrypt hash is used
+password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 
 def create_access_token(
@@ -104,25 +113,28 @@ def verify_refresh_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, hashed_password: str) -> tuple[bool, str | None]:
     """
     Verify a plain password against a hashed password.
+
+    Returns a tuple of (is_valid, updated_hash). If the hash algorithm is
+    outdated (e.g., bcrypt when Argon2 is preferred), updated_hash contains
+    the new Argon2 hash that should be saved to the database.
 
     Args:
         plain_password: The plain text password to verify.
         hashed_password: The hashed password to compare against.
 
     Returns:
-        True if the password matches, False otherwise.
+        Tuple of (bool, Optional[str]) - (match result, new hash if rehash needed).
     """
-    password_bytes = plain_password.encode("utf-8")
-    hashed_bytes = hashed_password.encode("utf-8")
-    return bcrypt.checkpw(password_bytes, hashed_bytes)
+    valid, updated_hash = password_hash.verify_and_update(plain_password, hashed_password)
+    return valid, updated_hash
 
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password using bcrypt.
+    Hash a password using Argon2 (current best practice).
 
     Args:
         password: The plain text password to hash.
@@ -130,7 +142,4 @@ def get_password_hash(password: str) -> str:
     Returns:
         The hashed password string.
     """
-    password_bytes = password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password_bytes, salt)
-    return hashed.decode("utf-8")
+    return password_hash.hash(password)

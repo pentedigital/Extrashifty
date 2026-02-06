@@ -186,12 +186,18 @@ def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not verify_password(form_data.password, user.hashed_password):
+    valid, updated_hash = verify_password(form_data.password, user.hashed_password)
+    if not valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    # Transparently upgrade legacy bcrypt hashes to Argon2
+    if updated_hash:
+        user.hashed_password = updated_hash
+        session.add(user)
+        session.commit()
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

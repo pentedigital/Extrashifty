@@ -116,11 +116,13 @@ class Appeal(SQLModel, table=True):
 
     # Relationships
     user: "User" = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "[Appeal.user_id]"}
+        back_populates="appeals",
+        sa_relationship_kwargs={"foreign_keys": "[Appeal.user_id]"},
     )
     reviewer: "User | None" = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Appeal.reviewed_by]"}
     )
+    emergency_waiver: "EmergencyWaiver | None" = Relationship(back_populates="appeal")
 
 
 class EmergencyWaiver(SQLModel, table=True):
@@ -152,5 +154,5 @@ class EmergencyWaiver(SQLModel, table=True):
     )
 
     # Relationships
-    user: "User" = Relationship()
-    appeal: "Appeal" = Relationship()
+    user: "User" = Relationship(back_populates="emergency_waivers")
+    appeal: "Appeal" = Relationship(back_populates="emergency_waiver")

@@ -85,7 +85,7 @@ class TaxYear(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    user: "User" = Relationship()
+    user: "User" = Relationship(back_populates="tax_years")
     documents: list["TaxDocument"] = Relationship(back_populates="tax_year")
 
 

@@ -12,10 +12,14 @@ import {
   BadgeCheck,
   Lock,
   ArrowRight,
+  ArrowDown,
   Briefcase,
   Star,
   Quote,
   Menu,
+  Wallet,
+  UserCheck,
+  Banknote,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
@@ -100,26 +104,23 @@ function LandingPage() {
         {/* Hero Section */}
         <section className="pt-24 md:pt-32 pb-12 md:pb-16 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <p className="text-sm sm:text-base text-brand-600 dark:text-brand-400 font-medium mb-4 animate-fade-in-up">
-              Your shift covered.
-            </p>
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-500/20 mb-4 animate-fade-in-up"><Lock className="mr-1.5 h-3.5 w-3.5" /> Escrow-backed payments</span>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up animation-delay-100">
-              <span className="block">One marketplace.</span>
-              <span className="block">Every shift filled.</span>
+              Work tonight.{'\n'}Get paid tonight.
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 md:mb-10 animate-fade-in-up animation-delay-200">
-              Post a shift in 30 seconds. Get matched in under 2 minutes. Done.
+              ExtraShifty is the escrow-backed shift marketplace for hospitality. Businesses lock funds before the shift starts. Workers get paid the moment it's done. No invoicing. No chasing. No waiting.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-in-up animation-delay-400">
               <Link to="/signup">
                 <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
-                  Post a shift
+                  I need workers
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
                 </Button>
               </Link>
               <Link to="/marketplace">
                 <Button size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-md hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500">
-                  Browse available shifts
+                  I want to work
                 </Button>
               </Link>
             </div>
@@ -130,6 +131,39 @@ function LandingPage() {
         <section className="py-6 md:py-8 px-4 sm:px-6 bg-muted/50 border-y border-border">
           <div className="max-w-6xl mx-auto">
             <LiveActivityTicker />
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="py-20 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">How ExtraShifty works</h2>
+              <p className="mt-4 text-lg text-muted-foreground">Three steps. That's it.</p>
+            </div>
+            <div className="grid gap-8 md:grid-cols-3 max-w-4xl mx-auto">
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
+                  <Wallet className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">1. Post & fund</h3>
+                <p className="text-muted-foreground">Business posts a shift and tops up their wallet. Funds lock the moment a worker is accepted.</p>
+              </div>
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
+                  <UserCheck className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">2. Match & work</h3>
+                <p className="text-muted-foreground">Verified workers claim the shift. Clock in, do the job, clock out. Money stays locked and protected.</p>
+              </div>
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
+                  <Banknote className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">3. Get paid</h3>
+                <p className="text-muted-foreground">Shift done? Funds release instantly. Withdraw in 30 minutes or get free weekly payouts. No exceptions.</p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -363,7 +397,7 @@ function LandingPage() {
               <StatCardLight value="95%" label="of shifts get filled" />
               <StatCardLight value="5,000+" label="verified workers" />
               <StatCardLight value="Every" label="worker reviewed & rated" />
-              <StatCardLight value="48hr" label="payment guarantee" />
+              <StatCardLight value="100%" label="of completed shifts paid" />
             </div>
             <p className="text-center text-white/80 text-base sm:text-lg">
               These aren't just numbers. They're promises.
@@ -371,51 +405,57 @@ function LandingPage() {
           </div>
         </section>
 
-        {/* Trust Section */}
-        <section className="py-20 md:py-24 px-4 sm:px-6 bg-slate-900 dark:bg-slate-950 text-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10 md:mb-14">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
-                Trust isn't optional.
-              </h2>
-              <p className="text-lg sm:text-xl text-slate-300">
-                We don't take shortcuts.
-              </p>
+        {/* The Escrow Trust Loop */}
+        <section className="py-20 bg-zinc-950 text-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">The money is already there</h2>
+              <p className="mt-4 text-lg text-zinc-400">Every shift on ExtraShifty is backed by locked funds. Here's how your money is protected.</p>
             </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <TrustCard
-                icon={BadgeCheck}
-                title="Identity verified"
-                description="Every single worker. Before their first shift."
-              />
-              <TrustCard
-                icon={Shield}
-                title="Background checks"
-                description="Available on request for roles that require them."
-              />
-              <TrustCard
-                icon={CheckCircle}
-                title="Certifications tracked"
-                description="Food safety. Alcohol service. All verified automatically."
-              />
-              <TrustCard
-                icon={Star}
-                title="Verified reviews"
-                description="Every worker has ratings from real shifts. No fake profiles."
-              />
-              <TrustCard
-                icon={Lock}
-                title="Payments protected"
-                description="Secure payments with guaranteed worker compensation. Both sides protected."
-              />
-              <div className="flex items-center justify-center p-6 md:p-8">
-                <p className="text-base sm:text-lg text-slate-300 text-center">
-                  Because trust is everything.<br />
-                  <span className="text-white font-medium">And everything is verified.</span>
-                </p>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-2 max-w-5xl mx-auto">
+              {/* Step 1 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-xl bg-zinc-900 border border-zinc-800 flex-1 min-w-[200px]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 mb-4">
+                  <Wallet className="h-7 w-7 text-emerald-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">Business deposits</h3>
+                <p className="text-sm text-zinc-400">Wallet topped up via Stripe</p>
+              </div>
+              {/* Arrow */}
+              <ArrowRight className="h-6 w-6 text-zinc-600 shrink-0 hidden md:block" />
+              <ArrowDown className="h-6 w-6 text-zinc-600 shrink-0 md:hidden" />
+              {/* Step 2 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-xl bg-zinc-900 border border-amber-500/30 flex-1 min-w-[200px]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20 mb-4">
+                  <Lock className="h-7 w-7 text-amber-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">Funds locked</h3>
+                <p className="text-sm text-zinc-400">Held in escrow until shift ends</p>
+              </div>
+              {/* Arrow */}
+              <ArrowRight className="h-6 w-6 text-zinc-600 shrink-0 hidden md:block" />
+              <ArrowDown className="h-6 w-6 text-zinc-600 shrink-0 md:hidden" />
+              {/* Step 3 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-xl bg-zinc-900 border border-blue-500/30 flex-1 min-w-[200px]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/20 mb-4">
+                  <CheckCircle className="h-7 w-7 text-blue-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">Shift completed</h3>
+                <p className="text-sm text-zinc-400">Worker clocks out, hours confirmed</p>
+              </div>
+              {/* Arrow */}
+              <ArrowRight className="h-6 w-6 text-zinc-600 shrink-0 hidden md:block" />
+              <ArrowDown className="h-6 w-6 text-zinc-600 shrink-0 md:hidden" />
+              {/* Step 4 */}
+              <div className="flex flex-col items-center text-center p-6 rounded-xl bg-zinc-900 border border-emerald-500/30 flex-1 min-w-[200px]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 mb-4">
+                  <Banknote className="h-7 w-7 text-emerald-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">Worker gets paid</h3>
+                <p className="text-sm text-zinc-400">Funds release to worker instantly</p>
               </div>
             </div>
+            <p className="text-center text-sm text-zinc-500 mt-8">If there's a dispute, funds stay locked until resolved. Neither side loses.</p>
           </div>
         </section>
 
@@ -455,12 +495,12 @@ function LandingPage() {
         {/* CTA Section */}
         <section className="py-20 md:py-24 px-4 sm:px-6 bg-muted">
           <div className="max-w-3xl mx-auto text-center">
-            <p className="text-base sm:text-lg text-muted-foreground mb-4 md:mb-6">
-              Mary's late. John's sick. Sarah just quit.
-            </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-6 md:mb-8 text-brand-600 dark:text-brand-400">
-              Your shift covered.
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 md:mb-6 text-brand-600 dark:text-brand-400">
+              Your shift covered. Your money protected.
             </h2>
+            <p className="text-base sm:text-lg text-muted-foreground mb-6 md:mb-8">
+              Join the escrow-backed marketplace that's changing how hospitality staffing works.
+            </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 md:mb-8">
               <Link to="/signup">
                 <Button size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 h-12 sm:h-14 hover:shadow-lg hover:-translate-y-0.5 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2" aria-label="Get started with ExtraShifty">

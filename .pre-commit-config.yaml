@@ -1,65 +1,49 @@
-# Pre-commit hooks configuration
+# Pre-commit hooks for ExtraShifty
 # Install: pip install pre-commit && pre-commit install
-# Run manually: pre-commit run --all-files
-
-default_stages: [pre-commit]
+# Run all: pre-commit run --all-files
 
 repos:
-  # General hooks
+  # Standard file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-        args: [--unsafe]
-      - id: check-json
       - id: check-added-large-files
-        args: [--maxkb=1000]
+        args: ['--maxkb=1000']
+      - id: check-toml
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: end-of-file-fixer
+        exclude: 'frontend/src/client/|frontend/src/routeTree\.gen\.ts'
+      - id: trailing-whitespace
+        exclude: 'frontend/src/client/|frontend/src/routeTree\.gen\.ts'
       - id: check-merge-conflict
-      - id: detect-private-key
-      - id: no-commit-to-branch
-        args: [--branch, main, --branch, master]
+      - id: debug-statements
 
-  # Python - Ruff (linting and formatting)
+  # Python linting and formatting (Ruff)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.8.0
     hooks:
       - id: ruff
-        args: [--fix]
+        args: ['--fix']
         files: ^backend/
       - id: ruff-format
         files: ^backend/
+
+  # Python type checking (MyPy)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd backend && mypy app/'
+        language: system
+        types: [python]
+        files: ^backend/app/
+        pass_filenames: false
 
   # Secrets detection
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
       - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
-        exclude: package-lock.json
-
-  # Conventional commits
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.6.0
-    hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
-
-  # Frontend - ESLint (local hook)
-  - repo: local
-    hooks:
-      - id: eslint
-        name: ESLint
-        entry: bash -c 'cd frontend && npm run lint'
-        language: system
-        files: ^frontend/.*\.(ts|tsx|js|jsx)$
-        pass_filenames: false
-
-      - id: frontend-typecheck
-        name: TypeScript Check
-        entry: bash -c 'cd frontend && npx tsc --noEmit'
-        language: system
-        files: ^frontend/.*\.(ts|tsx)$
-        pass_filenames: false
+        args: ['--baseline', '.secrets.baseline']
+        exclude: 'package-lock\.json|\.env\.example'

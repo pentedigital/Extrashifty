@@ -40,23 +40,33 @@ function ContactPage() {
     resolver: zodResolver(contactSchema),
   })
 
-  const onSubmit = async (data: ContactFormData) => {
+  const onSubmit = async (formData: ContactFormData) => {
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/v1/utils/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      if (!response.ok) throw new Error('Failed to send message')
 
-    // In a real app, you would send this data to your backend
-    void data
+      addToast({
+        type: 'success',
+        title: 'Message sent!',
+        description: "We'll get back to you within 24 hours.",
+      })
 
-    addToast({
-      type: 'success',
-      title: 'Message sent!',
-      description: "We'll get back to you within 24 hours.",
-    })
-
-    reset()
-    setIsSubmitting(false)
+      reset()
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Failed to send',
+        description: 'Something went wrong. Please try again or email us directly.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

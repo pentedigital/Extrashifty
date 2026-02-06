@@ -33,3 +33,6 @@ export * from './useWalletApi'
 
 // Payments hooks
 export * from './usePaymentsApi'
+
+// Admin hooks
+export * from './useAdminApi'

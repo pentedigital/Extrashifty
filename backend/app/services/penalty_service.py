@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, func, select
 
+from app.core.utils import calculate_shift_cost
 from app.models.application import Application, ApplicationStatus
 from app.models.payment import (
     FundsHold,
@@ -94,7 +95,7 @@ class PenaltyService:
             end += timedelta(days=1)
 
         hours = Decimal(str((end - start).total_seconds() / 3600))
-        return self._quantize_amount(hours * shift.hourly_rate)
+        return calculate_shift_cost(hours, shift.hourly_rate)
 
     # ==================== No-Show Detection ====================
 

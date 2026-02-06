@@ -64,43 +64,6 @@ export interface Conversation {
 }
 
 // =============================================================================
-// Audit Logs
-// =============================================================================
-
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'view'
-export type AuditEntity = 'user' | 'shift' | 'application' | 'payment' | 'company' | 'agency'
-
-export interface AuditLog {
-  id: number
-  user_id: number
-  action: AuditAction
-  entity: AuditEntity
-  entity_id: number
-  changes?: Record<string, { old: unknown; new: unknown }>
-  ip_address?: string
-  user_agent?: string
-  created_at: string
-}
-
-// =============================================================================
-// MFA (Multi-Factor Authentication)
-// =============================================================================
-
-export type MFAMethod = 'totp' | 'sms' | 'email'
-
-export interface MFASetup {
-  method: MFAMethod
-  secret?: string
-  qr_code?: string
-  backup_codes?: string[]
-}
-
-export interface MFAVerification {
-  method: MFAMethod
-  code: string
-}
-
-// =============================================================================
 // Payments/Transactions
 // =============================================================================
 

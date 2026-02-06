@@ -7,8 +7,11 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
+    from .appeal import Appeal, EmergencyWaiver
     from .application import Application
+    from .notification import Notification, NotificationPreference
     from .shift import Shift
+    from .tax import TaxYear
 
 
 class UserType(str, Enum):
@@ -46,3 +49,26 @@ class User(SQLModel, table=True):
     # Relationships
     shifts: list["Shift"] = Relationship(back_populates="company")
     applications: list["Application"] = Relationship(back_populates="applicant")
+    notifications: list["Notification"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
+    notification_preference: "NotificationPreference | None" = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "noload", "uselist": False},
+    )
+    tax_years: list["TaxYear"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )
+    appeals: list["Appeal"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={
+            "lazy": "noload",
+            "foreign_keys": "[Appeal.user_id]",
+        },
+    )
+    emergency_waivers: list["EmergencyWaiver"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "noload"},
+    )

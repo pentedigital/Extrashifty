@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { MapPin, Clock, Euro, Building2, CheckCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { EscrowStatusBadge } from '@/components/ui/escrow-status-badge'
+import type { EscrowStatus } from '@/components/ui/escrow-status-badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { getShiftStatusBadge } from '@/lib/badgeUtils'
@@ -21,9 +23,16 @@ const shiftTypeLabels: Record<string, string> = {
   general: 'General',
 }
 
+function getEscrowStatus(shift: Shift): EscrowStatus | null {
+  if (shift.status === 'filled' || shift.status === 'in_progress') return 'locked'
+  if (shift.status === 'completed') return 'released'
+  return null
+}
+
 export function ShiftCard({ shift, showApplyButton = true }: ShiftCardProps) {
   const durationHours = shift.duration_hours || 6
   const totalPay = shift.total_pay || shift.hourly_rate * durationHours
+  const escrowStatus = getEscrowStatus(shift)
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -38,6 +47,7 @@ export function ShiftCard({ shift, showApplyButton = true }: ShiftCardProps) {
                   const badgeConfig = getShiftStatusBadge(shift.status, shift.spots_total, shift.spots_filled)
                   return <Badge variant={badgeConfig.variant}>{badgeConfig.label}</Badge>
                 })()}
+                {escrowStatus && <EscrowStatusBadge status={escrowStatus} />}
               </div>
               {shift.company && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
