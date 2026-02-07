@@ -9,8 +9,6 @@ import {
   Activity,
   BarChart3,
   ArrowRight,
-  TrendingUp,
-  TrendingDown,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
@@ -133,64 +131,63 @@ export function AdminDashboard() {
       />
 
       {/* Key Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="dashboard-stats-grid">
         <StatCard
           title="Total Users"
           value={mockSystemStats.total_users.toLocaleString()}
           icon={Users}
+          iconColor="brand"
         />
         <StatCard
           title="Total Shifts"
           value={mockSystemStats.total_shifts.toLocaleString()}
           icon={Calendar}
+          iconColor="info"
         />
         <StatCard
           title="Active Shifts"
           value={mockSystemStats.active_shifts}
           icon={Activity}
+          iconColor="success"
         />
         <StatCard
           title="Platform Revenue"
           value={formatCurrency(mockSystemStats.platform_revenue)}
-          subtitle={
-            <span className={mockSystemStats.revenue_change >= 0 ? 'text-green-600' : 'text-red-600'}>
-              {mockSystemStats.revenue_change >= 0 ? (
-                <TrendingUp className="inline h-3 w-3 mr-1" />
-              ) : (
-                <TrendingDown className="inline h-3 w-3 mr-1" />
-              )}
-              {mockSystemStats.revenue_change}% this month
-            </span>
-          }
+          trend={{ value: mockSystemStats.revenue_change, isPositive: mockSystemStats.revenue_change >= 0 }}
           icon={BarChart3}
+          iconColor="success"
         />
-      </div>
-
-      {/* Secondary Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <StatCard
           title="Companies"
           value={mockSystemStats.total_companies}
           icon={Building2}
+          iconColor="info"
         />
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
         <StatCard
           title="Agencies"
           value={mockSystemStats.total_agencies}
           icon={Briefcase}
+          iconColor="brand"
         />
         <StatCard
           title="Pending Applications"
           value={mockSystemStats.pending_applications}
           icon={Calendar}
+          iconColor="warning"
         />
         <StatCard
           title="Pending Payouts"
           value={mockSystemStats.pending_payouts}
           icon={Wallet}
+          iconColor="destructive"
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="dashboard-content-grid">
         {/* Quick Links */}
         <Card>
           <CardHeader>

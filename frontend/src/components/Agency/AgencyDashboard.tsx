@@ -121,7 +121,7 @@ export function AgencyDashboard() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="dashboard-stats-grid">
         {statsLoading ? (
           <>
             <Skeleton className="h-[120px]" />
@@ -130,7 +130,7 @@ export function AgencyDashboard() {
             <Skeleton className="h-[120px]" />
           </>
         ) : statsError ? (
-          <div className="col-span-4 text-center py-8 text-muted-foreground">
+          <div className="col-span-full text-center py-8 text-muted-foreground">
             <AlertCircle className="h-8 w-8 mx-auto mb-2" />
             <p>Failed to load stats. Please try again.</p>
           </div>
@@ -141,29 +141,33 @@ export function AgencyDashboard() {
               value={displayStats.total_staff}
               subtitle={`${displayStats.available_staff} available`}
               icon={Users}
+              iconColor="brand"
             />
             <StatCard
               title="Clients"
               value={displayStats.total_clients}
               subtitle={displayStats.pending_clients > 0 ? `${displayStats.pending_clients} pending` : undefined}
               icon={Building2}
+              iconColor="info"
             />
             <StatCard
               title="Active Shifts"
               value={displayStats.active_shifts}
               icon={Calendar}
+              iconColor="success"
             />
             <StatCard
               title="Revenue"
               value={formatCurrency(displayStats.revenue_this_week)}
               subtitle="This week"
               icon={Euro}
+              iconColor="warning"
             />
           </>
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-3">
         {/* Today's Schedule */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -288,7 +292,7 @@ export function AgencyDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="dashboard-content-grid">
         {/* Unfilled Shifts */}
         <Card className="border-yellow-200 bg-yellow-50/50">
           <CardHeader className="flex flex-row items-center justify-between">

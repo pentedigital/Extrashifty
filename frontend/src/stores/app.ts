@@ -6,11 +6,13 @@ interface AppState {
   user: User | null
   sidebarCollapsed: boolean
   theme: 'light' | 'dark' | 'system'
+  unauthorizedRedirect: boolean
 
   setUser: (user: User | null) => void
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleSidebar: () => void
   setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setUnauthorizedRedirect: (value: boolean) => void
   logout: () => void
 }
 
@@ -20,6 +22,7 @@ export const useAppStore = create<AppState>()(
       user: null,
       sidebarCollapsed: false,
       theme: 'system',
+      unauthorizedRedirect: false,
 
       setUser: (user) => set({ user }),
 
@@ -30,7 +33,9 @@ export const useAppStore = create<AppState>()(
 
       setTheme: (theme) => set({ theme }),
 
-      logout: () => set({ user: null }),
+      setUnauthorizedRedirect: (value) => set({ unauthorizedRedirect: value }),
+
+      logout: () => set({ user: null, unauthorizedRedirect: false }),
     }),
     {
       name: 'extrashifty-storage',

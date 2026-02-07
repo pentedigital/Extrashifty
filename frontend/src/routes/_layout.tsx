@@ -8,6 +8,7 @@
  * - Grid gaps: gap-4 (dense), gap-6 (normal)
  */
 
+import { useEffect } from 'react'
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { AppSidebar } from '@/components/Sidebar/AppSidebar'
 import { AppHeader } from '@/components/Header/AppHeader'
@@ -16,6 +17,7 @@ import { useSidebarCollapsed, useAppStore } from '@/stores/app'
 import { cn } from '@/lib/utils'
 import { tokenManager, api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/toast'
 import { LayoutErrorBoundary } from '@/components/ui/error-boundary'
 import { NotFound } from '@/components/ui/not-found'
 import { PageLoader } from '@/components/ui/page-loader'
@@ -90,6 +92,8 @@ export const Route = createFileRoute('/_layout')({
 
     // Check role-based access for the current route
     if (!hasRouteAccess(location.pathname, userType)) {
+      // Signal unauthorized access for toast feedback
+      useAppStore.getState().setUnauthorizedRedirect(true)
       // Redirect to user's default dashboard
       throw redirect({ to: getDefaultDashboard(userType) })
     }
@@ -103,6 +107,19 @@ export const Route = createFileRoute('/_layout')({
 function LayoutComponent() {
   const { user, logout, userType } = useAuth()
   const collapsed = useSidebarCollapsed()
+  const unauthorizedRedirect = useAppStore((s) => s.unauthorizedRedirect)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    if (unauthorizedRedirect) {
+      addToast({
+        type: 'warning',
+        title: 'Access denied',
+        description: "You don't have permission to view that page.",
+      })
+      useAppStore.getState().setUnauthorizedRedirect(false)
+    }
+  }, [unauthorizedRedirect, addToast])
 
   return (
     <div className="min-h-screen bg-background">

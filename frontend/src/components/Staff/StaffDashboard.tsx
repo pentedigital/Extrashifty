@@ -48,14 +48,14 @@ export function StaffDashboard() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="dashboard-stats-grid">
         {statsLoading ? (
           <>
-            <StatCard title="Upcoming Shifts" value="-" icon={Calendar} />
-            <StatCard title="Pending Applications" value="-" icon={Clock} />
-            <StatCard title="Total Earned" value="-" subtitle="This month" icon={Euro} />
-            <StatCard title="Wallet Balance" value="-" icon={Wallet} />
-            <StatCard title="Rating" value="-" icon={Star} />
+            <StatCard title="Upcoming Shifts" value="-" icon={Calendar} iconColor="brand" />
+            <StatCard title="Pending Applications" value="-" icon={Clock} iconColor="warning" />
+            <StatCard title="Total Earned" value="-" subtitle="This month" icon={Euro} iconColor="success" />
+            <StatCard title="Wallet Balance" value="-" icon={Wallet} iconColor="info" />
+            <StatCard title="Rating" value="-" icon={Star} iconColor="brand" />
           </>
         ) : statsError ? (
           <Card className="col-span-full">
@@ -70,33 +70,38 @@ export function StaffDashboard() {
               title="Upcoming Shifts"
               value={stats?.upcoming_shifts ?? 0}
               icon={Calendar}
+              iconColor="brand"
             />
             <StatCard
               title="Pending Applications"
               value={stats?.pending_applications ?? 0}
               icon={Clock}
+              iconColor="warning"
             />
             <StatCard
               title="Total Earned"
               value={formatCurrency(stats?.total_earned ?? 0)}
               subtitle="This month"
               icon={Euro}
+              iconColor="success"
             />
             <StatCard
               title="Wallet Balance"
               value={formatCurrency(stats?.wallet_balance ?? 0)}
               icon={Wallet}
+              iconColor="info"
             />
             <StatCard
               title="Rating"
               value={stats?.average_rating ? stats.average_rating.toFixed(1) : 'N/A'}
               icon={Star}
+              iconColor="brand"
             />
           </>
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="dashboard-content-grid">
         {/* Upcoming Shifts */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

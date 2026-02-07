@@ -68,7 +68,7 @@ export function CompanyDashboard() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="dashboard-stats-grid">
         {statsLoading ? (
           <>
             <Skeleton className="h-[100px]" />
@@ -90,26 +90,31 @@ export function CompanyDashboard() {
               title="Active Shifts"
               value={stats?.active_shifts ?? 0}
               icon={Calendar}
+              iconColor="brand"
             />
             <StatCard
               title="Pending Applications"
               value={stats?.pending_applications ?? 0}
               icon={Users}
+              iconColor="warning"
             />
             <StatCard
               title="Spent This Month"
               value={formatCurrency(stats?.total_spent ?? 0)}
               icon={Euro}
+              iconColor="destructive"
             />
             <StatCard
               title="Wallet Balance"
               value={walletLoading ? '-' : formatCurrency(wallet?.balance ?? 0)}
               icon={Wallet}
+              iconColor="info"
             />
             <StatCard
               title="Company Rating"
               value={stats?.average_rating ? stats.average_rating.toFixed(1) : 'N/A'}
               icon={Star}
+              iconColor="success"
             />
           </>
         )}

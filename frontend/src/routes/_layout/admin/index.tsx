@@ -66,28 +66,32 @@ function AdminDashboard() {
         <p className="text-muted-foreground">Platform overview and management</p>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="dashboard-stats-grid">
         <StatCard
           title="Total Users"
           value={stats.totalUsers.toLocaleString()}
           subtitle={`${stats.activeUsers.toLocaleString()} active`}
           icon={Users}
+          iconColor="brand"
         />
         <StatCard
           title="Companies"
           value={stats.totalCompanies.toLocaleString()}
           icon={Building2}
+          iconColor="info"
         />
         <StatCard
           title="Agencies"
           value={stats.totalAgencies.toLocaleString()}
           icon={Briefcase}
+          iconColor="success"
         />
         <StatCard
           title="Active Shifts"
           value={stats.activeShifts.toLocaleString()}
           subtitle={`${stats.shiftsThisWeek} this week`}
           icon={Calendar}
+          iconColor="warning"
         />
       </div>
 
@@ -126,7 +130,7 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="dashboard-content-grid">
         <Card>
           <CardHeader>
             <CardTitle>Pending Actions</CardTitle>
