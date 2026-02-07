@@ -1,6 +1,7 @@
 """Stripe Connect service for ExtraShifty payment system."""
 
 import logging
+import time
 from typing import Any
 
 import stripe
@@ -11,8 +12,9 @@ from app.models.user import UserType
 
 logger = logging.getLogger(__name__)
 
-# Initialize Stripe SDK with API key
+# Initialize Stripe SDK with API key and timeout
 stripe.api_key = settings.STRIPE_SECRET_KEY
+stripe.max_network_retries = 2  # Auto-retry on connection errors
 
 
 class StripeServiceError(Exception):
