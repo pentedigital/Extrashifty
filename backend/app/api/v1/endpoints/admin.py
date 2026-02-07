@@ -4,11 +4,12 @@ import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlmodel import func, select
 
 from app.api.deps import AdminUserDep, SessionDep
+from app.core.rate_limit import ADMIN_RATE_LIMIT, limiter
 from app.models.payment import Transaction, TransactionStatus, TransactionType
 from app.models.shift import Shift, ShiftStatus
 from app.models.user import User
@@ -54,7 +55,9 @@ def _compute_change(current: float, previous: float) -> float:
 
 
 @router.get("/reports", response_model=ReportsResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_admin_reports(
+    request: Request,
     session: SessionDep,
     admin: AdminUserDep,
     period: str = Query(default="monthly", pattern="^(monthly|weekly)$"),

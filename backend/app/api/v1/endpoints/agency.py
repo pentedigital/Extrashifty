@@ -5,11 +5,12 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, PAYMENT_RATE_LIMIT
 from app.core.errors import (
     raise_bad_request,
     raise_not_found,
@@ -486,10 +487,12 @@ def require_agency_user(current_user: ActiveUserDep) -> None:
 
 
 @router.post("/staff/invite", response_model=StaffInviteResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def invite_staff(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: StaffInviteRequest,
+    invite_in: StaffInviteRequest,
 ) -> StaffInviteResponse:
     """
     Send invitations to potential staff members.
@@ -502,7 +505,7 @@ def invite_staff(
     invited: List[str] = []
     already_invited: List[str] = []
 
-    for email in request.emails:
+    for email in invite_in.emails:
         email_lower = email.lower()
 
         # Check if invitation already exists for this agency
@@ -521,7 +524,7 @@ def invite_staff(
         invitation = StaffInvitation(
             agency_id=current_user.id,
             email=email_lower,
-            message=request.message,
+            message=invite_in.message,
             status="pending",
         )
         session.add(invitation)
@@ -541,10 +544,12 @@ def invite_staff(
 
 
 @router.post("/clients", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def add_client(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: ClientCreateRequest,
+    client_in: ClientCreateRequest,
 ) -> AgencyClient:
     """
     Add a new client business to the agency.
@@ -553,7 +558,7 @@ def add_client(
     """
     require_agency_user(current_user)
 
-    email_lower = request.business_email.lower()
+    email_lower = client_in.business_email.lower()
 
     # Check if client already exists for this agency
     statement = select(AgencyClient).where(
@@ -568,8 +573,8 @@ def add_client(
         else:
             # Reactivate existing client
             existing.is_active = True
-            existing.billing_rate_markup = request.billing_rate_markup
-            existing.notes = request.notes
+            existing.billing_rate_markup = client_in.billing_rate_markup
+            existing.notes = client_in.notes
             existing.updated_at = datetime.utcnow()
             session.add(existing)
             session.commit()
@@ -583,8 +588,8 @@ def add_client(
     client = AgencyClient(
         agency_id=current_user.id,
         business_email=email_lower,
-        billing_rate_markup=request.billing_rate_markup,
-        notes=request.notes,
+        billing_rate_markup=client_in.billing_rate_markup,
+        notes=client_in.notes,
     )
     session.add(client)
     session.commit()
@@ -596,7 +601,9 @@ def add_client(
 
 
 @router.get("/clients", response_model=List[ClientResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_clients(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -624,7 +631,9 @@ def list_clients(
 
 
 @router.get("/staff/invitations", response_model=List[dict])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_invitations(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -661,7 +670,9 @@ def list_invitations(
 
 
 @router.get("/staff", response_model=List[StaffMemberResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_staff(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -730,7 +741,9 @@ def list_staff(
 
 
 @router.delete("/staff/{staff_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def remove_staff(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     staff_id: int,
@@ -759,7 +772,9 @@ def remove_staff(
 
 
 @router.get("/stats", response_model=AgencyStatsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_stats(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyStatsResponse:
@@ -867,7 +882,9 @@ def get_stats(
 
 
 @router.get("/profile", response_model=AgencyProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_agency_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyProfile:
@@ -906,7 +923,9 @@ def get_agency_profile(
 
 
 @router.patch("/profile", response_model=AgencyProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_agency_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     profile_update: AgencyProfileUpdate,
@@ -955,7 +974,9 @@ def update_agency_profile(
 
 
 @router.get("/wallet", response_model=AgencyWallet)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_agency_wallet(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyWallet:
@@ -1036,10 +1057,12 @@ def get_agency_wallet(
 
 
 @router.post("/staff", response_model=StaffMemberResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def add_staff(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: StaffAddRequest,
+    staff_in: StaffAddRequest,
 ) -> StaffMemberResponse:
     """
     Add a staff member to the agency pool.
@@ -1053,7 +1076,7 @@ def add_staff(
     require_agency_user(current_user)
 
     # Verify the user exists and is a staff user
-    user = session.get(User, request.staff_user_id)
+    user = session.get(User, staff_in.staff_user_id)
     require_found(user, "User")
 
     if user.user_type != UserType.STAFF:
@@ -1062,7 +1085,7 @@ def add_staff(
     # Check if staff member already exists for this agency
     statement = select(AgencyStaffMember).where(
         AgencyStaffMember.agency_id == current_user.id,
-        AgencyStaffMember.staff_user_id == request.staff_user_id,
+        AgencyStaffMember.staff_user_id == staff_in.staff_user_id,
     )
     existing = session.exec(statement).first()
 
@@ -1072,26 +1095,26 @@ def add_staff(
     # Create new staff member
     staff_member = AgencyStaffMember(
         agency_id=current_user.id,
-        staff_user_id=request.staff_user_id,
-        notes=request.notes,
-        is_available=request.is_available,
+        staff_user_id=staff_in.staff_user_id,
+        notes=staff_in.notes,
+        is_available=staff_in.is_available,
         status="active",
     )
     session.add(staff_member)
     session.commit()
     session.refresh(staff_member)
 
-    logger.info(f"Agency {current_user.id} added staff member {request.staff_user_id}")
+    logger.info(f"Agency {current_user.id} added staff member {staff_in.staff_user_id}")
 
     # Get profile for skills
     profile = session.exec(
-        select(StaffProfile).where(StaffProfile.user_id == request.staff_user_id)
+        select(StaffProfile).where(StaffProfile.user_id == staff_in.staff_user_id)
     ).first()
 
     # Get average rating
     avg_rating_query = (
         select(func.coalesce(func.avg(Review.rating), 0))
-        .where(Review.reviewee_id == request.staff_user_id)
+        .where(Review.reviewee_id == staff_in.staff_user_id)
         .where(Review.review_type == ReviewType.COMPANY_TO_STAFF)
     )
     avg_rating = float(session.exec(avg_rating_query).one() or 0)
@@ -1114,11 +1137,13 @@ def add_staff(
 
 
 @router.patch("/staff/{staff_id}", response_model=StaffMemberResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_staff(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     staff_id: int,
-    request: StaffUpdateRequest,
+    staff_update_in: StaffUpdateRequest,
 ) -> StaffMemberResponse:
     """
     Update staff member details.
@@ -1140,12 +1165,12 @@ def update_staff(
     require_found(staff_member, "Staff member")
 
     # Update fields if provided
-    if request.status is not None:
-        staff_member.status = request.status
-    if request.is_available is not None:
-        staff_member.is_available = request.is_available
-    if request.notes is not None:
-        staff_member.notes = request.notes
+    if staff_update_in.status is not None:
+        staff_member.status = staff_update_in.status
+    if staff_update_in.is_available is not None:
+        staff_member.is_available = staff_update_in.is_available
+    if staff_update_in.notes is not None:
+        staff_member.notes = staff_update_in.notes
 
     staff_member.updated_at = datetime.utcnow()
     session.add(staff_member)
@@ -1188,7 +1213,9 @@ def update_staff(
 
 
 @router.get("/staff/{staff_id}/availability", response_model=StaffAvailabilityResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_staff_availability(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     staff_id: int,
@@ -1217,11 +1244,13 @@ def get_staff_availability(
 
 
 @router.patch("/staff/{staff_id}/availability", response_model=StaffAvailabilityResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_staff_availability(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     staff_id: int,
-    request: StaffAvailabilityUpdateRequest,
+    availability_in: StaffAvailabilityUpdateRequest,
 ) -> StaffAvailabilityResponse:
     """
     Update staff member availability.
@@ -1238,9 +1267,9 @@ def update_staff_availability(
 
     require_found(staff_member, "Staff member")
 
-    staff_member.is_available = request.is_available
-    if request.notes is not None:
-        staff_member.notes = request.notes
+    staff_member.is_available = availability_in.is_available
+    if availability_in.notes is not None:
+        staff_member.notes = availability_in.notes
     staff_member.updated_at = datetime.utcnow()
 
     session.add(staff_member)
@@ -1261,11 +1290,13 @@ def update_staff_availability(
 
 
 @router.patch("/clients/{client_id}", response_model=ClientResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_client(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
-    request: ClientUpdateRequest,
+    client_update_in: ClientUpdateRequest,
 ) -> AgencyClient:
     """
     Update client details.
@@ -1283,12 +1314,12 @@ def update_client(
     require_found(client, "Client")
 
     # Update fields if provided
-    if request.billing_rate_markup is not None:
-        client.billing_rate_markup = request.billing_rate_markup
-    if request.notes is not None:
-        client.notes = request.notes
-    if request.is_active is not None:
-        client.is_active = request.is_active
+    if client_update_in.billing_rate_markup is not None:
+        client.billing_rate_markup = client_update_in.billing_rate_markup
+    if client_update_in.notes is not None:
+        client.notes = client_update_in.notes
+    if client_update_in.is_active is not None:
+        client.is_active = client_update_in.is_active
 
     client.updated_at = datetime.utcnow()
     session.add(client)
@@ -1301,7 +1332,9 @@ def update_client(
 
 
 @router.delete("/clients/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def remove_client(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
@@ -1333,7 +1366,9 @@ def remove_client(
 
 
 @router.get("/shifts", response_model=List[AgencyShiftResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_agency_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -1410,10 +1445,12 @@ def list_agency_shifts(
 
 
 @router.post("/shifts", response_model=AgencyShiftResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_agency_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: AgencyShiftCreateRequest,
+    shift_in: AgencyShiftCreateRequest,
 ) -> AgencyShiftResponse:
     """
     Post a shift on behalf of a client.
@@ -1424,7 +1461,7 @@ def create_agency_shift(
 
     # Verify client exists and belongs to agency
     client_stmt = select(AgencyClient).where(
-        AgencyClient.id == request.client_id,
+        AgencyClient.id == shift_in.client_id,
         AgencyClient.agency_id == current_user.id,
         AgencyClient.is_active == True,
     )
@@ -1434,21 +1471,21 @@ def create_agency_shift(
 
     # Create the shift (agency posts as company_id = agency user id)
     shift = Shift(
-        title=request.title,
-        description=request.description,
+        title=shift_in.title,
+        description=shift_in.description,
         company_id=current_user.id,
-        shift_type=request.shift_type,
-        date=request.date,
-        start_time=request.start_time,
-        end_time=request.end_time,
-        hourly_rate=request.hourly_rate,
-        location=request.location,
-        address=request.address,
-        city=request.city,
-        spots_total=request.spots_total,
+        shift_type=shift_in.shift_type,
+        date=shift_in.date,
+        start_time=shift_in.start_time,
+        end_time=shift_in.end_time,
+        hourly_rate=shift_in.hourly_rate,
+        location=shift_in.location,
+        address=shift_in.address,
+        city=shift_in.city,
+        spots_total=shift_in.spots_total,
         spots_filled=0,
         status=ShiftStatus.OPEN,
-        requirements=request.requirements,
+        requirements=shift_in.requirements,
     )
     session.add(shift)
     session.commit()
@@ -1458,19 +1495,19 @@ def create_agency_shift(
     agency_shift = AgencyShift(
         agency_id=current_user.id,
         shift_id=shift.id,
-        client_id=request.client_id,
+        client_id=shift_in.client_id,
     )
     session.add(agency_shift)
     session.commit()
 
-    logger.info(f"Agency {current_user.id} created shift {shift.id} for client {request.client_id}")
+    logger.info(f"Agency {current_user.id} created shift {shift.id} for client {shift_in.client_id}")
 
     return AgencyShiftResponse(
         id=shift.id,
         title=shift.title,
         description=shift.description,
         company_id=shift.company_id,
-        client_id=request.client_id,
+        client_id=shift_in.client_id,
         shift_type=shift.shift_type,
         date=shift.date,
         start_time=shift.start_time,
@@ -1489,11 +1526,13 @@ def create_agency_shift(
 
 
 @router.patch("/shifts/{shift_id}", response_model=AgencyShiftResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_agency_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
-    request: AgencyShiftUpdateRequest,
+    shift_update_in: AgencyShiftUpdateRequest,
 ) -> AgencyShiftResponse:
     """
     Update a shift posted by the agency.
@@ -1516,32 +1555,32 @@ def update_agency_shift(
     require_found(shift, "Shift")
 
     # Update fields if provided
-    if request.title is not None:
-        shift.title = request.title
-    if request.description is not None:
-        shift.description = request.description
-    if request.shift_type is not None:
-        shift.shift_type = request.shift_type
-    if request.date is not None:
-        shift.date = request.date
-    if request.start_time is not None:
-        shift.start_time = request.start_time
-    if request.end_time is not None:
-        shift.end_time = request.end_time
-    if request.hourly_rate is not None:
-        shift.hourly_rate = request.hourly_rate
-    if request.location is not None:
-        shift.location = request.location
-    if request.address is not None:
-        shift.address = request.address
-    if request.city is not None:
-        shift.city = request.city
-    if request.spots_total is not None:
-        shift.spots_total = request.spots_total
-    if request.status is not None:
-        shift.status = ShiftStatus(request.status)
-    if request.requirements is not None:
-        shift.requirements = request.requirements
+    if shift_update_in.title is not None:
+        shift.title = shift_update_in.title
+    if shift_update_in.description is not None:
+        shift.description = shift_update_in.description
+    if shift_update_in.shift_type is not None:
+        shift.shift_type = shift_update_in.shift_type
+    if shift_update_in.date is not None:
+        shift.date = shift_update_in.date
+    if shift_update_in.start_time is not None:
+        shift.start_time = shift_update_in.start_time
+    if shift_update_in.end_time is not None:
+        shift.end_time = shift_update_in.end_time
+    if shift_update_in.hourly_rate is not None:
+        shift.hourly_rate = shift_update_in.hourly_rate
+    if shift_update_in.location is not None:
+        shift.location = shift_update_in.location
+    if shift_update_in.address is not None:
+        shift.address = shift_update_in.address
+    if shift_update_in.city is not None:
+        shift.city = shift_update_in.city
+    if shift_update_in.spots_total is not None:
+        shift.spots_total = shift_update_in.spots_total
+    if shift_update_in.status is not None:
+        shift.status = ShiftStatus(shift_update_in.status)
+    if shift_update_in.requirements is not None:
+        shift.requirements = shift_update_in.requirements
 
     session.add(shift)
     session.commit()
@@ -1581,7 +1620,9 @@ def update_agency_shift(
 
 
 @router.delete("/shifts/{shift_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def delete_agency_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -1614,11 +1655,13 @@ def delete_agency_shift(
 
 
 @router.post("/shifts/{shift_id}/assign", response_model=StaffAssignmentResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def assign_staff_to_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
-    request: StaffAssignmentRequest,
+    assignment_in: StaffAssignmentRequest,
 ) -> StaffAssignmentResponse:
     """
     Assign a staff member to a shift.
@@ -1638,7 +1681,7 @@ def assign_staff_to_shift(
 
     # Verify staff member belongs to agency
     staff_stmt = select(AgencyStaffMember).where(
-        AgencyStaffMember.id == request.staff_member_id,
+        AgencyStaffMember.id == assignment_in.staff_member_id,
         AgencyStaffMember.agency_id == current_user.id,
         AgencyStaffMember.status == "active",
     )
@@ -1649,7 +1692,7 @@ def assign_staff_to_shift(
     # Check if already assigned
     existing_stmt = select(AgencyShiftAssignment).where(
         AgencyShiftAssignment.shift_id == shift_id,
-        AgencyShiftAssignment.staff_member_id == request.staff_member_id,
+        AgencyShiftAssignment.staff_member_id == assignment_in.staff_member_id,
         AgencyShiftAssignment.agency_id == current_user.id,
     )
     existing = session.exec(existing_stmt).first()
@@ -1668,7 +1711,7 @@ def assign_staff_to_shift(
     assignment = AgencyShiftAssignment(
         agency_id=current_user.id,
         shift_id=shift_id,
-        staff_member_id=request.staff_member_id,
+        staff_member_id=assignment_in.staff_member_id,
     )
     session.add(assignment)
 
@@ -1681,11 +1724,11 @@ def assign_staff_to_shift(
     session.commit()
     session.refresh(assignment)
 
-    logger.info(f"Agency {current_user.id} assigned staff {request.staff_member_id} to shift {shift_id}")
+    logger.info(f"Agency {current_user.id} assigned staff {assignment_in.staff_member_id} to shift {shift_id}")
 
     return StaffAssignmentResponse(
         shift_id=shift_id,
-        staff_member_id=request.staff_member_id,
+        staff_member_id=assignment_in.staff_member_id,
         assigned_at=assignment.assigned_at,
         message="Staff member assigned successfully",
     )
@@ -1695,7 +1738,9 @@ def assign_staff_to_shift(
 
 
 @router.get("/applications", response_model=List[ApplicationResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_agency_applications(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -1757,7 +1802,9 @@ def list_agency_applications(
 
 
 @router.post("/applications/{application_id}/accept", response_model=ApplicationActionResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def accept_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -1814,7 +1861,9 @@ def accept_application(
 
 
 @router.post("/applications/{application_id}/reject", response_model=ApplicationActionResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def reject_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -1871,7 +1920,9 @@ def generate_invoice_number(agency_id: int, session: SessionDep) -> str:
 
 
 @router.get("/invoices", response_model=InvoiceListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_invoices(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -1947,10 +1998,12 @@ def list_invoices(
 
 
 @router.post("/invoices", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def create_invoice(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: InvoiceCreateRequest,
+    invoice_in: InvoiceCreateRequest,
 ) -> InvoiceResponse:
     """
     Create a new invoice for a client.
@@ -1961,7 +2014,7 @@ def create_invoice(
 
     # Verify client belongs to this agency
     client_stmt = select(AgencyClient).where(
-        AgencyClient.id == request.client_id,
+        AgencyClient.id == invoice_in.client_id,
         AgencyClient.agency_id == current_user.id,
     )
     client = session.exec(client_stmt).first()
@@ -1974,15 +2027,15 @@ def create_invoice(
     # Create invoice
     invoice = AgencyClientInvoice(
         agency_id=current_user.id,
-        client_id=request.client_id,
+        client_id=invoice_in.client_id,
         invoice_number=invoice_number,
         status="draft",
-        amount=request.amount,
-        currency=request.currency,
-        period_start=request.period_start,
-        period_end=request.period_end,
-        due_date=request.due_date,
-        notes=request.notes,
+        amount=invoice_in.amount,
+        currency=invoice_in.currency,
+        period_start=invoice_in.period_start,
+        period_end=invoice_in.period_end,
+        due_date=invoice_in.due_date,
+        notes=invoice_in.notes,
     )
     session.add(invoice)
     session.commit()
@@ -2020,7 +2073,9 @@ def create_invoice(
 
 
 @router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_invoice(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,
@@ -2071,7 +2126,9 @@ def get_invoice(
 
 
 @router.patch("/invoices/{invoice_id}/send", response_model=InvoiceResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def send_invoice(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,
@@ -2137,7 +2194,9 @@ def send_invoice(
 
 
 @router.patch("/invoices/{invoice_id}/mark-paid", response_model=InvoiceResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def mark_invoice_paid(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,
@@ -2207,11 +2266,13 @@ def mark_invoice_paid(
 
 
 @router.post("/clients/{client_id}/invoices/generate", response_model=InvoiceGenerateResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def generate_client_invoice(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
-    request: InvoiceGenerateRequest,
+    invoice_gen_in: InvoiceGenerateRequest,
 ) -> InvoiceGenerateResponse:
     """
     Generate an invoice for a client based on completed shifts in the period.
@@ -2236,11 +2297,11 @@ async def generate_client_invoice(
         invoice_data = await billing_service.create_client_invoice(
             agency_id=current_user.id,
             client_id=client_id,
-            period_start=request.period_start,
-            period_end=request.period_end,
-            include_markup=request.include_markup,
-            custom_due_date=request.custom_due_date,
-            notes=request.notes,
+            period_start=invoice_gen_in.period_start,
+            period_end=invoice_gen_in.period_end,
+            include_markup=invoice_gen_in.include_markup,
+            custom_due_date=invoice_gen_in.custom_due_date,
+            notes=invoice_gen_in.notes,
         )
 
         return InvoiceGenerateResponse(**invoice_data)
@@ -2253,7 +2314,9 @@ async def generate_client_invoice(
 
 
 @router.get("/clients/{client_id}/invoices", response_model=InvoiceListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_client_invoices(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
@@ -2333,7 +2396,9 @@ def list_client_invoices(
 
 
 @router.get("/clients/{client_id}/billing-summary", response_model=ClientBillingSummaryResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_client_billing_summary(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
@@ -2374,7 +2439,9 @@ def get_client_billing_summary(
 
 
 @router.get("/clients/{client_id}/unbilled-shifts", response_model=List[UnbilledShiftResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_client_unbilled_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
@@ -2412,7 +2479,9 @@ def get_client_unbilled_shifts(
 
 
 @router.get("/payroll", response_model=PayrollListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_payroll(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -2495,10 +2564,12 @@ def list_payroll(
 
 
 @router.post("/payroll/process", response_model=PayrollProcessResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def process_payroll(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: PayrollProcessRequest,
+    payroll_in: PayrollProcessRequest,
 ) -> PayrollProcessResponse:
     """
     Process payroll for a given period.
@@ -2520,8 +2591,8 @@ def process_payroll(
         AgencyStaffMember.status == "active",
     )
 
-    if request.staff_member_ids:
-        staff_stmt = staff_stmt.where(AgencyStaffMember.id.in_(request.staff_member_ids))
+    if payroll_in.staff_member_ids:
+        staff_stmt = staff_stmt.where(AgencyStaffMember.id.in_(payroll_in.staff_member_ids))
 
     staff_members = session.exec(staff_stmt).all()
 
@@ -2540,8 +2611,8 @@ def process_payroll(
         existing_stmt = select(PayrollEntry).where(
             PayrollEntry.agency_id == current_user.id,
             PayrollEntry.staff_member_id == staff.id,
-            PayrollEntry.period_start == request.period_start,
-            PayrollEntry.period_end == request.period_end,
+            PayrollEntry.period_start == payroll_in.period_start,
+            PayrollEntry.period_end == payroll_in.period_end,
         )
         existing = session.exec(existing_stmt).first()
 
@@ -2568,8 +2639,8 @@ def process_payroll(
                 .where(Shift.id.in_(assigned_shift_ids))
                 .where(Shift.id.in_(agency_shift_ids))
                 .where(Shift.status == ShiftStatus.COMPLETED)
-                .where(Shift.date >= request.period_start)
-                .where(Shift.date <= request.period_end)
+                .where(Shift.date >= payroll_in.period_start)
+                .where(Shift.date <= payroll_in.period_end)
             ).all()
 
             for shift in shifts_in_period:
@@ -2594,8 +2665,8 @@ def process_payroll(
             entry = PayrollEntry(
                 agency_id=current_user.id,
                 staff_member_id=staff.id,
-                period_start=request.period_start,
-                period_end=request.period_end,
+                period_start=payroll_in.period_start,
+                period_end=payroll_in.period_end,
                 status="pending",
                 hours_worked=float(hours_worked),
                 gross_amount=float(gross_amount),
@@ -2682,7 +2753,9 @@ def process_payroll(
 
 
 @router.get("/payroll/{payroll_id}", response_model=PayrollEntryResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_payroll_entry(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     payroll_id: int,
@@ -2759,7 +2832,9 @@ def get_or_create_agency_profile(session: SessionDep, user_id: int) -> AgencyPro
 
 
 @router.get("/mode/profile", response_model=AgencyProfileRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_agency_mode_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyProfileModel:
@@ -2774,7 +2849,9 @@ def get_agency_mode_profile(
 
 
 @router.patch("/mode/profile", response_model=AgencyProfileRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_agency_mode_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     profile_update: AgencyProfileUpdateSchema,
@@ -2803,7 +2880,9 @@ def update_agency_mode_profile(
 
 
 @router.get("/mode/requirements", response_model=AgencyModeRequirements)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def check_mode_requirements(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     target_mode: AgencyMode,
@@ -2888,7 +2967,9 @@ def check_mode_requirements(
 
 
 @router.patch("/mode", response_model=AgencyModeUpdateResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_agency_mode(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     mode_request: AgencyModeUpdateRequest,
@@ -2923,6 +3004,7 @@ def update_agency_mode(
 
     # Check requirements for Mode B
     requirements_result = check_mode_requirements(
+        request=request,
         session=session,
         current_user=current_user,
         target_mode=new_mode,
@@ -2970,7 +3052,9 @@ def update_agency_mode(
 
 
 @router.get("/dashboard", response_model=AgencyDashboardResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_agency_dashboard(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> AgencyDashboardResponse:
@@ -3089,7 +3173,9 @@ def require_full_intermediary_mode(session: SessionDep, user_id: int) -> AgencyP
 
 
 @router.post("/clients/{client_id}/shifts", response_model=AgencyModeShiftResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_shift_for_client(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     client_id: int,
@@ -3177,7 +3263,9 @@ def create_shift_for_client(
 
 
 @router.get("/mode/shifts", response_model=List[AgencyModeShiftResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_agency_mode_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -3279,10 +3367,12 @@ class AgencyPayoutResponse(BaseModel):
 
 
 @router.post("/payouts/request", response_model=AgencyPayoutResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def request_agency_payout(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: AgencyPayoutRequest,
+    payout_in: AgencyPayoutRequest,
 ):
     """Request a payout for agency wallet balance."""
     from app.models.payment import Payout, PayoutType
@@ -3302,13 +3392,13 @@ async def request_agency_payout(
     if not wallet:
         raise_not_found("Wallet", "current user")
 
-    if wallet.available_balance < Decimal(str(request.amount)):
+    if wallet.available_balance < Decimal(str(payout_in.amount)):
         raise_bad_request(
             f"Insufficient balance. Available: €{wallet.available_balance}, "
-            f"Requested: €{request.amount}"
+            f"Requested: €{payout_in.amount}"
         )
 
-    amount_decimal = Decimal(str(request.amount))
+    amount_decimal = Decimal(str(payout_in.amount))
 
     # Create payout record
     payout = Payout(

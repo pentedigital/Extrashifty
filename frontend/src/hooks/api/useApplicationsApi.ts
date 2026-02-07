@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { ApplicationStatus } from '@/types/application'
 import { shiftKeys } from './useShiftsApi'
 
@@ -14,6 +15,7 @@ export function useApplications(filters?: Record<string, string>) {
   return useQuery({
     queryKey: applicationKeys.list(filters),
     queryFn: () => api.applications.list(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -29,7 +31,7 @@ export function useMyApplications(status?: string) {
   return useQuery({
     queryKey: applicationKeys.list(filters),
     queryFn: () => api.applications.list(filters),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -42,6 +44,7 @@ export function useShiftApplicants(shiftId: string) {
       return { items: applications, total: applications.length }
     },
     enabled: !!shiftId,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 

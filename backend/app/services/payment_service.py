@@ -1221,9 +1221,17 @@ class PaymentService:
             period_end = date.today()
             period_start = period_end - timedelta(days=7)
 
+            # Batch-load wallets for all payouts
+            wallet_ids = [p.wallet_id for p in payouts]
+            wallets_map = (
+                {w.id: w for w in self.db.exec(select(Wallet).where(Wallet.id.in_(wallet_ids))).all()}
+                if wallet_ids
+                else {}
+            )
+
             for payout in payouts:
                 try:
-                    wallet = self.db.get(Wallet, payout.wallet_id)
+                    wallet = wallets_map.get(payout.wallet_id)
                     if not wallet:
                         continue
 
@@ -1601,8 +1609,16 @@ class PaymentService:
             )
         ).all()
 
+        # Batch-load shifts for all holds
+        shift_ids = [h.shift_id for h in holds]
+        shifts_map = (
+            {s.id: s for s in self.db.exec(select(Shift).where(Shift.id.in_(shift_ids))).all()}
+            if shift_ids
+            else {}
+        )
+
         for hold in holds:
-            shift = self.db.get(Shift, hold.shift_id)
+            shift = shifts_map.get(hold.shift_id)
             if not shift:
                 continue
 

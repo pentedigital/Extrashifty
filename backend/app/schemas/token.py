@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from ..models.user import UserType
 
@@ -22,6 +22,9 @@ class TokenPayload(BaseModel):
     sub: Optional[int] = None
     exp: Optional[datetime] = None
     type: Optional[str] = None
+    iat: Optional[datetime] = None
+    jti: Optional[str] = None
+    ver: Optional[int] = None
 
 
 class RefreshTokenRequest(BaseModel):
@@ -65,7 +68,7 @@ class PasswordResetRequest(BaseModel):
     """Schema for password reset request."""
 
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=100)
 
 
 class Message(BaseModel):

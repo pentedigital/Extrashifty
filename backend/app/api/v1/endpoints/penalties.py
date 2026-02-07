@@ -3,10 +3,12 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
+from app.core.cache import get_cached, set_cached
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, ADMIN_RATE_LIMIT
 from app.core.errors import (
     require_found,
 )
@@ -43,7 +45,9 @@ router = APIRouter()
 
 
 @router.get("/strikes", response_model=StrikeListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_user_strikes(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -102,7 +106,9 @@ def get_user_strikes(
 
 
 @router.get("/history", response_model=PenaltyListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_penalty_history(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     pagination: PaginationParams = Depends(),
@@ -195,7 +201,9 @@ def get_penalty_history(
 
 
 @router.get("/summary", response_model=PenaltySummaryResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_penalty_summary(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -287,7 +295,9 @@ def get_penalty_summary(
 
 
 @router.get("/negative-balance", response_model=NegativeBalanceResponse | None)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_negative_balance(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> NegativeBalanceResponse | None:
@@ -318,7 +328,9 @@ def get_negative_balance(
 
 
 @router.post("/{penalty_id}/appeal", response_model=AppealResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def appeal_penalty(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     penalty_id: int,
@@ -360,7 +372,9 @@ async def appeal_penalty(
 
 
 @router.get("/appeals", response_model=list[AppealResponse])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_user_appeals(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> list[AppealResponse]:
@@ -394,7 +408,9 @@ def get_user_appeals(
 
 
 @router.get("/admin/summary", response_model=AdminPenaltySummaryResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 def get_admin_penalty_summary(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
 ) -> dict:
@@ -403,6 +419,11 @@ def get_admin_penalty_summary(
 
     Admin only endpoint for monitoring the penalty system.
     """
+    cache_key = "admin:penalty_summary"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
+
     penalty_service = PenaltyService(session)
 
     # Total pending penalties
@@ -454,7 +475,7 @@ def get_admin_penalty_summary(
         )
     ).one()
 
-    return {
+    result = {
         "total_pending_penalties": total_pending,
         "total_pending_amount": total_pending_amount,
         "total_pending_appeals": total_pending_appeals,
@@ -464,10 +485,14 @@ def get_admin_penalty_summary(
         "penalties_last_30_days": penalties_last_30,
         "writeoff_candidates": writeoff_candidates,
     }
+    set_cached(cache_key, result, tier="medium")
+    return result
 
 
 @router.get("/admin/appeals/pending", response_model=list[AppealResponse])
+@limiter.limit(ADMIN_RATE_LIMIT)
 def get_pending_appeals(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
 ) -> list[AppealResponse]:
@@ -497,7 +522,9 @@ def get_pending_appeals(
 
 
 @router.post("/admin/appeals/{appeal_id}/review", response_model=AppealReviewResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def review_appeal(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     appeal_id: int,
@@ -545,7 +572,9 @@ async def review_appeal(
 
 
 @router.post("/admin/suspensions/{user_id}/lift", response_model=SuspensionResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def lift_user_suspension(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     user_id: int,
@@ -580,7 +609,9 @@ async def lift_user_suspension(
 
 
 @router.get("/admin/user/{user_id}/penalties", response_model=PenaltyListResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 def get_user_penalties_admin(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     user_id: int,
@@ -665,7 +696,9 @@ def get_user_penalties_admin(
 
 
 @router.get("/admin/user/{user_id}/summary", response_model=PenaltySummaryResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
 def get_user_penalty_summary_admin(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     user_id: int,

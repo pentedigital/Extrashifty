@@ -3,12 +3,13 @@
 import logging
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
 from app.core.config import settings
+from app.core.rate_limit import DEFAULT_RATE_LIMIT, PAYMENT_RATE_LIMIT, limiter
 from app.crud.wallet import wallet as wallet_crud
 from app.models.user import UserType
 from app.schemas.payment import (
@@ -48,10 +49,12 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/wallets/topup", response_model=TopupResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def topup_wallet(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: TopupRequest,
+    body: TopupRequest,
 ) -> TopupResponse:
     """
     Top up company wallet with card, bank, or ACH.
@@ -67,9 +70,9 @@ async def topup_wallet(
     try:
         transaction = await payment_service.topup_wallet(
             user_id=current_user.id,
-            amount=request.amount,
-            payment_method_id=request.payment_method_id,
-            idempotency_key=request.idempotency_key,
+            amount=body.amount,
+            payment_method_id=body.payment_method_id,
+            idempotency_key=body.idempotency_key,
         )
 
         # Get updated balance
@@ -90,10 +93,12 @@ async def topup_wallet(
 
 
 @router.post("/wallets/auto-topup/configure", response_model=AutoTopupConfigResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def configure_auto_topup(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: AutoTopupConfigRequest,
+    body: AutoTopupConfigRequest,
 ) -> AutoTopupConfigResponse:
     """
     Configure auto-topup for company wallet.
@@ -106,17 +111,17 @@ def configure_auto_topup(
     try:
         wallet = payment_service.configure_auto_topup(
             user_id=current_user.id,
-            enabled=request.enabled,
-            threshold=request.threshold,
-            topup_amount=request.topup_amount,
-            payment_method_id=request.payment_method_id,
+            enabled=body.enabled,
+            threshold=body.threshold,
+            topup_amount=body.topup_amount,
+            payment_method_id=body.payment_method_id,
         )
 
         return AutoTopupConfigResponse(
             enabled=wallet.auto_topup_enabled,
             threshold=wallet.auto_topup_threshold,
             topup_amount=wallet.auto_topup_amount,
-            payment_method_id=request.payment_method_id if request.enabled else None,
+            payment_method_id=body.payment_method_id if body.enabled else None,
             message="Auto-topup configuration updated",
         )
     except PaymentError as e:
@@ -127,7 +132,9 @@ def configure_auto_topup(
 
 
 @router.get("/wallets/balance", response_model=BalanceResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_wallet_balance(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> BalanceResponse:
@@ -143,10 +150,12 @@ def get_wallet_balance(
 
 
 @router.patch("/wallets/minimum-balance", response_model=MinimumBalanceResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def update_minimum_balance(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: MinimumBalanceRequest,
+    body: MinimumBalanceRequest,
 ) -> MinimumBalanceResponse:
     """
     Set or update the minimum balance requirement for a company wallet.
@@ -162,26 +171,28 @@ def update_minimum_balance(
     wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
 
     # Update the minimum balance
-    wallet.minimum_balance = request.minimum_balance
+    wallet.minimum_balance = body.minimum_balance
     wallet.updated_at = datetime.utcnow()
     session.add(wallet)
     session.commit()
     session.refresh(wallet)
 
     logger.info(
-        f"Updated minimum balance for wallet {wallet.id} to {request.minimum_balance}"
+        f"Updated minimum balance for wallet {wallet.id} to {body.minimum_balance}"
     )
 
     return MinimumBalanceResponse(
         wallet_id=wallet.id,
         minimum_balance=wallet.minimum_balance,
         available_balance=wallet.available_balance,
-        message=f"Minimum balance updated to {request.minimum_balance}",
+        message=f"Minimum balance updated to {body.minimum_balance}",
     )
 
 
 @router.get("/wallets/status")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_wallet_status(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -215,7 +226,9 @@ def get_wallet_status(
 
 
 @router.post("/wallets/reactivate")
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def reactivate_wallet(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     minimum_balance: Decimal = Query(
@@ -294,11 +307,13 @@ async def reactivate_wallet(
         402: {"model": InsufficientFundsResponse, "description": "Insufficient funds"},
     },
 )
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def reserve_shift_funds(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     shift_id: int,
-    request: ReserveRequest | None = None,
+    body: ReserveRequest | None = None,
 ) -> ReserveResponse | JSONResponse:
     """
     Reserve funds when accepting a worker for a shift.
@@ -317,7 +332,7 @@ async def reserve_shift_funds(
         hold = await payment_service.reserve_shift_funds(
             shift_id=shift_id,
             company_wallet_id=wallet.id,
-            idempotency_key=request.idempotency_key if request else None,
+            idempotency_key=body.idempotency_key if body else None,
         )
 
         return ReserveResponse(
@@ -349,7 +364,9 @@ async def reserve_shift_funds(
 
 
 @router.post("/shifts/{shift_id}/settle", response_model=SettlementResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def settle_shift(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     shift_id: int,
@@ -416,11 +433,13 @@ async def settle_shift(
 
 
 @router.post("/shifts/{shift_id}/cancel", response_model=CancellationResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def cancel_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
-    request: CancellationRequest,
+    body: CancellationRequest,
 ) -> CancellationResponse:
     """
     Handle shift cancellation with appropriate refund policy.
@@ -436,8 +455,8 @@ async def cancel_shift(
     try:
         transactions = await payment_service.process_cancellation(
             shift_id=shift_id,
-            cancelled_by=request.cancelled_by.value,
-            reason=request.reason,
+            cancelled_by=body.cancelled_by.value,
+            reason=body.reason,
         )
 
         # Calculate totals
@@ -468,7 +487,7 @@ async def cancel_shift(
 
         return CancellationResponse(
             shift_id=shift_id,
-            cancelled_by=request.cancelled_by,
+            cancelled_by=body.cancelled_by,
             policy_applied=policy,
             refund_amount=refund_amount,
             worker_compensation=worker_compensation,
@@ -487,10 +506,12 @@ async def cancel_shift(
 
 
 @router.post("/payouts/request-instant", response_model=PayoutResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def request_instant_payout(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: PayoutRequest | None = None,
+    body: PayoutRequest | None = None,
 ) -> PayoutResponse:
     """
     Request instant payout (1.5% fee, $10 minimum).
@@ -513,8 +534,8 @@ async def request_instant_payout(
     try:
         payout = await payment_service.process_instant_payout(
             wallet_id=wallet.id,
-            amount=request.amount if request else None,
-            idempotency_key=request.idempotency_key if request else None,
+            amount=body.amount if body else None,
+            idempotency_key=body.idempotency_key if body else None,
         )
 
         return PayoutResponse(
@@ -540,7 +561,9 @@ async def request_instant_payout(
 
 
 @router.get("/payouts/schedule", response_model=PayoutScheduleResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_payout_schedule(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> PayoutScheduleResponse:
@@ -572,7 +595,9 @@ def get_payout_schedule(
 
 
 @router.get("/payouts/history", response_model=PayoutHistoryResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_payout_history(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = Query(default=0, ge=0),
@@ -635,10 +660,12 @@ class ConnectOnboardingResponse(BaseModel):
 
 
 @router.post("/connect/onboarding-link", response_model=ConnectOnboardingResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def get_connect_onboarding_link(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: ConnectOnboardingRequest,
+    body: ConnectOnboardingRequest,
 ) -> ConnectOnboardingResponse:
     """
     Create a Stripe Connect onboarding link for the current user.
@@ -653,7 +680,7 @@ async def get_connect_onboarding_link(
     try:
         # Create Connect account if needed
         if not wallet.stripe_account_id:
-            if request.account_type == "express":
+            if body.account_type == "express":
                 account = stripe_svc.create_express_account(
                     email=current_user.email,
                     country="IE",

@@ -1,8 +1,9 @@
 """GDPR compliance endpoints for ExtraShifty."""
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.rate_limit import DEFAULT_RATE_LIMIT, GDPR_RATE_LIMIT, limiter
 from app.models.gdpr import DeletionRequestStatus
 from app.schemas.gdpr import (
     AdminDeletionRequestResponse,
@@ -19,10 +20,12 @@ router = APIRouter()
 
 
 @router.post("/request-deletion", response_model=DeletionRequestResponse)
+@limiter.limit(GDPR_RATE_LIMIT)
 async def request_account_deletion(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: DeletionRequestCreate,
+    body: DeletionRequestCreate,
 ) -> DeletionRequestResponse:
     """
     Request account deletion (GDPR right to erasure).
@@ -44,7 +47,7 @@ async def request_account_deletion(
     try:
         deletion_request = await gdpr_service.request_account_deletion(
             user_id=current_user.id,
-            reason=request.reason,
+            reason=body.reason,
         )
         return deletion_request
     except GDPRServiceError as e:
@@ -65,7 +68,9 @@ async def request_account_deletion(
 
 
 @router.post("/cancel-deletion", response_model=dict)
+@limiter.limit(GDPR_RATE_LIMIT)
 async def cancel_deletion_request(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -97,7 +102,9 @@ async def cancel_deletion_request(
 
 
 @router.get("/deletion-status", response_model=DeletionStatusResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_deletion_status(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> DeletionStatusResponse:
@@ -113,7 +120,9 @@ async def get_deletion_status(
 
 
 @router.post("/export-data", response_model=DataExportResponse)
+@limiter.limit(GDPR_RATE_LIMIT)
 async def export_my_data(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> DataExportResponse:
@@ -156,7 +165,9 @@ async def export_my_data(
 
 
 @router.get("/export-data/download", response_model=DataExportDownloadResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def download_data_export(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     export_id: str = Query(..., description="Export ID from the export request"),
@@ -176,8 +187,8 @@ async def download_data_export(
             detail="No data export found",
         )
 
-    request = status_info["request"]
-    if not request.data_export_url:
+    deletion_req = status_info["request"]
+    if not deletion_req.data_export_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No data export available",
@@ -185,7 +196,7 @@ async def download_data_export(
 
     from datetime import datetime
 
-    if request.data_export_expires_at and datetime.utcnow() > request.data_export_expires_at:
+    if deletion_req.data_export_expires_at and datetime.utcnow() > deletion_req.data_export_expires_at:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="Data export has expired. Please request a new export.",
@@ -193,8 +204,8 @@ async def download_data_export(
 
     # In production, this would return a presigned S3/GCS URL
     return DataExportDownloadResponse(
-        download_url=request.data_export_url,
-        expires_at=request.data_export_expires_at,
+        download_url=deletion_req.data_export_url,
+        expires_at=deletion_req.data_export_expires_at,
         file_size_bytes=None,  # Would be populated from cloud storage
     )
 
@@ -203,7 +214,9 @@ async def download_data_export(
 
 
 @router.get("/admin/deletion-requests", response_model=DeletionRequestListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def list_deletion_requests(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     status_filter: DeletionRequestStatus | None = Query(
@@ -247,7 +260,9 @@ async def list_deletion_requests(
 
 
 @router.post("/admin/process-deletion/{request_id}", response_model=DeletionRequestResponse)
+@limiter.limit(GDPR_RATE_LIMIT)
 async def admin_process_deletion(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     request_id: int,
@@ -306,7 +321,9 @@ async def admin_process_deletion(
 
 
 @router.get("/admin/deletion-requests/{request_id}", response_model=AdminDeletionRequestResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_deletion_request_details(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     request_id: int,

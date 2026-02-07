@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { Notification, NotificationPreferences } from '@/types/features'
 
 // Re-export types for backwards compatibility
@@ -17,7 +18,7 @@ export function useNotifications(params?: { skip?: number; limit?: number; unrea
   return useQuery({
     queryKey: notificationKeys.list(params),
     queryFn: () => api.notifications.list(params),
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -25,7 +26,7 @@ export function useNotificationPreferences() {
   return useQuery({
     queryKey: notificationKeys.preferences(),
     queryFn: () => api.notifications.getPreferences(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.LONG,
   })
 }
 

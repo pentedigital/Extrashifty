@@ -24,6 +24,7 @@ dependencies = [
     "apscheduler>=3.10.0",  # For scheduled jobs
     "weasyprint>=62.0",  # For PDF invoice generation
     "sentry-sdk>=2.0",  # For error tracking and monitoring
+    "cachetools>=5.0.0",
 ]
 
 [project.optional-dependencies]

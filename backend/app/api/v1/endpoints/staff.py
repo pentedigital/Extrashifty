@@ -4,11 +4,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.cache import get_cached, invalidate_cache_prefix, set_cached
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.models.application import Application, ApplicationStatus
 from app.models.profile import ClockRecord as ClockRecordModel
 from app.models.profile import StaffProfile as StaffProfileModel
@@ -181,7 +183,9 @@ class ReviewsResponse(BaseModel):
 
 
 @router.get("/profile", response_model=StaffProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_staff_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> Any:
@@ -191,6 +195,11 @@ def get_staff_profile(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only staff members can access this endpoint",
         )
+
+    cache_key = f"staff:profile:{current_user.id}"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
 
     # Get or create staff profile
     profile = session.exec(
@@ -227,7 +236,7 @@ def get_staff_profile(
     )
     average_rating = float(session.exec(avg_rating_query).one() or 0)
 
-    return StaffProfile(
+    result = StaffProfile(
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
@@ -243,10 +252,13 @@ def get_staff_profile(
         total_hours=round(total_hours, 2),
         created_at=current_user.created_at,
     )
+    set_cached(cache_key, result, tier="medium")
 
 
 @router.patch("/profile", response_model=StaffProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_staff_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     profile_update: StaffProfileUpdate,
@@ -291,6 +303,9 @@ def update_staff_profile(
     session.commit()
     session.refresh(current_user)
     session.refresh(profile)
+
+    # Invalidate cached staff profile
+    invalidate_cache_prefix(f"staff:profile:{current_user.id}")
 
     # Calculate totals for response
     total_shifts_query = (
@@ -339,7 +354,9 @@ def update_staff_profile(
 
 
 @router.get("/wallet", response_model=StaffWallet)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_staff_wallet(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> Any:
@@ -397,7 +414,9 @@ def get_staff_wallet(
 
 
 @router.get("/clock-records", response_model=ClockRecordsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_clock_records(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -448,7 +467,9 @@ def get_clock_records(
 
 
 @router.get("/shifts")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_staff_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_status: str | None = None,
@@ -491,10 +512,12 @@ def get_staff_shifts(
 
 
 @router.post("/clock-in", response_model=ClockActionResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def clock_in(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: ClockInRequest,
+    clock_in_data: ClockInRequest,
 ) -> Any:
     """Clock in for a shift."""
     if current_user.user_type != UserType.STAFF:
@@ -506,7 +529,7 @@ def clock_in(
     # Verify the staff member has an accepted application for this shift
     application = session.exec(
         select(Application)
-        .where(Application.shift_id == request.shift_id)
+        .where(Application.shift_id == clock_in_data.shift_id)
         .where(Application.applicant_id == current_user.id)
         .where(Application.status == ApplicationStatus.ACCEPTED)
     ).first()
@@ -520,7 +543,7 @@ def clock_in(
     # Check if already clocked in for this shift
     existing_record = session.exec(
         select(ClockRecordModel)
-        .where(ClockRecordModel.shift_id == request.shift_id)
+        .where(ClockRecordModel.shift_id == clock_in_data.shift_id)
         .where(ClockRecordModel.staff_user_id == current_user.id)
         .where(ClockRecordModel.status == "clocked_in")
     ).first()
@@ -533,16 +556,16 @@ def clock_in(
 
     # Create clock record
     clock_record = ClockRecordModel(
-        shift_id=request.shift_id,
+        shift_id=clock_in_data.shift_id,
         staff_user_id=current_user.id,
         clock_in=datetime.utcnow(),
-        clock_in_notes=request.notes,
+        clock_in_notes=clock_in_data.notes,
         status="clocked_in",
     )
     session.add(clock_record)
 
     # Update shift status to in_progress if it was open/filled
-    shift = session.get(Shift, request.shift_id)
+    shift = session.get(Shift, clock_in_data.shift_id)
     if shift and shift.status in (ShiftStatus.OPEN, ShiftStatus.FILLED):
         shift.status = ShiftStatus.IN_PROGRESS
         shift.clock_in_at = datetime.utcnow()
@@ -553,7 +576,7 @@ def clock_in(
 
     return ClockActionResponse(
         id=clock_record.id,
-        shift_id=request.shift_id,
+        shift_id=clock_in_data.shift_id,
         clock_in=clock_record.clock_in,
         clock_out=None,
         status="clocked_in",
@@ -562,10 +585,12 @@ def clock_in(
 
 
 @router.post("/clock-out", response_model=ClockActionResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def clock_out(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: ClockOutRequest,
+    clock_out_data: ClockOutRequest,
 ) -> Any:
     """Clock out from a shift."""
     if current_user.user_type != UserType.STAFF:
@@ -577,7 +602,7 @@ def clock_out(
     # Verify the staff member has an accepted application for this shift
     application = session.exec(
         select(Application)
-        .where(Application.shift_id == request.shift_id)
+        .where(Application.shift_id == clock_out_data.shift_id)
         .where(Application.applicant_id == current_user.id)
         .where(Application.status == ApplicationStatus.ACCEPTED)
     ).first()
@@ -591,7 +616,7 @@ def clock_out(
     # Find the active clock record
     clock_record = session.exec(
         select(ClockRecordModel)
-        .where(ClockRecordModel.shift_id == request.shift_id)
+        .where(ClockRecordModel.shift_id == clock_out_data.shift_id)
         .where(ClockRecordModel.staff_user_id == current_user.id)
         .where(ClockRecordModel.status == "clocked_in")
     ).first()
@@ -605,7 +630,7 @@ def clock_out(
     # Update clock record
     clock_out_time = datetime.utcnow()
     clock_record.clock_out = clock_out_time
-    clock_record.clock_out_notes = request.notes
+    clock_record.clock_out_notes = clock_out_data.notes
     clock_record.status = "clocked_out"
 
     # Calculate hours worked
@@ -617,7 +642,7 @@ def clock_out(
     session.add(clock_record)
 
     # Update shift with clock out time and actual hours
-    shift = session.get(Shift, request.shift_id)
+    shift = session.get(Shift, clock_out_data.shift_id)
     if shift:
         shift.clock_out_at = clock_out_time
         shift.actual_hours_worked = clock_record.hours_worked
@@ -626,7 +651,7 @@ def clock_out(
         active_clock_ins = session.exec(
             select(func.count())
             .select_from(ClockRecordModel)
-            .where(ClockRecordModel.shift_id == request.shift_id)
+            .where(ClockRecordModel.shift_id == clock_out_data.shift_id)
             .where(ClockRecordModel.status == "clocked_in")
         ).one() or 0
 
@@ -641,7 +666,7 @@ def clock_out(
 
     return ClockActionResponse(
         id=clock_record.id,
-        shift_id=request.shift_id,
+        shift_id=clock_out_data.shift_id,
         clock_in=clock_record.clock_in,
         clock_out=clock_record.clock_out,
         status="clocked_out",
@@ -650,7 +675,9 @@ def clock_out(
 
 
 @router.get("/applications", response_model=ApplicationsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_applications(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_status: str | None = None,
@@ -707,10 +734,12 @@ def get_applications(
 
 
 @router.post("/applications", response_model=ApplicationResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: ApplicationCreate,
+    application_in: ApplicationCreate,
 ) -> Any:
     """Apply to a shift."""
     if current_user.user_type != UserType.STAFF:
@@ -720,7 +749,7 @@ def create_application(
         )
 
     # Check if shift exists
-    shift = session.get(Shift, request.shift_id)
+    shift = session.get(Shift, application_in.shift_id)
     if not shift:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -730,7 +759,7 @@ def create_application(
     # Check if already applied
     existing = session.exec(
         select(Application)
-        .where(Application.shift_id == request.shift_id)
+        .where(Application.shift_id == application_in.shift_id)
         .where(Application.applicant_id == current_user.id)
     ).first()
 
@@ -742,9 +771,9 @@ def create_application(
 
     # Create application
     application = Application(
-        shift_id=request.shift_id,
+        shift_id=application_in.shift_id,
         applicant_id=current_user.id,
-        cover_message=request.cover_message,
+        cover_message=application_in.cover_message,
         status=ApplicationStatus.PENDING,
     )
     session.add(application)
@@ -770,7 +799,9 @@ def create_application(
 
 
 @router.delete("/applications/{application_id}")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def withdraw_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -814,7 +845,9 @@ def withdraw_application(
 
 
 @router.get("/earnings", response_model=EarningsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_earnings(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -826,6 +859,11 @@ def get_earnings(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only staff members can access this endpoint",
         )
+
+    cache_key = f"staff:earnings:{current_user.id}:{skip}:{limit}"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
 
     # Query completed shifts with accepted applications for this user
     query = (
@@ -891,16 +929,20 @@ def get_earnings(
             )
         )
 
-    return EarningsResponse(
+    result = EarningsResponse(
         items=items,
         total=total,
         total_gross=float(total_gross),
         total_net=float(total_net),
     )
+    set_cached(cache_key, result, tier="medium")
+    return result
 
 
 @router.get("/reviews", response_model=ReviewsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_reviews(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,

@@ -67,6 +67,7 @@ export function useShift(id: string) {
     queryKey: shiftKeys.detail(id),
     queryFn: () => apiClient.shifts.get(id),
     enabled: !!id,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -80,6 +81,7 @@ export function useCompanyShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: shiftKeys.companyList(filters),
     queryFn: () => api.company.getShifts(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 

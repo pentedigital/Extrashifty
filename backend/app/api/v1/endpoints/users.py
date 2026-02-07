@@ -1,12 +1,15 @@
 """User endpoints."""
 
 import logging
+from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
+from app.core.rate_limit import AUTH_RATE_LIMIT, DEFAULT_RATE_LIMIT, limiter
+from app.core.cache import get_cached, invalidate_cache_prefix, invalidate_cached_user, set_cached
 from app.core.errors import (
     raise_bad_request,
     raise_forbidden,
@@ -78,10 +81,12 @@ class PublicUserProfile(BaseModel):
 
 
 @router.patch("/me", response_model=UserRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_my_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: UpdateProfileRequest,
+    body: UpdateProfileRequest,
 ) -> User:
     """
     Update current user's profile (name, email, avatar).
@@ -89,7 +94,7 @@ def update_my_profile(
     Allows users to update their own profile information.
     Email changes may require re-verification in the future.
     """
-    update_data = request.model_dump(exclude_unset=True)
+    update_data = body.model_dump(exclude_unset=True)
 
     if not update_data:
         raise_bad_request("No fields to update")
@@ -107,34 +112,40 @@ def update_my_profile(
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
+    invalidate_cached_user(current_user.id)
     logger.info(f"User {current_user.id} updated their profile")
     return current_user
 
 
 @router.patch("/me/name", response_model=UserRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_my_name(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: UpdateNameRequest,
+    body: UpdateNameRequest,
 ) -> User:
     """
     Update current user's full name.
 
     Allows users to update their own display name.
     """
-    current_user.full_name = request.full_name
+    current_user.full_name = body.full_name
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
+    invalidate_cached_user(current_user.id)
     logger.info(f"User {current_user.id} updated their name")
     return current_user
 
 
 @router.patch("/me/password", response_model=MessageResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
 def update_my_password(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: UpdatePasswordRequest,
+    body: UpdatePasswordRequest,
 ) -> MessageResponse:
     """
     Update current user's password.
@@ -142,24 +153,29 @@ def update_my_password(
     Requires the current password for verification before allowing the change.
     """
     # Verify current password
-    valid, _updated_hash = verify_password(request.current_password, current_user.hashed_password)
+    valid, _updated_hash = verify_password(body.current_password, current_user.hashed_password)
     if not valid:
         raise_bad_request("Current password is incorrect")
 
     # Ensure new password is different
-    if request.current_password == request.new_password:
+    if body.current_password == body.new_password:
         raise_bad_request("New password must be different from current password")
 
-    # Update password
-    current_user.hashed_password = get_password_hash(request.new_password)
+    # Update password and invalidate existing tokens
+    current_user.hashed_password = get_password_hash(body.new_password)
+    current_user.password_changed_at = datetime.now(UTC)
+    current_user.token_version += 1
     session.add(current_user)
     session.commit()
+    invalidate_cached_user(current_user.id)
     logger.info(f"User {current_user.id} updated their password")
     return MessageResponse(message="Password updated successfully")
 
 
 @router.delete("/me", response_model=MessageResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
 def delete_my_account(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> MessageResponse:
@@ -170,14 +186,18 @@ def delete_my_account(
     The account data is preserved but the user can no longer log in.
     """
     current_user.is_active = False
+    current_user.token_version += 1
     session.add(current_user)
     session.commit()
+    invalidate_cached_user(current_user.id)
     logger.info(f"User {current_user.id} deactivated their account")
     return MessageResponse(message="Account deactivated successfully")
 
 
 @router.get("/me/stats", response_model=StaffStatsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_my_stats(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> StaffStatsResponse:
@@ -200,6 +220,11 @@ def get_my_stats(
 
     if current_user.user_type != UserType.STAFF:
         raise_forbidden("Stats are currently only available for staff users")
+
+    cache_key = f"user:stats:{current_user.id}"
+    cached = get_cached(cache_key, tier="short")
+    if cached is not None:
+        return cached
 
     # Count pending applications
     pending_applications = len(
@@ -280,20 +305,24 @@ def get_my_stats(
     ).first()
     wallet_balance = float(wallet.balance) if wallet else 0.0
 
-    return StaffStatsResponse(
+    result = StaffStatsResponse(
         upcoming_shifts=upcoming_shifts,
         pending_applications=pending_applications,
         total_earned=round(total_earned, 2),
         average_rating=round(average_rating, 2),
         wallet_balance=round(wallet_balance, 2),
     )
+    set_cached(cache_key, result, tier="short")
+    return result
 
 
 # --- Admin and General User Endpoints ---
 
 
 @router.get("", response_model=list[UserRead])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_users(
+    request: Request,
     session: SessionDep,
     _: AdminUserDep,
     skip: int = 0,
@@ -305,7 +334,9 @@ def list_users(
 
 
 @router.get("/{user_id}/public", response_model=PublicUserProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_user_public_profile(
+    request: Request,
     session: SessionDep,
     _: ActiveUserDep,  # Requires authentication but any user can view
     user_id: int,
@@ -330,7 +361,9 @@ def get_user_public_profile(
 
 
 @router.get("/{user_id}", response_model=UserRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_user(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     user_id: int,
@@ -346,7 +379,9 @@ def get_user(
 
 
 @router.patch("/{user_id}", response_model=UserRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_user(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     user_id: int,

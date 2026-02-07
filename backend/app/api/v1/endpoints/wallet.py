@@ -1,9 +1,10 @@
 """Wallet and payment endpoints."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
 
 from app.api.deps import ActiveUserDep, SessionDep
 from app.core.errors import raise_bad_request, require_found, require_permission
+from app.core.rate_limit import DEFAULT_RATE_LIMIT, PAYMENT_RATE_LIMIT, limiter
 from app.crud.payment import transaction as transaction_crud
 from app.crud.wallet import payment_method as payment_method_crud
 from app.crud.wallet import wallet as wallet_crud
@@ -25,7 +26,9 @@ router = APIRouter()
 
 
 @router.get("/balance", response_model=WalletRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_wallet_balance(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> WalletRead:
@@ -35,7 +38,9 @@ def get_wallet_balance(
 
 
 @router.get("/transactions", response_model=TransactionListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_transactions(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -75,7 +80,9 @@ def get_transactions(
 
 
 @router.post("/withdraw", response_model=WithdrawResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def withdraw_funds(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     withdraw_in: WithdrawRequest,
@@ -121,7 +128,9 @@ def withdraw_funds(
 
 
 @router.post("/top-up", response_model=TopUpResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def top_up_wallet(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     top_up_in: TopUpRequest,
@@ -165,7 +174,9 @@ def top_up_wallet(
 
 
 @router.get("/payment-methods", response_model=PaymentMethodListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_payment_methods(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -178,7 +189,9 @@ def get_payment_methods(
 
 
 @router.post("/payment-methods", response_model=PaymentMethodRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def add_payment_method(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     payment_method_in: PaymentMethodCreate,
@@ -196,7 +209,9 @@ def add_payment_method(
 
 
 @router.delete("/payment-methods/{payment_method_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(PAYMENT_RATE_LIMIT)
 def remove_payment_method(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     payment_method_id: int,

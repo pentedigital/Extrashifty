@@ -1,5 +1,6 @@
 """Security utilities for JWT tokens and password hashing."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -25,6 +26,7 @@ password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 def create_access_token(
     subject: str | Any,
     expires_delta: timedelta | None = None,
+    token_version: int = 0,
 ) -> str:
     """
     Create a JWT access token.
@@ -32,6 +34,7 @@ def create_access_token(
     Args:
         subject: The subject of the token (typically user ID).
         expires_delta: Optional custom expiration time.
+        token_version: User's current token version for revocation checks.
 
     Returns:
         Encoded JWT token string.
@@ -47,6 +50,9 @@ def create_access_token(
         "exp": expire,
         "sub": str(subject),
         "type": TOKEN_TYPE_ACCESS,
+        "iat": datetime.now(UTC),
+        "jti": str(uuid.uuid4()),
+        "ver": token_version,
     }
     encoded_jwt = jwt.encode(
         to_encode,
@@ -59,6 +65,7 @@ def create_access_token(
 def create_refresh_token(
     subject: str | Any,
     expires_delta: timedelta | None = None,
+    token_version: int = 0,
 ) -> str:
     """
     Create a JWT refresh token.
@@ -66,6 +73,7 @@ def create_refresh_token(
     Args:
         subject: The subject of the token (typically user ID).
         expires_delta: Optional custom expiration time.
+        token_version: User's current token version for revocation checks.
 
     Returns:
         Encoded JWT refresh token string.
@@ -81,6 +89,9 @@ def create_refresh_token(
         "exp": expire,
         "sub": str(subject),
         "type": TOKEN_TYPE_REFRESH,
+        "iat": datetime.now(UTC),
+        "jti": str(uuid.uuid4()),
+        "ver": token_version,
     }
     encoded_jwt = jwt.encode(
         to_encode,

@@ -2,7 +2,9 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
+
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, PAYMENT_RATE_LIMIT, ADMIN_RATE_LIMIT
 
 from app.api.deps import AdminUserDep, CompanyUserDep, SessionDep
 from app.models.user import UserType
@@ -25,11 +27,13 @@ router = APIRouter()
     response_model=ShiftApprovalResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def approve_shift(
+    request: Request,
     shift_id: int,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: ShiftApprovalRequest,
+    approval_in: ShiftApprovalRequest,
 ) -> ShiftApprovalResponse:
     """
     Approve a completed shift.
@@ -45,7 +49,7 @@ async def approve_shift(
             db=session,
             shift_id=shift_id,
             manager_id=current_user.id,
-            actual_hours=float(request.actual_hours) if request.actual_hours else None,
+            actual_hours=float(approval_in.actual_hours) if approval_in.actual_hours else None,
         )
 
         return ShiftApprovalResponse(
@@ -74,11 +78,13 @@ async def approve_shift(
     response_model=ShiftRejectionResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def reject_shift(
+    request: Request,
     shift_id: int,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: ShiftRejectionRequest,
+    rejection_in: ShiftRejectionRequest,
 ) -> ShiftRejectionResponse:
     """
     Reject a completed shift.
@@ -94,7 +100,7 @@ async def reject_shift(
             db=session,
             shift_id=shift_id,
             manager_id=current_user.id,
-            reason=request.reason,
+            reason=rejection_in.reason,
         )
 
         return ShiftRejectionResponse(
@@ -122,7 +128,9 @@ async def reject_shift(
     response_model=PendingShiftsListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_pending_shifts(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     skip: int = Query(default=0, ge=0),
@@ -186,11 +194,13 @@ async def get_pending_shifts(
     "/shifts/{shift_id}/adjust-hours",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def adjust_shift_hours(
+    request: Request,
     shift_id: int,
     session: SessionDep,
     current_user: CompanyUserDep,
-    request: HoursAdjustmentRequest,
+    adjustment_in: HoursAdjustmentRequest,
 ) -> dict[str, Any]:
     """
     Adjust the actual hours worked for a shift.
@@ -206,8 +216,8 @@ async def adjust_shift_hours(
             db=session,
             shift_id=shift_id,
             manager_id=current_user.id,
-            actual_hours=request.actual_hours,
-            reason=request.reason,
+            actual_hours=adjustment_in.actual_hours,
+            reason=adjustment_in.reason,
         )
 
         return result
@@ -228,7 +238,9 @@ async def adjust_shift_hours(
     "/auto-approve",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def trigger_auto_approve(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
 ) -> dict[str, Any]:

@@ -3,7 +3,9 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, ADMIN_RATE_LIMIT, PAYMENT_RATE_LIMIT
 
 from app.api.deps import ActiveUserDep, AdminUserDep, PaginationParams, SessionDep
 from app.core.errors import (
@@ -73,10 +75,12 @@ def _build_dispute_response(dispute: Dispute, db) -> DisputeResponse:
     response_model=DisputeResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def create_dispute(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: DisputeCreate,
+    dispute_in: DisputeCreate,
 ) -> DisputeResponse:
     """
     Create a new dispute.
@@ -90,10 +94,10 @@ async def create_dispute(
     try:
         dispute = await dispute_service.create_dispute(
             db=session,
-            shift_id=request.shift_id,
+            shift_id=dispute_in.shift_id,
             raised_by=current_user.id,
-            reason=request.reason,
-            disputed_amount=request.disputed_amount,
+            reason=dispute_in.reason,
+            disputed_amount=dispute_in.disputed_amount,
         )
 
         return _build_dispute_response(dispute, session)
@@ -110,7 +114,9 @@ async def create_dispute(
     response_model=DisputeListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def list_disputes(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     pagination: PaginationParams = Depends(),
@@ -151,7 +157,9 @@ async def list_disputes(
     response_model=DisputeResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_dispute(
+    request: Request,
     dispute_id: int,
     session: SessionDep,
     current_user: ActiveUserDep,
@@ -185,11 +193,13 @@ async def get_dispute(
     response_model=DisputeResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def add_evidence(
+    request: Request,
     dispute_id: int,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: EvidenceCreate,
+    evidence_in: EvidenceCreate,
 ) -> DisputeResponse:
     """
     Add evidence to a dispute.
@@ -205,7 +215,7 @@ async def add_evidence(
             db=session,
             dispute_id=dispute_id,
             user_id=current_user.id,
-            evidence=request.evidence,
+            evidence=evidence_in.evidence,
         )
 
         return _build_dispute_response(dispute, session)
@@ -222,11 +232,13 @@ async def add_evidence(
     response_model=DisputeResolutionResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(PAYMENT_RATE_LIMIT)
 async def resolve_dispute(
+    request: Request,
     dispute_id: int,
     session: SessionDep,
     current_user: AdminUserDep,
-    request: DisputeResolution,
+    resolution_in: DisputeResolution,
 ) -> DisputeResolutionResponse:
     """
     Resolve a dispute (admin only).
@@ -243,14 +255,14 @@ async def resolve_dispute(
         dispute = await dispute_service.resolve_dispute(
             db=session,
             dispute_id=dispute_id,
-            resolution=request.resolution,
-            admin_notes=request.admin_notes,
-            split_percentage=request.split_percentage,
+            resolution=resolution_in.resolution,
+            admin_notes=resolution_in.admin_notes,
+            split_percentage=resolution_in.split_percentage,
         )
 
         # Calculate amounts for response
         total_amount = dispute.amount_disputed
-        if request.resolution == DisputeResolutionType.FOR_RAISER:
+        if resolution_in.resolution == DisputeResolutionType.FOR_RAISER:
             # Determine if raiser is worker or company
             from app.models.shift import Shift
 
@@ -276,7 +288,7 @@ async def resolve_dispute(
                 worker_amount = 0
                 company_amount = total_amount
 
-        elif request.resolution == DisputeResolutionType.AGAINST_RAISER:
+        elif resolution_in.resolution == DisputeResolutionType.AGAINST_RAISER:
             from app.models.shift import Shift
 
             _shift = session.get(Shift, dispute.shift_id)
@@ -301,17 +313,17 @@ async def resolve_dispute(
                 company_amount = 0
 
         else:  # SPLIT
-            worker_pct = request.split_percentage or 50
+            worker_pct = resolution_in.split_percentage or 50
             worker_amount = total_amount * worker_pct / 100
             company_amount = total_amount - worker_amount
 
         return DisputeResolutionResponse(
             dispute_id=dispute.id,
-            resolution=request.resolution,
+            resolution=resolution_in.resolution,
             worker_amount=worker_amount,
             company_amount=company_amount,
             status=dispute.status.value,
-            message=f"Dispute resolved: {request.resolution.value}",
+            message=f"Dispute resolved: {resolution_in.resolution.value}",
         )
 
     except ValueError as e:
@@ -326,7 +338,9 @@ async def resolve_dispute(
     response_model=DisputeListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_pending_disputes(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     pagination: PaginationParams = Depends(),
@@ -361,7 +375,9 @@ async def get_pending_disputes(
     "/admin/check-deadlines",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def check_dispute_deadlines(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
 ) -> dict[str, Any]:
@@ -396,7 +412,9 @@ async def check_dispute_deadlines(
     response_model=DisputeListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_overdue_disputes(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     pagination: PaginationParams = Depends(),
@@ -433,7 +451,9 @@ async def get_overdue_disputes(
     response_model=DisputeListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_disputes_approaching_deadline(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     pagination: PaginationParams = Depends(),
@@ -475,7 +495,9 @@ async def get_disputes_approaching_deadline(
     "/admin/auto-resolve-overdue",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def auto_resolve_overdue_disputes(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
 ) -> dict[str, Any]:

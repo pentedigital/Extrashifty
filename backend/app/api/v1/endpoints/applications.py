@@ -1,8 +1,9 @@
 """Application endpoints."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.core.errors import raise_bad_request, require_found, require_permission
 from app.crud import application as application_crud
 from app.crud import shift as shift_crud
@@ -14,7 +15,9 @@ router = APIRouter()
 
 
 @router.get("", response_model=list[ApplicationRead])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_applications(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -60,7 +63,9 @@ def list_applications(
 
 
 @router.get("/{application_id}", response_model=ApplicationRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -83,7 +88,9 @@ def get_application(
 
 
 @router.patch("/{application_id}", response_model=ApplicationRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,

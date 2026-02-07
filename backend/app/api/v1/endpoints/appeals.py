@@ -2,7 +2,9 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
+
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, ADMIN_RATE_LIMIT
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
 from app.core.errors import raise_bad_request, require_found, require_permission
@@ -75,10 +77,12 @@ def _build_appeal_response(appeal: Appeal, db) -> AppealResponse:
     response_model=AppealResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def submit_appeal(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
-    request: AppealCreate,
+    appeal_in: AppealCreate,
 ) -> AppealResponse:
     """
     Submit a new appeal for a penalty, strike, or suspension.
@@ -99,11 +103,11 @@ async def submit_appeal(
         appeal = await appeal_service.submit_appeal(
             db=session,
             user_id=current_user.id,
-            appeal_type=request.appeal_type,
-            related_id=request.related_id,
-            reason=request.reason,
-            evidence_urls=request.evidence_urls,
-            emergency_type=request.emergency_type,
+            appeal_type=appeal_in.appeal_type,
+            related_id=appeal_in.related_id,
+            reason=appeal_in.reason,
+            evidence_urls=appeal_in.evidence_urls,
+            emergency_type=appeal_in.emergency_type,
         )
         return _build_appeal_response(appeal, session)
 
@@ -134,7 +138,9 @@ async def submit_appeal(
     response_model=AppealListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def list_appeals(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     status_filter: AppealStatus | None = Query(default=None, alias="status"),
@@ -179,7 +185,9 @@ async def list_appeals(
     response_model=EmergencyWaiverStatusResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_emergency_waiver_status(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> EmergencyWaiverStatusResponse:
@@ -211,7 +219,9 @@ async def get_emergency_waiver_status(
     response_model=AppealResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_appeal(
+    request: Request,
     appeal_id: int,
     session: SessionDep,
     current_user: ActiveUserDep,
@@ -243,7 +253,9 @@ async def get_appeal(
     response_model=AppealWithdrawResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def withdraw_appeal(
+    request: Request,
     appeal_id: int,
     session: SessionDep,
     current_user: ActiveUserDep,
@@ -292,7 +304,9 @@ async def withdraw_appeal(
     response_model=AdminPendingAppealsResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_pending_appeals(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     appeal_type: AppealType | None = Query(default=None),
@@ -362,11 +376,13 @@ async def get_pending_appeals(
     response_model=AppealReviewResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def review_appeal(
+    request: Request,
     appeal_id: int,
     session: SessionDep,
     current_user: AdminUserDep,
-    request: AppealReviewRequest,
+    review_in: AppealReviewRequest,
 ) -> AppealReviewResponse:
     """
     Review and decide on an appeal (admin only).
@@ -386,21 +402,21 @@ async def review_appeal(
     """
     try:
         # Validate is_frivolous can only be used with denial
-        if request.is_frivolous and request.approved:
+        if review_in.is_frivolous and review_in.approved:
             raise_bad_request("Frivolous fee can only be charged when denying an appeal")
 
         # Validate emergency waiver can only be used with approval
-        if request.use_emergency_waiver and not request.approved:
+        if review_in.use_emergency_waiver and not review_in.approved:
             raise_bad_request("Emergency waiver can only be used when approving an appeal")
 
         appeal = await appeal_service.review_appeal(
             db=session,
             appeal_id=appeal_id,
-            approved=request.approved,
-            reviewer_notes=request.reviewer_notes,
+            approved=review_in.approved,
+            reviewer_notes=review_in.reviewer_notes,
             reviewer_id=current_user.id,
-            is_frivolous=request.is_frivolous,
-            use_emergency_waiver=request.use_emergency_waiver,
+            is_frivolous=review_in.is_frivolous,
+            use_emergency_waiver=review_in.use_emergency_waiver,
         )
 
         # Determine what actions were taken
@@ -446,7 +462,9 @@ async def review_appeal(
     response_model=AppealListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_user_appeals(
+    request: Request,
     user_id: int,
     session: SessionDep,
     current_user: AdminUserDep,
@@ -490,7 +508,9 @@ async def get_user_appeals(
     response_model=AppealListResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_appeals_approaching_deadline(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     hours_threshold: int = Query(default=24, ge=1, le=72),

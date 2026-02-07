@@ -1,8 +1,9 @@
 """Notification endpoints."""
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.crud.notification import notification as notification_crud
 from app.crud.notification import notification_preference as preference_crud
 from app.schemas.notification import (
@@ -16,7 +17,9 @@ router = APIRouter()
 
 
 @router.get("", response_model=NotificationListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_notifications(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -47,7 +50,9 @@ def get_notifications(
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def mark_notification_read(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     notification_id: int,
@@ -67,7 +72,9 @@ def mark_notification_read(
 
 
 @router.patch("/read-all", response_model=dict)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def mark_all_notifications_read(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> dict:
@@ -77,7 +84,9 @@ def mark_all_notifications_read(
 
 
 @router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def delete_notification(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     notification_id: int,
@@ -95,7 +104,9 @@ def delete_notification(
 
 
 @router.get("/preferences", response_model=NotificationPreferenceRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_notification_preferences(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> NotificationPreferenceRead:
@@ -105,7 +116,9 @@ def get_notification_preferences(
 
 
 @router.patch("/preferences", response_model=NotificationPreferenceRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_notification_preferences(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     preferences_in: NotificationPreferenceUpdate,

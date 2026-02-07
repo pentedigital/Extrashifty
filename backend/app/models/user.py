@@ -40,6 +40,10 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Token invalidation
+    password_changed_at: datetime | None = Field(default=None)
+    token_version: int = Field(default=0)
+
     # GDPR deletion fields
     deletion_requested_at: datetime | None = Field(default=None)
     is_deleted: bool = Field(default=False, index=True)

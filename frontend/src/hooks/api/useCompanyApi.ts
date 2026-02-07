@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type { CompanyProfile, VenueFormData } from '@/types/company'
 import type { ShiftFormData } from '@/types/shift'
 
@@ -26,6 +27,7 @@ export function useCompanyProfile() {
   return useQuery({
     queryKey: companyKeys.profile(),
     queryFn: () => api.company.getProfile(),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -51,6 +53,7 @@ export function useCompanyWallet() {
   return useQuery({
     queryKey: companyKeys.wallet(),
     queryFn: () => api.company.getWallet(),
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -62,6 +65,7 @@ export function useCompanyVenues() {
   return useQuery({
     queryKey: companyKeys.venues(),
     queryFn: () => api.company.getVenues(),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -116,6 +120,7 @@ export function useCompanyShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: companyKeys.shifts(filters),
     queryFn: () => api.company.getShifts(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -172,6 +177,7 @@ export function useShiftApplications(shiftId: string) {
     queryKey: companyKeys.shiftApplications(shiftId),
     queryFn: () => api.company.getShiftApplications(shiftId),
     enabled: !!shiftId,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -211,6 +217,7 @@ export function useCompanySpending(filters?: Record<string, string>) {
   return useQuery({
     queryKey: companyKeys.spending(filters),
     queryFn: () => api.company.getSpending(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -222,6 +229,7 @@ export function useCompanyReviews(filters?: Record<string, string>) {
   return useQuery({
     queryKey: companyKeys.reviews(filters),
     queryFn: () => api.company.getReviews(filters),
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 
@@ -248,6 +256,7 @@ export function useCompanyStats() {
   return useQuery({
     queryKey: companyKeys.stats(),
     queryFn: () => api.company.getStats(),
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 
@@ -259,6 +268,7 @@ export function usePreferredAgencies() {
   return useQuery({
     queryKey: companyKeys.preferredAgencies(),
     queryFn: () => api.company.getPreferredAgencies(),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -266,6 +276,7 @@ export function useBrowseAgencies(params?: { search?: string; skip?: number; lim
   return useQuery({
     queryKey: companyKeys.browseAgencies(params),
     queryFn: () => api.company.browseAgencies(params),
+    staleTime: STALE_TIME.LONG,
   })
 }
 

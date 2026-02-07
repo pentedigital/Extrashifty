@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import { walletKeys, useWalletBalance } from './useWalletApi'
 import { companyKeys } from './useCompanyApi'
 import type {
@@ -93,7 +94,7 @@ export function useCompanyWalletBalance() {
         updated_at: wallet.updated_at,
       }
     },
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -165,7 +166,7 @@ export function useAutoTopupConfig() {
         payment_method_id: result.payment_method_id ?? undefined,
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -302,7 +303,7 @@ export function useTransactionHistory(params?: { skip?: number; limit?: number }
         limit: params?.limit,
       })
     },
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -434,7 +435,7 @@ export function useEarnings(period?: string) {
         total_net: number
       }>
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -479,7 +480,7 @@ export function useEarningsSummary() {
         next_payout_amount: wallet.pending_earnings ?? 0,
       }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -516,7 +517,7 @@ export function usePayoutHistory(filters?: { start_date?: string; end_date?: str
 
       return { items: filteredItems, total: filteredItems.length }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -575,7 +576,7 @@ export function useConnectAccountStatus() {
         bank_accounts: [],
       }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -648,7 +649,7 @@ export function useAgencyEarnings(filters?: { period?: string; start_date?: stri
         period_end: periodEnd.toISOString(),
       }
     },
-    staleTime: 1000 * 60 * 2,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 

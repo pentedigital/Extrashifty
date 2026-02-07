@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 
 export type ReviewType = 'staff_to_company' | 'company_to_staff'
 
@@ -48,6 +49,7 @@ export function useStaffReviews(staffId: string, params?: Record<string, string>
     queryKey: reviewKeys.staffList(staffId, params),
     queryFn: () => api.reviews.getStaffReviews(staffId, params),
     enabled: !!staffId,
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 
@@ -56,6 +58,7 @@ export function useCompanyReviews(companyId: string, params?: Record<string, str
     queryKey: reviewKeys.companyList(companyId, params),
     queryFn: () => api.reviews.getCompanyReviews(companyId, params),
     enabled: !!companyId,
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 
@@ -64,6 +67,7 @@ export function useShiftReviews(shiftId: string, params?: Record<string, string>
     queryKey: reviewKeys.shiftList(shiftId, params),
     queryFn: () => api.reviews.getShiftReviews(shiftId, params),
     enabled: !!shiftId,
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import type {
   Transaction,
   TransactionType,
@@ -29,7 +30,7 @@ export function useWalletBalance() {
   return useQuery({
     queryKey: walletKeys.balance(),
     queryFn: () => api.wallet.getBalance(),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -42,7 +43,7 @@ export function useWalletTransactions(params?: {
   return useQuery({
     queryKey: walletKeys.transactionList(params),
     queryFn: () => api.wallet.getTransactions(params),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -50,7 +51,7 @@ export function usePaymentMethods() {
   return useQuery({
     queryKey: walletKeys.paymentMethods(),
     queryFn: () => api.wallet.getPaymentMethods(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.LONG,
   })
 }
 

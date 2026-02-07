@@ -20,6 +20,7 @@ export function useStaffProfile() {
   return useQuery({
     queryKey: staffKeys.profile(),
     queryFn: () => api.staff.getProfile(),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -38,6 +39,7 @@ export function useStaffShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.shifts(filters),
     queryFn: () => api.staff.getShifts(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -45,6 +47,7 @@ export function useStaffWallet() {
   return useQuery({
     queryKey: staffKeys.wallet(),
     queryFn: () => api.staff.getWallet(),
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -63,6 +66,7 @@ export function useClockRecords(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.clockRecords(filters),
     queryFn: () => api.staff.getClockRecords(filters),
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -109,6 +113,7 @@ export function useStaffApplications(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.applications(filters),
     queryFn: () => api.staff.getApplications(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -154,6 +159,7 @@ export function useStaffEarnings(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.earnings(filters),
     queryFn: () => api.staff.getEarnings(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -164,5 +170,6 @@ export function useStaffReviews(filters?: Record<string, string>) {
   return useQuery({
     queryKey: staffKeys.reviews(filters),
     queryFn: () => api.staff.getReviews(filters),
+    staleTime: STALE_TIME.MEDIUM,
   })
 }

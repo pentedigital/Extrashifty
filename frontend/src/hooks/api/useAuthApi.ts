@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, tokenManager, ApiClientError } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import { useAppStore } from '@/stores/app'
 import type { UserType } from '@/types/user'
 
@@ -32,7 +33,7 @@ export function useCurrentUser() {
     },
     enabled: tokenManager.hasTokens(),
     retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.LONG,
   })
 }
 

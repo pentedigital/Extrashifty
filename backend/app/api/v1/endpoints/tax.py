@@ -3,7 +3,9 @@
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
+
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT, ADMIN_RATE_LIMIT
 from fastapi.responses import FileResponse
 
 from app.api.deps import ActiveUserDep, AdminUserDep, SessionDep
@@ -28,7 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/status", response_model=TaxStatusResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def get_tax_status(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     year: int | None = Query(
@@ -79,7 +83,9 @@ async def get_tax_status(
 
 
 @router.post("/w9", response_model=W9SubmitResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def submit_w9(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     w9_data: W9SubmitRequest,
@@ -132,7 +138,9 @@ async def submit_w9(
 
 
 @router.get("/documents", response_model=TaxDocumentListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def list_tax_documents(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     year: int | None = Query(
@@ -175,7 +183,9 @@ async def list_tax_documents(
 
 
 @router.get("/documents/{document_id}/download")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 async def download_tax_document(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     document_id: int,
@@ -249,7 +259,9 @@ async def download_tax_document(
 
 
 @router.get("/admin/pending-w9", response_model=PendingW9Response)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_pending_w9_list(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     year: int | None = Query(
@@ -281,7 +293,9 @@ async def get_pending_w9_list(
 
 
 @router.get("/admin/pending-1099", response_model=PendingW9Response)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def get_pending_1099_list(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
     year: int = Query(
@@ -312,10 +326,12 @@ async def get_pending_1099_list(
 
 
 @router.post("/admin/generate-1099s", response_model=Generate1099Response)
+@limiter.limit(ADMIN_RATE_LIMIT)
 async def batch_generate_1099s(
+    request: Request,
     session: SessionDep,
     current_user: AdminUserDep,
-    request: Generate1099Request,
+    generate_in: Generate1099Request,
 ) -> Generate1099Response:
     """
     Admin: Generate 1099-NEC forms for a tax year.
@@ -328,8 +344,8 @@ async def batch_generate_1099s(
 
     try:
         result = await tax_service.batch_generate_1099s(
-            tax_year=request.tax_year,
-            user_ids=request.user_ids,
+            tax_year=generate_in.tax_year,
+            user_ids=generate_in.user_ids,
         )
 
         success = result["failed_count"] == 0

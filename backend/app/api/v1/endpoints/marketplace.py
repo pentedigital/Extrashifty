@@ -4,11 +4,18 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlmodel import func, select
 
 from app.api.deps import SessionDep
+from app.core.cache import (
+    get_cached,
+    get_cached_marketplace_stats,
+    set_cached,
+    set_cached_marketplace_stats,
+)
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.crud import shift as shift_crud
 from app.models.shift import ShiftStatus
 from app.schemas.shift import ShiftRead
@@ -34,7 +41,9 @@ class MarketplaceStats(BaseModel):
 
 
 @router.get("/shifts", response_model=MarketplaceShiftListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_marketplace_shifts(
+    request: Request,
     session: SessionDep,
     skip: int = 0,
     limit: int = Query(default=20, le=100),
@@ -45,6 +54,11 @@ def list_marketplace_shifts(
     Returns only open shifts that are available for applications.
     """
 
+    cache_key = f"marketplace:shifts:{skip}:{limit}"
+    cached = get_cached(cache_key, tier="short")
+    if cached is not None:
+        return cached
+
     shifts, total = shift_crud.get_multi_with_count(
         session,
         skip=skip,
@@ -52,16 +66,20 @@ def list_marketplace_shifts(
         status=ShiftStatus.OPEN.value,
     )
 
-    return {
+    result = {
         "items": shifts,
         "total": total,
         "skip": skip,
         "limit": limit,
     }
+    set_cached(cache_key, result, tier="short")
+    return result
 
 
 @router.get("/shifts/search", response_model=MarketplaceShiftListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def search_marketplace_shifts(
+    request: Request,
     session: SessionDep,
     skip: int = 0,
     limit: int = Query(default=20, le=100),
@@ -85,6 +103,11 @@ def search_marketplace_shifts(
     - skills: Required skills (comma-separated, matches in requirements)
     - search: Full-text search in title and description
     """
+    cache_key = f"marketplace:search:{skip}:{limit}:{location}:{job_type}:{min_pay}:{max_pay}:{date_from}:{date_to}:{skills}:{search}"
+    cached = get_cached(cache_key, tier="short")
+    if cached is not None:
+        return cached
+
     shifts, total = shift_crud.get_multi_with_count(
         session,
         skip=skip,
@@ -99,19 +122,20 @@ def search_marketplace_shifts(
         search=search,
     )
 
-    # Note: skills filtering would require additional implementation
-    # in the CRUD layer if requirements structure contains skills
-
-    return {
+    result = {
         "items": shifts,
         "total": total,
         "skip": skip,
         "limit": limit,
     }
+    set_cached(cache_key, result, tier="short")
+    return result
 
 
 @router.get("/shifts/{shift_id}", response_model=ShiftRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_marketplace_shift(
+    request: Request,
     session: SessionDep,
     shift_id: int,
 ) -> Any:
@@ -135,7 +159,9 @@ def get_marketplace_shift(
 
 
 @router.get("/stats", response_model=MarketplaceStats)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_marketplace_stats(
+    request: Request,
     session: SessionDep,
 ) -> dict[str, Any]:
     """
@@ -146,6 +172,11 @@ def get_marketplace_stats(
     - total_companies: Number of companies with open shifts
     - avg_hourly_rate: Average hourly rate across open shifts
     """
+    # Check cache first
+    cached = get_cached_marketplace_stats()
+    if cached is not None:
+        return cached
+
     from app.models.shift import Shift
 
     # Count total open shifts
@@ -172,8 +203,10 @@ def get_marketplace_stats(
     )
     avg_rate = session.exec(avg_rate_stmt).one()
 
-    return {
+    result = {
         "total_shifts": total_shifts or 0,
         "total_companies": total_companies or 0,
         "avg_hourly_rate": float(avg_rate) if avg_rate else 0.0,
     }
+    set_cached_marketplace_stats(result)
+    return result

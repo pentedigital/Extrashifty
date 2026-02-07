@@ -4,10 +4,11 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
 from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.core.errors import (
     raise_bad_request,
     require_found,
@@ -33,7 +34,9 @@ class ShiftListResponse(BaseModel):
 
 
 @router.get("/my-shifts", response_model=list[ShiftRead])
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_my_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -81,7 +84,9 @@ def get_my_shifts(
 
 
 @router.get("", response_model=ShiftListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -146,7 +151,9 @@ def list_shifts(
 
 
 @router.post("", response_model=ShiftRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_shift(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     shift_in: ShiftCreate,
@@ -157,7 +164,9 @@ def create_shift(
 
 
 @router.get("/{shift_id}", response_model=ShiftRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -180,7 +189,9 @@ def get_shift(
 
 
 @router.patch("/{shift_id}", response_model=ShiftRead)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_shift(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     shift_id: int,
@@ -199,7 +210,9 @@ def update_shift(
 
 
 @router.delete("/{shift_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def delete_shift(
+    request: Request,
     session: SessionDep,
     current_user: CompanyUserDep,
     shift_id: int,
@@ -216,7 +229,9 @@ def delete_shift(
 
 
 @router.post("/{shift_id}/apply", response_model=dict, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def apply_to_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -243,7 +258,9 @@ def apply_to_shift(
 
 
 @router.post("/{shift_id}/clock-in", response_model=dict)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def clock_in(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -295,7 +312,9 @@ def clock_in(
 
 
 @router.post("/{shift_id}/clock-out", response_model=dict)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def clock_out(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,

@@ -25,6 +25,7 @@ export function useAgencyProfile() {
   return useQuery({
     queryKey: agencyKeys.profile(),
     queryFn: () => api.agency.getProfile(),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -44,6 +45,7 @@ export function useAgencyStaff(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.staff(filters),
     queryFn: () => api.agency.getStaff(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -101,6 +103,7 @@ export function useStaffAvailability(staffId: string) {
     queryKey: agencyKeys.staffAvailability(staffId),
     queryFn: () => api.agency.getStaffAvailability(staffId),
     enabled: !!staffId,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -123,6 +126,7 @@ export function useAgencyClients(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.clients(filters),
     queryFn: () => api.agency.getClients(filters),
+    staleTime: STALE_TIME.LONG,
   })
 }
 
@@ -168,6 +172,7 @@ export function useAgencyShifts(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.shifts(filters),
     queryFn: () => api.agency.getShifts(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -252,6 +257,7 @@ export function useAgencyApplications(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.applications(filters),
     queryFn: () => api.agency.getApplications(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -264,6 +270,7 @@ export function useAgencyAssignments(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.assignments(filters),
     queryFn: () => api.agency.getAssignments(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -296,6 +303,7 @@ export function useAgencyInvoices(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.invoices(filters),
     queryFn: () => api.agency.getInvoices(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -304,6 +312,7 @@ export function useAgencyInvoice(id: string) {
     queryKey: agencyKeys.invoice(id),
     queryFn: () => api.agency.getInvoice(id),
     enabled: !!id,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -359,6 +368,7 @@ export function useAgencyPayroll(filters?: Record<string, string>) {
   return useQuery({
     queryKey: agencyKeys.payroll(filters),
     queryFn: () => api.agency.getPayroll(filters),
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -367,6 +377,7 @@ export function useAgencyPayrollEntry(id: string) {
     queryKey: agencyKeys.payrollEntry(id),
     queryFn: () => api.agency.getPayrollEntry(id),
     enabled: !!id,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -391,6 +402,7 @@ export function useAgencyWallet() {
   return useQuery({
     queryKey: agencyKeys.wallet(),
     queryFn: () => api.agency.getWallet(),
+    staleTime: STALE_TIME.REALTIME,
   })
 }
 
@@ -399,43 +411,35 @@ export function useAgencyStats() {
   return useQuery({
     queryKey: agencyKeys.stats(),
     queryFn: () => api.agency.getStats(),
+    staleTime: STALE_TIME.MEDIUM,
   })
 }
 
-// Single shift hook for agency
+// Single shift hook for agency — reuses cached list query via `select`
 export function useAgencyShift(shiftId: string) {
   return useQuery({
-    queryKey: [...agencyKeys.shifts(), shiftId] as const,
-    queryFn: async () => {
-      const shifts = await api.agency.getShifts()
-      // Find the specific shift from the list
-      const shift = (shifts as unknown as Array<{ id: string | number }>)?.find(
-        (s) => String(s.id) === shiftId
-      )
-      if (!shift) {
-        throw new Error('Shift not found')
-      }
-      return shift
-    },
+    queryKey: agencyKeys.shifts(),
+    queryFn: () => api.agency.getShifts(),
+    staleTime: STALE_TIME.SHORT,
     enabled: !!shiftId,
+    select: (shifts) =>
+      (shifts as unknown as Array<{ id: string | number }>)?.find(
+        (s) => String(s.id) === shiftId
+      ),
   })
 }
 
-// Single staff member hook for agency
+// Single staff member hook for agency — reuses cached list query via `select`
 export function useAgencyStaffMember(memberId: string) {
   return useQuery({
-    queryKey: [...agencyKeys.staff(), memberId] as const,
-    queryFn: async () => {
-      const response = await api.agency.getStaff()
-      const member = response.items?.find(
-        (s: { id?: string | number }) => String(s.id) === memberId
-      )
-      if (!member) {
-        throw new Error('Staff member not found')
-      }
-      return member
-    },
+    queryKey: agencyKeys.staff(),
+    queryFn: () => api.agency.getStaff(),
+    staleTime: STALE_TIME.SHORT,
     enabled: !!memberId,
+    select: (response) =>
+      response.items?.find(
+        (s: { id?: string | number }) => String(s.id) === memberId
+      ),
   })
 }
 
@@ -449,6 +453,7 @@ export function useAvailableStaff(shiftId?: string) {
       return response.items || []
     },
     enabled: true,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -526,22 +531,20 @@ export function useAgencySchedule(params?: { start_date?: string; end_date?: str
   })
 }
 
-// Client shifts hook
+// Client shifts hook — reuses cached shifts list query via `select`
 export function useClientShifts(clientId: string, filters?: Record<string, string>) {
   return useQuery({
-    queryKey: [...agencyKeys.clients(), clientId, 'shifts', filters] as const,
-    queryFn: async () => {
-      const allShifts = await api.agency.getShifts(filters)
-      // Filter shifts for this specific client
-      const clientShifts = (allShifts as unknown as Array<{
+    queryKey: agencyKeys.shifts(filters),
+    queryFn: () => api.agency.getShifts(filters),
+    staleTime: STALE_TIME.SHORT,
+    enabled: !!clientId,
+    select: (allShifts) =>
+      (allShifts as unknown as Array<{
         client_id?: string | number
         client?: { id?: string | number }
       }>)?.filter(
         (s) => String(s.client_id) === clientId || String(s.client?.id) === clientId
-      )
-      return clientShifts || []
-    },
-    enabled: !!clientId,
+      ) || [],
   })
 }
 

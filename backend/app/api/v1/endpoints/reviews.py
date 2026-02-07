@@ -2,9 +2,11 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.cache import get_cached, invalidate_cache_prefix, set_cached
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.crud import application as application_crud
 from app.crud import review as review_crud
 from app.crud import shift as shift_crud
@@ -44,7 +46,9 @@ def enrich_review_with_names(session: SessionDep, review: Any) -> dict:
 
 
 @router.post("", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_review(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     review_in: ReviewCreate,
@@ -149,11 +153,17 @@ def create_review(
         reviewer_id=current_user.id,
     )
 
+    # Invalidate review caches for both parties
+    invalidate_cache_prefix(f"reviews:staff:{review_in.reviewee_id}")
+    invalidate_cache_prefix(f"reviews:company:{review_in.reviewee_id}")
+
     return enrich_review_with_names(session, review)
 
 
 @router.get("/staff/{staff_id}", response_model=ReviewListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_staff_reviews(
+    request: Request,
     session: SessionDep,
     staff_id: int,
     skip: int = 0,
@@ -177,6 +187,11 @@ def get_staff_reviews(
             detail="User is not a staff member",
         )
 
+    cache_key = f"reviews:staff:{staff_id}:{skip}:{limit}"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
+
     reviews, total = review_crud.get_staff_reviews(
         session,
         staff_id=staff_id,
@@ -192,15 +207,19 @@ def get_staff_reviews(
 
     enriched_reviews = [enrich_review_with_names(session, r) for r in reviews]
 
-    return {
+    result = {
         "items": enriched_reviews,
         "total": total,
         "average_rating": avg_rating if total > 0 else None,
     }
+    set_cached(cache_key, result, tier="medium")
+    return result
 
 
 @router.get("/company/{company_id}", response_model=ReviewListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_company_reviews(
+    request: Request,
     session: SessionDep,
     company_id: int,
     skip: int = 0,
@@ -224,6 +243,11 @@ def get_company_reviews(
             detail="User is not a company",
         )
 
+    cache_key = f"reviews:company:{company_id}:{skip}:{limit}"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
+
     reviews, total = review_crud.get_company_reviews(
         session,
         company_id=company_id,
@@ -239,15 +263,19 @@ def get_company_reviews(
 
     enriched_reviews = [enrich_review_with_names(session, r) for r in reviews]
 
-    return {
+    result = {
         "items": enriched_reviews,
         "total": total,
         "average_rating": avg_rating if total > 0 else None,
     }
+    set_cached(cache_key, result, tier="medium")
+    return result
 
 
 @router.get("/shift/{shift_id}", response_model=ReviewListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_shift_reviews(
+    request: Request,
     session: SessionDep,
     shift_id: int,
     skip: int = 0,

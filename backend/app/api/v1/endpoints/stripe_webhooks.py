@@ -10,6 +10,7 @@ from sqlmodel import select
 
 from app.api.deps import SessionDep
 from app.core.config import settings
+from app.core.rate_limit import DEFAULT_RATE_LIMIT, WEBHOOK_RATE_LIMIT, limiter
 from app.crud.notification import notification as notification_crud
 from app.crud.payment import dispute as dispute_crud
 from app.crud.payment import payout as payout_crud
@@ -847,6 +848,7 @@ EVENT_HANDLERS = {
 
 
 @router.post("/stripe", status_code=status.HTTP_200_OK)
+@limiter.limit(WEBHOOK_RATE_LIMIT)
 async def stripe_webhook(
     request: Request,
     session: SessionDep,
@@ -964,7 +966,8 @@ async def stripe_webhook(
 
 
 @router.get("/stripe/health", status_code=status.HTTP_200_OK)
-async def webhook_health_check() -> dict[str, Any]:
+@limiter.limit(DEFAULT_RATE_LIMIT)
+async def webhook_health_check(request: Request) -> dict[str, Any]:
     """
     Health check endpoint for Stripe webhook configuration.
 

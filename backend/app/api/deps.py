@@ -10,6 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import ValidationError
 from sqlmodel import Session
 
+from app.core.cache import get_cached_user, set_cached_user
 from app.core.config import settings
 from app.core.db import engine
 from app.crud import user as user_crud
@@ -50,12 +51,34 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         token_data = TokenPayload(**payload)
         if token_data.sub is None:
             raise credentials_exception
+        # Reject non-access tokens (e.g. verification/password-reset tokens
+        # are signed with the same key but must not grant API access)
+        if token_data.type != "access":
+            raise credentials_exception
     except (jwt.InvalidTokenError, ValidationError):
         raise credentials_exception from None
+
+    # Check cache first
+    cached = get_cached_user(token_data.sub)
+    if cached is not None:
+        if cached.is_deleted:
+            raise credentials_exception
+        # Reject tokens issued before password change (token_version mismatch)
+        if cached.token_version != (token_data.ver or 0):
+            raise credentials_exception
+        return cached
 
     user = user_crud.get(session, id=token_data.sub)
     if user is None:
         raise credentials_exception
+    if user.is_deleted:
+        raise credentials_exception
+    # Reject tokens issued before password change (token_version mismatch)
+    if user.token_version != (token_data.ver or 0):
+        raise credentials_exception
+
+    # Cache for subsequent requests
+    set_cached_user(user.id, user)
     return user
 
 
@@ -148,13 +171,16 @@ async def get_current_user_ws(token: str) -> User | None:
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
-        if token_data.sub is None:
+        if token_data.sub is None or token_data.type != "access":
             return None
     except (jwt.InvalidTokenError, ValidationError):
         return None
 
     with Session(engine) as session:
         user = user_crud.get(session, id=token_data.sub)
-        if user is None or not user.is_active:
+        if user is None or not user.is_active or user.is_deleted:
+            return None
+        # Reject tokens issued before password change (token_version mismatch)
+        if user.token_version != (token_data.ver or 0):
             return None
         return user

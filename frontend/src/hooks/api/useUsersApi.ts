@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 import { useAppStore } from '@/stores/app'
 import { authKeys } from './useAuthApi'
 
@@ -80,5 +81,6 @@ export function usePublicProfile(userId: string | undefined) {
     queryKey: usersKeys.publicProfile(userId || ''),
     queryFn: () => api.users.getPublicProfile(userId!),
     enabled: !!userId,
+    staleTime: STALE_TIME.LONG,
   })
 }

@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     # Storage
     DATA_EXPORT_DIR: str | None = None
 
+    # Rate Limiting
+    RATE_LIMIT_REDIS_URL: str | None = None
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""

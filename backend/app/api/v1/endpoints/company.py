@@ -5,11 +5,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlmodel import func, select
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.cache import get_cached, invalidate_cache_prefix, set_cached
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.models.application import Application, ApplicationStatus
 from app.models.profile import CompanyProfile as CompanyProfileModel
 from app.models.profile import Venue as VenueModel
@@ -279,12 +281,19 @@ def get_company_shift(session: SessionDep, shift_id: int, company_id: int) -> Sh
 
 
 @router.get("/profile", response_model=CompanyProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_company_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> Any:
     """Get current company's profile."""
     require_company_user(current_user)
+
+    cache_key = f"company:profile:{current_user.id}"
+    cached = get_cached(cache_key, tier="medium")
+    if cached is not None:
+        return cached
 
     # Get company profile
     profile = session.exec(
@@ -317,7 +326,7 @@ def get_company_profile(
     )
     average_rating = float(session.exec(avg_rating_query).one() or 0)
 
-    return CompanyProfile(
+    result = CompanyProfile(
         id=current_user.id,
         email=current_user.email,
         business_name=current_user.full_name,
@@ -334,10 +343,13 @@ def get_company_profile(
         total_staff_hired=total_staff_hired,
         created_at=current_user.created_at,
     )
+    set_cached(cache_key, result, tier="medium")
 
 
 @router.patch("/profile", response_model=CompanyProfile)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_company_profile(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     profile_update: CompanyProfileUpdate,
@@ -380,6 +392,9 @@ def update_company_profile(
     session.commit()
     session.refresh(current_user)
     session.refresh(profile)
+
+    # Invalidate cached company profile
+    invalidate_cache_prefix(f"company:profile:{current_user.id}")
 
     # Calculate stats for response
     total_shifts_query = (
@@ -430,7 +445,9 @@ def update_company_profile(
 
 
 @router.get("/wallet", response_model=CompanyWallet)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_company_wallet(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
 ) -> Any:
@@ -491,7 +508,9 @@ def get_company_wallet(
 
 
 @router.get("/venues", response_model=VenuesResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_venues(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = 0,
@@ -535,7 +554,9 @@ def get_venues(
 
 
 @router.post("/venues", response_model=Venue, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_venue(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     venue: VenueCreate,
@@ -576,7 +597,9 @@ def create_venue(
 
 
 @router.patch("/venues/{venue_id}", response_model=Venue)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_venue(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     venue_id: int,
@@ -635,7 +658,9 @@ def update_venue(
 
 
 @router.delete("/venues/{venue_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def delete_venue(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     venue_id: int,
@@ -670,7 +695,9 @@ def delete_venue(
 
 
 @router.get("/shifts", response_model=ShiftsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_company_shifts(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = Query(default=0, ge=0),
@@ -724,7 +751,9 @@ def get_company_shifts(
 
 
 @router.post("/shifts", response_model=ShiftResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_data: ShiftCreate,
@@ -776,7 +805,9 @@ def create_shift(
 
 
 @router.patch("/shifts/{shift_id}", response_model=ShiftResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def update_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -818,7 +849,9 @@ def update_shift(
 
 
 @router.delete("/shifts/{shift_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def delete_shift(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -853,7 +886,9 @@ def delete_shift(
 
 
 @router.get("/shifts/{shift_id}/applications", response_model=ApplicationsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_shift_applications(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     shift_id: int,
@@ -904,7 +939,9 @@ def get_shift_applications(
 
 
 @router.post("/applications/{application_id}/accept", response_model=ApplicationResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def accept_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -968,7 +1005,9 @@ def accept_application(
 
 
 @router.post("/applications/{application_id}/reject", response_model=ApplicationResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def reject_application(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     application_id: int,
@@ -1024,7 +1063,9 @@ def reject_application(
 
 
 @router.get("/spending", response_model=SpendingResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_spending_history(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = Query(default=0, ge=0),
@@ -1096,7 +1137,9 @@ def get_spending_history(
 
 
 @router.post("/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def create_review(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     review_data: ReviewCreate,
@@ -1166,7 +1209,9 @@ def create_review(
 
 
 @router.get("/reviews", response_model=ReviewsResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_company_reviews(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     skip: int = Query(default=0, ge=0),

@@ -10,10 +10,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.cache import blacklist_jti, invalidate_cached_user, is_jti_blacklisted
 from app.core.config import settings
 from app.core.rate_limit import (
     AUTH_RATE_LIMIT,
+    DEFAULT_RATE_LIMIT,
     LOGIN_RATE_LIMIT,
+    PASSWORD_RESET_RATE_LIMIT,
     REGISTER_RATE_LIMIT,
     limiter,
 )
@@ -146,16 +149,20 @@ def verify_password_reset_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-def create_tokens(user_id: int) -> Token:
+def create_tokens(user_id: int, token_version: int = 0) -> Token:
     """Create access and refresh tokens for a user."""
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
     access_token = create_access_token(
-        subject=str(user_id), expires_delta=access_token_expires
+        subject=str(user_id),
+        expires_delta=access_token_expires,
+        token_version=token_version,
     )
     refresh_token = create_refresh_token(
-        subject=str(user_id), expires_delta=refresh_token_expires
+        subject=str(user_id),
+        expires_delta=refresh_token_expires,
+        token_version=token_version,
     )
 
     return Token(
@@ -204,7 +211,7 @@ def login(
             detail="Inactive user",
         )
 
-    tokens = create_tokens(user.id)
+    tokens = create_tokens(user.id, user.token_version)
 
     # Warn if user email is not verified (but allow login)
     warning = None
@@ -227,7 +234,15 @@ def refresh_token(
     session: SessionDep,
     token_request: RefreshTokenRequest,
 ) -> Token:
-    """Refresh access token using refresh token."""
+    """
+    Refresh access token using refresh token.
+
+    Implements one-time-use refresh tokens with replay detection:
+    - Each refresh token can only be used once (JTI is blacklisted after use).
+    - If a blacklisted refresh token is reused, this indicates potential token
+      theft. All tokens for the user are immediately revoked by incrementing
+      token_version.
+    """
     payload = verify_refresh_token(token_request.refresh_token)
     if not payload:
         raise HTTPException(
@@ -237,10 +252,28 @@ def refresh_token(
         )
 
     user_id = payload.get("sub")
+    jti = payload.get("jti")
+
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Replay detection: if this refresh token was already used, someone
+    # may have stolen the token. Revoke ALL tokens for this user.
+    if jti and is_jti_blacklisted(jti):
+        logger.warning(f"Refresh token replay detected for user {user_id}, jti={jti}")
+        user = user_crud.get(session, id=int(user_id))
+        if user:
+            user.token_version += 1
+            session.add(user)
+            session.commit()
+            invalidate_cached_user(user.id)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -257,8 +290,21 @@ def refresh_token(
             detail="Inactive user",
         )
 
+    # Check token version matches (rejects tokens from before password change)
+    token_ver = payload.get("ver", 0)
+    if token_ver != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Blacklist this refresh token's JTI (one-time use enforcement)
+    if jti:
+        blacklist_jti(jti)
+
     # Issue new tokens (token rotation)
-    return create_tokens(user.id)
+    return create_tokens(user.id, user.token_version)
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -312,20 +358,24 @@ def register(
 
 
 @router.get("/me", response_model=UserRead)
-def get_me(current_user: ActiveUserDep) -> User:
+@limiter.limit(DEFAULT_RATE_LIMIT)
+def get_me(request: Request, current_user: ActiveUserDep) -> User:
     """Get current user."""
     return current_user
 
 
 @router.post("/logout", response_model=LogoutResponse)
-def logout() -> LogoutResponse:
+@limiter.limit(AUTH_RATE_LIMIT)
+def logout(request: Request, session: SessionDep, current_user: ActiveUserDep) -> LogoutResponse:
     """
     Logout the current user.
 
-    This endpoint acknowledges the logout request. Since we use JWT tokens,
-    the actual token invalidation is handled client-side by removing the tokens.
-    For enhanced security, implement token blacklisting if needed.
+    Increments token_version to invalidate all existing access and refresh tokens.
     """
+    current_user.token_version += 1
+    session.add(current_user)
+    session.commit()
+    invalidate_cached_user(current_user.id)
     return LogoutResponse(message="Successfully logged out")
 
 
@@ -396,7 +446,7 @@ def verify_email(
 
 
 @router.post("/password-recovery/{email}", response_model=Message)
-@limiter.limit(AUTH_RATE_LIMIT)
+@limiter.limit(PASSWORD_RESET_RATE_LIMIT)
 def request_password_recovery(
     request: Request,
     session: SessionDep,
@@ -435,7 +485,7 @@ def request_password_recovery(
 
 
 @router.post("/reset-password", response_model=Message)
-@limiter.limit(AUTH_RATE_LIMIT)
+@limiter.limit(PASSWORD_RESET_RATE_LIMIT)
 def reset_password(
     request: Request,
     session: SessionDep,
@@ -492,10 +542,13 @@ def reset_password(
             detail="Inactive user",
         )
 
-    # Update the password
+    # Update the password and invalidate existing tokens
     user.hashed_password = get_password_hash(reset_request.new_password)
+    user.password_changed_at = datetime.now(UTC)
+    user.token_version += 1
     session.add(user)
     session.commit()
+    invalidate_cached_user(user.id)
 
     logger.info(f"Password reset successful for user: {user.email}")
 

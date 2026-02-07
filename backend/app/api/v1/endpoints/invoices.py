@@ -2,10 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from app.api.deps import ActiveUserDep, SessionDep
+from app.core.rate_limit import limiter, DEFAULT_RATE_LIMIT
 from app.core.errors import (
     require_found,
     require_permission,
@@ -25,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=InvoiceListResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def list_invoices(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_type: InvoiceType | None = Query(
@@ -74,7 +77,9 @@ def list_invoices(
 
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def get_invoice(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,
@@ -124,7 +129,9 @@ def get_invoice(
 
 
 @router.get("/{invoice_id}/pdf")
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def download_invoice_pdf(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,
@@ -168,7 +175,9 @@ def download_invoice_pdf(
 
 
 @router.post("/{invoice_id}/resend", response_model=InvoiceResendResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
 def resend_invoice_email(
+    request: Request,
     session: SessionDep,
     current_user: ActiveUserDep,
     invoice_id: int,

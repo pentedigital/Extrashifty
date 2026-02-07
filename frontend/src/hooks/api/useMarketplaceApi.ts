@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { STALE_TIME } from '@/constants/queryConfig'
 
 export interface MarketplaceSearchFilters {
   location?: string
@@ -27,7 +28,7 @@ export function useMarketplaceShifts(params?: Record<string, string>) {
   return useQuery({
     queryKey: marketplaceKeys.shiftsList(params),
     queryFn: () => api.marketplace.listShifts(params),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -35,7 +36,7 @@ export function useMarketplaceSearch(filters?: MarketplaceSearchFilters) {
   return useQuery({
     queryKey: marketplaceKeys.shiftsSearch(filters),
     queryFn: () => api.marketplace.searchShifts(filters),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -44,6 +45,7 @@ export function useMarketplaceShift(id: string) {
     queryKey: marketplaceKeys.shiftDetail(id),
     queryFn: () => api.marketplace.getShift(id),
     enabled: !!id,
+    staleTime: STALE_TIME.SHORT,
   })
 }
 
@@ -51,6 +53,6 @@ export function useMarketplaceStats() {
   return useQuery({
     queryKey: marketplaceKeys.stats(),
     queryFn: () => api.marketplace.getStats(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: STALE_TIME.MEDIUM,
   })
 }

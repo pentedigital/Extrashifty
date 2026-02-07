@@ -29,6 +29,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "max-age=31536000; includeSubDomains"
             )
 
+        # Cache-Control headers
+        path = request.url.path
+        if path.startswith("/api/v1/marketplace"):
+            response.headers["Cache-Control"] = "public, max-age=120"
+        elif path.startswith("/api/v1/") and request.method == "GET":
+            response.headers["Cache-Control"] = "private, no-cache"
+        else:
+            response.headers["Cache-Control"] = "no-store"
+
         # Content Security Policy - adjust as needed for your frontend
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
