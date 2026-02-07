@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps import ActiveUserDep, CompanyUserDep, SessionDep
 from app.core.config import settings
@@ -129,6 +129,36 @@ def configure_auto_topup(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
         ) from e
+
+
+@router.get("/wallets/auto-topup/configure", response_model=AutoTopupConfigResponse)
+@limiter.limit(DEFAULT_RATE_LIMIT)
+def get_auto_topup_config(
+    request: Request,
+    session: SessionDep,
+    current_user: CompanyUserDep,
+) -> AutoTopupConfigResponse:
+    """
+    Get current auto-topup configuration for company wallet.
+    """
+    wallet = wallet_crud.get_by_user(session, user_id=current_user.id)
+
+    if not wallet:
+        return AutoTopupConfigResponse(
+            enabled=False,
+            threshold=None,
+            topup_amount=None,
+            payment_method_id=None,
+            message="No wallet configured",
+        )
+
+    return AutoTopupConfigResponse(
+        enabled=wallet.auto_topup_enabled,
+        threshold=wallet.auto_topup_threshold,
+        topup_amount=wallet.auto_topup_amount,
+        payment_method_id=None,
+        message="Auto-topup configuration retrieved",
+    )
 
 
 @router.get("/wallets/balance", response_model=BalanceResponse)
@@ -706,6 +736,67 @@ async def get_connect_onboarding_link(
 
         return ConnectOnboardingResponse(url=account_link.url)
 
+    except StripeServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e.message),
+        ) from e
+
+
+# ==================== Payment Intent ====================
+
+
+class CreateIntentRequest(BaseModel):
+    """Request to create a Stripe PaymentIntent for wallet top-up."""
+
+    amount: int = Field(..., gt=0, description="Amount in cents (EUR)")
+
+
+class CreateIntentResponse(BaseModel):
+    """Response with PaymentIntent client secret."""
+
+    client_secret: str
+    payment_intent_id: str
+    amount: int
+    currency: str
+
+
+@router.post("/create-intent", response_model=CreateIntentResponse)
+@limiter.limit(PAYMENT_RATE_LIMIT)
+async def create_payment_intent(
+    request: Request,
+    session: SessionDep,
+    current_user: CompanyUserDep,
+    body: CreateIntentRequest,
+) -> CreateIntentResponse:
+    """
+    Create a Stripe PaymentIntent for card-based wallet top-up.
+
+    Returns the client secret for Stripe.js to confirm payment on the frontend.
+    """
+    from app.services.stripe_service import StripeService, StripeServiceError
+
+    stripe_svc = StripeService()
+    wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
+
+    try:
+        payment_intent = stripe_svc.create_payment_intent(
+            amount=body.amount,
+            currency="eur",
+            metadata={
+                "user_id": str(current_user.id),
+                "wallet_id": str(wallet.id),
+                "type": "wallet_topup",
+            },
+            description=f"Wallet top-up for user {current_user.id}",
+        )
+
+        return CreateIntentResponse(
+            client_secret=payment_intent.client_secret,
+            payment_intent_id=payment_intent.id,
+            amount=payment_intent.amount,
+            currency=payment_intent.currency,
+        )
     except StripeServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

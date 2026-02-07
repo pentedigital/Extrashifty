@@ -135,9 +135,9 @@ class PaymentService:
         """
         amount = quantize_amount(amount)
 
-        # Get or create wallet
+        # Get or create wallet (with row lock to prevent concurrent balance updates)
         wallet = self.db.exec(
-            select(Wallet).where(Wallet.user_id == user_id)
+            select(Wallet).where(Wallet.user_id == user_id).with_for_update()
         ).first()
 
         if not wallet:
@@ -145,6 +145,10 @@ class PaymentService:
             self.db.add(wallet)
             self.db.commit()
             self.db.refresh(wallet)
+            # Re-acquire with lock after creation
+            wallet = self.db.exec(
+                select(Wallet).where(Wallet.user_id == user_id).with_for_update()
+            ).first()
 
         # Verify payment method
         payment_method = self.db.exec(

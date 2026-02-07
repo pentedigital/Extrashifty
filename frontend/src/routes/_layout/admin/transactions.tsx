@@ -146,12 +146,19 @@ function AdminTransactionsPage() {
                     <p className="font-medium">{formatCurrency(tx.amount)}</p>
                     {(() => { const badge = getTransactionStatusBadge(tx.status); return <Badge variant={badge.variant}>{badge.label}</Badge>; })()}
                   </div>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" aria-label="View transaction details">
                     <Eye className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             ))}
+            {filteredTransactions.length === 0 && (
+              <EmptyState
+                icon={Search}
+                title="No transactions match your search"
+                description="Try adjusting your search query or filter."
+              />
+            )}
           </div>
         </CardContent>
       </Card>

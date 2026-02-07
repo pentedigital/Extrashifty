@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, Eye, MapPin, Clock, Loader2 } from 'lucide-react'
+import { Search, Eye, MapPin, Clock, Loader2, MoreVertical } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useAdminShifts } from '@/hooks/api/useAdminApi'
@@ -140,13 +140,20 @@ function AdminShiftsPage() {
                     <Button variant="ghost" size="icon" title="View details">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" aria-label="More actions">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </div>
             ))}
+            {filteredShifts.length === 0 && (
+              <EmptyState
+                icon={Search}
+                title="No shifts match your search"
+                description="Try adjusting your search query or filter."
+              />
+            )}
           </div>
         </CardContent>
       </Card>

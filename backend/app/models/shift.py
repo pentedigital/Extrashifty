@@ -34,7 +34,7 @@ class Shift(SQLModel, table=True):
     description: str | None = Field(default=None)
     company_id: int = Field(foreign_key="users.id", index=True)
     shift_type: str = Field(max_length=100)
-    date: date
+    date: date = Field(index=True)
     start_time: time
     end_time: time
     hourly_rate: Decimal = Field(max_digits=10, decimal_places=2)

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Search, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react'
+import { Search, CheckCircle, XCircle, Eye, Loader2, MoreVertical } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
 import { useAdminCompanies, useAdminVerifyCompany } from '@/hooks/api/useAdminApi'
@@ -212,6 +212,7 @@ function AdminCompaniesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="More actions"
                       onClick={() => handleMoreOptions(company.name)}
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -220,6 +221,13 @@ function AdminCompaniesPage() {
                 </div>
               </div>
             ))}
+            {filteredCompanies.length === 0 && (
+              <EmptyState
+                icon={Search}
+                title="No companies match your search"
+                description="Try adjusting your search query or filter."
+              />
+            )}
           </div>
         </CardContent>
       </Card>

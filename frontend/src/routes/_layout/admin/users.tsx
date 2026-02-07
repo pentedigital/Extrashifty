@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, Shield, Ban, Mail, Loader2 } from 'lucide-react'
+import { Search, Shield, Ban, Mail, Loader2, MoreVertical } from 'lucide-react'
 import { useAdminUsers } from '@/hooks/api/useAdminApi'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -159,13 +159,20 @@ function AdminUsersPage() {
                     <Button variant="ghost" size="icon" title="Suspend user">
                       <Ban className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" aria-label="More actions">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </div>
             ))}
+            {filteredUsers.length === 0 && (
+              <EmptyState
+                icon={Search}
+                title="No users match your search"
+                description="Try adjusting your search query or filter."
+              />
+            )}
           </div>
         </CardContent>
       </Card>
