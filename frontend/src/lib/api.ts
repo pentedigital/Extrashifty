@@ -790,6 +790,17 @@ export const api = {
   },
 
   admin: {
+    getStats: () => baseFetch<{
+      total_users: number
+      active_users: number
+      total_companies: number
+      total_agencies: number
+      active_shifts: number
+      shifts_this_week: number
+      total_revenue: number
+      pending_payouts: number
+      pending_payout_amount: number
+    }>('/admin/stats'),
     getReports: (filters?: Record<string, string>) => {
       const query = filters ? '?' + new URLSearchParams(filters).toString() : ''
       return baseFetch<{ data: Array<{ period: string; total_revenue: number; total_shifts: number; new_users: number; active_users: number; completion_rate: number }>; summary: Record<string, number> }>(`/admin/reports${query}`)

@@ -5,31 +5,12 @@ import { STALE_TIME } from '@/constants/queryConfig'
 /**
  * Admin API Hooks
  *
- * IMPORTANT: Backend admin endpoints do NOT exist yet.
+ * Backend admin endpoints available:
+ * - GET /admin/stats - Dashboard statistics (real data)
+ * - GET /admin/reports - Analytics with period-over-period comparison (real data)
  *
- * The backend has the following routers in /backend/app/api/v1/api.py:
- * - auth, users, shifts, applications, agency, staff, company, marketplace,
- * - reviews, notifications, wallet, payments, invoices, verification,
- * - disputes, appeals, tax, gdpr, penalties, webhooks, websocket
- *
- * There is NO /admin router. The 'admin' user type exists in the database schema
- * (see backend/alembic/versions/001_initial_schema.py) but admin-specific endpoints
- * have not been implemented.
- *
- * These hooks return empty/default data as placeholders until the backend
- * admin API is implemented. When implementing the backend, add endpoints like:
- * - GET /admin/stats - Dashboard statistics
- * - GET /admin/users - List all users with filters
- * - PATCH /admin/users/:id - Update user (verify, suspend, etc.)
- * - GET /admin/companies - List companies for verification
- * - GET /admin/agencies - List agencies for verification
- * - GET /admin/shifts - All shifts across platform
- * - GET /admin/transactions - Financial transactions
- * - GET /admin/payouts - Payout requests
- * - GET /admin/audit-logs - Admin action logs
- * - GET /admin/reports - Analytics and reports
- *
- * Then update these hooks to call the real API endpoints.
+ * Remaining hooks return placeholder data until additional backend admin
+ * endpoints are implemented (users, companies, agencies, shifts, etc.).
  */
 
 export const adminKeys = {
@@ -170,18 +151,17 @@ export function useAdminStats() {
       pendingActions: PendingAction[]
       recentActivity: RecentActivity[]
     }> => {
-      // Backend endpoint not implemented: GET /admin/stats
-      // When available, replace with: return await api.admin.getStats()
+      const data = await api.admin.getStats()
       return {
         stats: {
-          totalUsers: 0,
-          activeUsers: 0,
-          totalCompanies: 0,
-          totalAgencies: 0,
-          activeShifts: 0,
-          shiftsThisWeek: 0,
-          totalRevenue: 0,
-          pendingPayouts: 0,
+          totalUsers: data.total_users,
+          activeUsers: data.active_users,
+          totalCompanies: data.total_companies,
+          totalAgencies: data.total_agencies,
+          activeShifts: data.active_shifts,
+          shiftsThisWeek: data.shifts_this_week,
+          totalRevenue: data.total_revenue,
+          pendingPayouts: data.pending_payouts,
         },
         pendingActions: [],
         recentActivity: [],

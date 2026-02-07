@@ -10,9 +10,10 @@ from sqlmodel import func, select
 
 from app.api.deps import AdminUserDep, SessionDep
 from app.core.rate_limit import ADMIN_RATE_LIMIT, limiter
-from app.models.payment import Transaction, TransactionStatus, TransactionType
+from app.core.cache import get_cached, set_cached
+from app.models.payment import Payout, PayoutStatus, Transaction, TransactionStatus, TransactionType
 from app.models.shift import Shift, ShiftStatus
-from app.models.user import User
+from app.models.user import User, UserType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -45,6 +46,120 @@ class ReportSummary(BaseModel):
 class ReportsResponse(BaseModel):
     data: list[ReportDataItem]
     summary: ReportSummary
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    active_users: int
+    total_companies: int
+    total_agencies: int
+    active_shifts: int
+    shifts_this_week: int
+    total_revenue: float
+    pending_payouts: int
+    pending_payout_amount: float
+
+
+@router.get("/stats", response_model=AdminStatsResponse)
+@limiter.limit(ADMIN_RATE_LIMIT)
+async def get_admin_stats(
+    request: Request,
+    session: SessionDep,
+    admin: AdminUserDep,
+) -> AdminStatsResponse:
+    """
+    Get platform-wide dashboard statistics.
+
+    Returns user counts, shift counts, revenue, and pending payouts
+    for the admin overview dashboard.
+    """
+    cache_key = "admin:stats"
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return AdminStatsResponse(**cached)
+
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+
+    total_users = session.exec(
+        select(func.count(User.id)).where(User.is_active == True)  # noqa: E712
+    ).one()
+
+    # Active = updated within 30 days (profile update, shift activity, etc.)
+    thirty_days_ago = now - timedelta(days=30)
+    active_users = session.exec(
+        select(func.count(User.id)).where(
+            User.is_active == True,  # noqa: E712
+            User.updated_at >= thirty_days_ago,
+        )
+    ).one()
+
+    total_companies = session.exec(
+        select(func.count(User.id)).where(
+            User.user_type == UserType.COMPANY,
+            User.is_active == True,  # noqa: E712
+        )
+    ).one()
+
+    total_agencies = session.exec(
+        select(func.count(User.id)).where(
+            User.user_type == UserType.AGENCY,
+            User.is_active == True,  # noqa: E712
+        )
+    ).one()
+
+    active_shifts = session.exec(
+        select(func.count(Shift.id)).where(
+            Shift.status.in_([ShiftStatus.OPEN, ShiftStatus.FILLED, ShiftStatus.IN_PROGRESS])
+        )
+    ).one()
+
+    shifts_this_week = session.exec(
+        select(func.count(Shift.id)).where(
+            Shift.created_at >= week_ago,
+        )
+    ).one()
+
+    # Revenue this month
+    month_start = datetime.combine(now.date().replace(day=1), datetime.min.time())
+    revenue_result = session.exec(
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
+        .where(
+            Transaction.transaction_type == TransactionType.COMMISSION,
+            Transaction.status == TransactionStatus.COMPLETED,
+            Transaction.created_at >= month_start,
+        )
+    ).one()
+    total_revenue = float(revenue_result)
+
+    # Pending payouts
+    pending_payouts = session.exec(
+        select(func.count(Payout.id)).where(
+            Payout.status == PayoutStatus.PENDING,
+        )
+    ).one()
+
+    pending_payout_amount_result = session.exec(
+        select(func.coalesce(func.sum(Payout.amount), Decimal("0")))
+        .where(
+            Payout.status == PayoutStatus.PENDING,
+        )
+    ).one()
+
+    result = AdminStatsResponse(
+        total_users=total_users,
+        active_users=active_users,
+        total_companies=total_companies,
+        total_agencies=total_agencies,
+        active_shifts=active_shifts,
+        shifts_this_week=shifts_this_week,
+        total_revenue=total_revenue,
+        pending_payouts=pending_payouts,
+        pending_payout_amount=float(pending_payout_amount_result),
+    )
+
+    set_cached(cache_key, result.model_dump(), tier="short")
+    return result
 
 
 def _compute_change(current: float, previous: float) -> float:

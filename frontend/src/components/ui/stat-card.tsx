@@ -17,10 +17,10 @@ interface StatCardProps {
 
 const iconColorMap = {
   brand: 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-400',
-  success: 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400',
-  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400',
-  info: 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
-  destructive: 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  info: 'bg-info/10 text-info',
+  destructive: 'bg-destructive/10 text-destructive',
   muted: 'bg-muted text-muted-foreground',
 }
 
@@ -51,7 +51,7 @@ export function StatCard({
               <span
                 className={cn(
                   'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
-                  trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  trend.isPositive ? 'text-success' : 'text-destructive'
                 )}
               >
                 {trend.isPositive ? (

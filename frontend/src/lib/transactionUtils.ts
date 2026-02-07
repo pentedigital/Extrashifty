@@ -54,13 +54,13 @@ export function getTransactionColor(type: ExtendedTransactionType | string): str
     case 'top_up':
     case 'refund':
     case 'release':
-      return 'text-green-600'
+      return 'text-success'
     case 'withdrawal':
     case 'payment':
     case 'reserve':
-      return 'text-red-600'
+      return 'text-destructive'
     default:
-      return 'text-gray-600'
+      return 'text-muted-foreground'
   }
 }
 

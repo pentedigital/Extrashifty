@@ -93,17 +93,17 @@ const toastIcons: Record<ToastType, React.ElementType> = {
 }
 
 const toastStyles: Record<ToastType, string> = {
-  success: 'border-green-200 bg-green-50 text-green-900',
-  error: 'border-red-200 bg-red-50 text-red-900',
-  warning: 'border-yellow-200 bg-yellow-50 text-yellow-900',
-  info: 'border-blue-200 bg-blue-50 text-blue-900',
+  success: 'border-success/30 bg-success/10 text-foreground',
+  error: 'border-destructive/30 bg-destructive/10 text-foreground',
+  warning: 'border-warning/30 bg-warning/10 text-foreground',
+  info: 'border-info/30 bg-info/10 text-foreground',
 }
 
 const iconStyles: Record<ToastType, string> = {
-  success: 'text-green-600',
-  error: 'text-red-600',
-  warning: 'text-yellow-600',
-  info: 'text-blue-600',
+  success: 'text-success',
+  error: 'text-destructive',
+  warning: 'text-warning',
+  info: 'text-info',
 }
 
 function ToastItem({ toast, onRemove }: ToastItemProps) {

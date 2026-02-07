@@ -13,22 +13,22 @@ const statusConfig = {
   locked: {
     icon: Lock,
     label: 'Funds secured',
-    className: 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-500/20',
+    className: 'bg-warning/10 text-warning ring-warning/20',
   },
   released: {
     icon: LockOpen,
     label: 'Funds released',
-    className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-500/20',
+    className: 'bg-success/10 text-success ring-success/20',
   },
   disputed: {
     icon: AlertTriangle,
     label: 'In dispute',
-    className: 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950 dark:text-red-300 dark:ring-red-500/20',
+    className: 'bg-destructive/10 text-destructive ring-destructive/20',
   },
   none: {
     icon: Lock,
     label: 'No escrow',
-    className: 'bg-zinc-50 text-zinc-500 ring-zinc-600/10 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-500/20',
+    className: 'bg-muted text-muted-foreground ring-border',
   },
 }
 

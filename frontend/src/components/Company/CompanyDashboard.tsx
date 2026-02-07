@@ -122,9 +122,9 @@ export function CompanyDashboard() {
 
       {/* Shifts Needing Attention */}
       {shiftsLoading ? (
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-warning/30 bg-warning/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-800">
+            <CardTitle className="flex items-center gap-2 text-warning">
               <AlertCircle className="h-5 w-5" />
               Shifts Needing Attention
             </CardTitle>
@@ -137,9 +137,9 @@ export function CompanyDashboard() {
           </CardContent>
         </Card>
       ) : shiftsNeedingAttention.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-warning/30 bg-warning/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-800">
+            <CardTitle className="flex items-center gap-2 text-warning">
               <AlertCircle className="h-5 w-5" />
               Shifts Needing Attention
             </CardTitle>

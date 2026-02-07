@@ -103,16 +103,16 @@ function SingleBadge({ config, state, size, showLabel }: SingleBadgeProps) {
   const containerStyles = cn(
     'relative inline-flex items-center rounded-full border transition-colors',
     sizes.badge,
-    isVerified && 'bg-green-50 border-green-200 text-green-700',
-    isPending && 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    !isVerified && !isPending && 'bg-gray-50 border-gray-200 text-gray-500'
+    isVerified && 'bg-success/10 border-success/30 text-success',
+    isPending && 'bg-warning/10 border-warning/30 text-warning',
+    !isVerified && !isPending && 'bg-muted border-border text-muted-foreground'
   )
 
   const statusIconStyles = cn(
     sizes.statusIcon,
-    isVerified && 'text-green-600',
-    isPending && 'text-yellow-600',
-    !isVerified && !isPending && 'text-gray-400'
+    isVerified && 'text-success',
+    isPending && 'text-warning',
+    !isVerified && !isPending && 'text-muted-foreground'
   )
 
   return (
@@ -133,11 +133,11 @@ function SingleBadge({ config, state, size, showLabel }: SingleBadgeProps) {
       {/* Tooltip */}
       {showTooltip && (
         <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap z-50 pointer-events-none"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-primary-foreground bg-foreground rounded whitespace-nowrap z-50 pointer-events-none"
           role="tooltip"
         >
           {tooltip}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
         </div>
       )}
     </div>

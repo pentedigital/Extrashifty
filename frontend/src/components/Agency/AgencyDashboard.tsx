@@ -214,14 +214,14 @@ export function AgencyDashboard() {
                           <span className="text-sm text-muted-foreground">
                             {shift.workers.join(', ') || 'Assigned'}
                           </span>
-                          <Check className="h-4 w-4 text-green-600" />
+                          <Check className="h-4 w-4 text-success" />
                         </>
                       ) : (
                         <>
-                          <span className="text-sm text-yellow-600">
+                          <span className="text-sm text-warning">
                             {shift.spots_filled}/{shift.spots_total} assigned
                           </span>
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertCircle className="h-4 w-4 text-warning" />
                         </>
                       )}
                     </div>
@@ -271,7 +271,7 @@ export function AgencyDashboard() {
                       </Avatar>
                       <div
                         className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                          staff.available ? 'bg-green-500' : 'bg-gray-400'
+                          staff.available ? 'bg-success' : 'bg-gray-400'
                         }`}
                       />
                     </div>
@@ -294,13 +294,13 @@ export function AgencyDashboard() {
 
       <div className="dashboard-content-grid">
         {/* Unfilled Shifts */}
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-warning/30 bg-warning/5">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-yellow-800">
               <AlertCircle className="h-5 w-5" />
               Unfilled Shifts
             </CardTitle>
-            <Link to="/agency/shifts" className="text-sm text-yellow-700 hover:underline flex items-center gap-1">
+            <Link to="/agency/shifts" className="text-sm text-warning hover:underline flex items-center gap-1">
               View All <ArrowRight className="h-4 w-4" />
             </Link>
           </CardHeader>
@@ -312,7 +312,7 @@ export function AgencyDashboard() {
               </div>
             ) : unfilledShifts.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground">
-                <Check className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <Check className="h-8 w-8 mx-auto mb-2 text-success" />
                 <p className="text-sm">All shifts are fully staffed!</p>
               </div>
             ) : (
@@ -353,7 +353,7 @@ export function AgencyDashboard() {
               </div>
             ) : pendingActions.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground">
-                <Check className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <Check className="h-8 w-8 mx-auto mb-2 text-success" />
                 <p className="text-sm">All caught up! No pending actions.</p>
               </div>
             ) : (
