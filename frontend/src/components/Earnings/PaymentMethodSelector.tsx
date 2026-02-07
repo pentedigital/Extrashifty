@@ -98,7 +98,7 @@ export function PaymentMethodSelector({
                 'w-5 h-5 rounded-full border-2 flex items-center justify-center',
                 selectedId === method.id
                   ? 'border-brand-600 bg-brand-600'
-                  : 'border-gray-300'
+                  : 'border-border'
               )}
             >
               {selectedId === method.id && (

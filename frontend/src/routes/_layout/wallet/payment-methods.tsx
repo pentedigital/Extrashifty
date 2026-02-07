@@ -311,7 +311,7 @@ function PaymentMethodsPage() {
                 id="isDefault"
                 checked={formIsDefault}
                 onChange={(e) => setFormIsDefault(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-border"
               />
               <Label htmlFor="isDefault" className="font-normal">
                 Set as default payment method

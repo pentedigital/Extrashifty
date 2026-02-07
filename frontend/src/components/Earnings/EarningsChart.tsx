@@ -74,7 +74,7 @@ export function EarningsChart({
                     className="w-full bg-brand-600 rounded-t transition-all hover:bg-brand-700 cursor-pointer group relative"
                     style={{ height: `${Math.max(heightPercent, minHeight)}%` }}
                   >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                       {formatCurrency(point.amount, currency)}
                     </div>
                   </div>

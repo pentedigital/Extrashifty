@@ -147,7 +147,7 @@ function StaffPoolPage() {
                     {member.status === 'active' && (
                       <div
                         className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white ${
-                          member.is_available ? 'bg-success/50' : 'bg-gray-400'
+                          member.is_available ? 'bg-success/50' : 'bg-muted-foreground'
                         }`}
                       />
                     )}

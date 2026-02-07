@@ -95,7 +95,7 @@ function SchedulePage() {
       case 'unfilled':
         return 'bg-destructive/10 border-destructive/40 text-destructive'
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-800'
+        return 'bg-muted border-border text-foreground'
     }
   }
 

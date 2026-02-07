@@ -182,7 +182,7 @@ function PayrollPage() {
                 type="checkbox"
                 checked={selectedIds.length === entries.length && entries.length > 0}
                 onChange={() => selectAll(entries)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-border"
                 aria-label={`Select all ${entries.length} payroll entries`}
               />
               <span className="text-sm">
@@ -218,7 +218,7 @@ function PayrollPage() {
                     type="checkbox"
                     checked={selectedIds.includes(entry.id)}
                     onChange={() => toggleSelect(entry.id)}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-border"
                     aria-label={`Select payroll entry for ${getStaffName(entry)}`}
                     id={`payroll-checkbox-${entry.id}`}
                   />

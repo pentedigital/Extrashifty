@@ -9,10 +9,8 @@ import {
   AlertCircle,
   MapPin,
   Clock,
-  Euro,
   Building2,
   CheckCircle,
-  TrendingUp,
   Zap,
   Activity,
   Users,
@@ -43,6 +41,15 @@ const shiftTypeLabels: Record<string, string> = {
   general: 'GEN',
 }
 
+function SortIcon({ field, sortField, sortDirection }: { field: SortField; sortField: SortField; sortDirection: SortDirection }) {
+  if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />
+  return sortDirection === 'asc' ? (
+    <ChevronUp className="h-3 w-3" />
+  ) : (
+    <ChevronDown className="h-3 w-3" />
+  )
+}
+
 function MarketplacePage() {
   const [filters, setFilters] = useState<ShiftFiltersType>({})
   const [sortField, setSortField] = useState<SortField>('date')
@@ -59,7 +66,7 @@ function MarketplacePage() {
     status: 'open',
   })
 
-  const shifts = data?.items ?? []
+  const shifts = useMemo(() => data?.items ?? [], [data?.items])
   const totalResults = data?.total ?? 0
 
   // Compute market stats from current data
@@ -147,15 +154,6 @@ function MarketplacePage() {
       setSortField(field)
       setSortDirection('asc')
     }
-  }
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />
-    return sortDirection === 'asc' ? (
-      <ChevronUp className="h-3 w-3" />
-    ) : (
-      <ChevronDown className="h-3 w-3" />
-    )
   }
 
   return (
@@ -315,28 +313,28 @@ function MarketplacePage() {
                       <tr className="border-b bg-muted/50">
                         <th className="text-left p-3 font-medium text-muted-foreground">
                           <button type="button" className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => handleSort('shift_type')}>
-                            TYPE <SortIcon field="shift_type" />
+                            TYPE <SortIcon field="shift_type" sortField={sortField} sortDirection={sortDirection} />
                           </button>
                         </th>
                         <th className="text-left p-3 font-medium text-muted-foreground">SHIFT</th>
                         <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">
                           <button type="button" className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => handleSort('city')}>
-                            LOCATION <SortIcon field="city" />
+                            LOCATION <SortIcon field="city" sortField={sortField} sortDirection={sortDirection} />
                           </button>
                         </th>
                         <th className="text-left p-3 font-medium text-muted-foreground">
                           <button type="button" className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => handleSort('date')}>
-                            WHEN <SortIcon field="date" />
+                            WHEN <SortIcon field="date" sortField={sortField} sortDirection={sortDirection} />
                           </button>
                         </th>
                         <th className="text-right p-3 font-medium text-muted-foreground">
                           <button type="button" className="flex items-center gap-1 justify-end hover:text-foreground transition-colors" onClick={() => handleSort('hourly_rate')}>
-                            RATE <SortIcon field="hourly_rate" />
+                            RATE <SortIcon field="hourly_rate" sortField={sortField} sortDirection={sortDirection} />
                           </button>
                         </th>
                         <th className="text-center p-3 font-medium text-muted-foreground hidden sm:table-cell">
                           <button type="button" className="flex items-center gap-1 justify-center hover:text-foreground transition-colors" onClick={() => handleSort('spots')}>
-                            AVAIL <SortIcon field="spots" />
+                            AVAIL <SortIcon field="spots" sortField={sortField} sortDirection={sortDirection} />
                           </button>
                         </th>
                         <th className="text-right p-3 font-medium text-muted-foreground">ACTION</th>
