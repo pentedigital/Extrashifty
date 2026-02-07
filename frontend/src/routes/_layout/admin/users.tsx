@@ -138,7 +138,7 @@ function AdminUsersPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium truncate">{user.name}</p>
-                      {user.verified && <Shield className="h-4 w-4 text-green-600 shrink-0" />}
+                      {user.verified && <Shield className="h-4 w-4 text-success shrink-0" />}
                     </div>
                     <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                     <div className="flex sm:hidden items-center gap-2 mt-1">

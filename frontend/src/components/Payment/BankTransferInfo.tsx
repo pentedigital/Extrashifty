@@ -24,7 +24,7 @@ function CopyButton({
       onClick={() => onCopy(value, field)}
     >
       {copiedField === field ? (
-        <Check className="h-4 w-4 text-green-600" />
+        <Check className="h-4 w-4 text-success" />
       ) : (
         <Copy className="h-4 w-4" />
       )}
@@ -133,10 +133,10 @@ export function BankTransferInfo({
           </div>
 
           {/* Payment Reference */}
-          <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-warning/5 border border-warning/30 rounded-lg">
             <div>
-              <p className="text-sm text-yellow-800">Payment Reference (Required)</p>
-              <p className="font-mono font-bold text-yellow-900">{reference}</p>
+              <p className="text-sm text-warning">Payment Reference (Required)</p>
+              <p className="font-mono font-bold">{reference}</p>
             </div>
             <CopyButton value={reference} field="reference" copiedField={copiedField} onCopy={copyToClipboard} />
           </div>
@@ -144,13 +144,13 @@ export function BankTransferInfo({
       </Card>
 
       {/* Important Notes */}
-      <Card className="border-blue-200 bg-blue-50/50">
+      <Card className="border-info/30 bg-info/5">
         <CardContent className="pt-6">
           <div className="flex gap-3">
-            <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <Info className="h-5 w-5 text-info shrink-0 mt-0.5" />
             <div className="space-y-2">
-              <p className="font-medium text-blue-900">Important</p>
-              <ul className="text-sm text-blue-800 space-y-1">
+              <p className="font-medium">Important</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>Include the payment reference exactly as shown</li>
                 <li>Transfers typically take 1-2 business days to process</li>
                 <li>Your wallet will be credited once the transfer is confirmed</li>
@@ -164,7 +164,7 @@ export function BankTransferInfo({
       {/* Processing Badge */}
       <div className="flex items-center justify-center gap-2">
         <Badge variant="secondary" className="gap-2">
-          <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-warning animate-pulse" />
           Awaiting Transfer
         </Badge>
       </div>

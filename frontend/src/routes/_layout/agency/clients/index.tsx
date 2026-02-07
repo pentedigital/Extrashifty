@@ -197,7 +197,7 @@ function ClientsPage() {
                           <>
                             <span className="text-muted-foreground">-</span>
                             <span className="flex items-center gap-1">
-                              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                              <Star className="h-4 w-4 text-warning fill-warning" />
                               {client.rating}
                             </span>
                           </>

@@ -25,16 +25,16 @@ export function AchDirectDebit({
 }: AchDirectDebitProps) {
   if (isConnected && accountLast4) {
     return (
-      <Card className={cn('border-green-200 bg-green-50/50', className)}>
+      <Card className={cn('border-success/30 bg-success/5', className)}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-green-100">
-                <Building className="h-5 w-5 text-green-600" />
+              <div className="p-2 rounded-full bg-success/10">
+                <Building className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="font-medium text-green-900">Bank Account Connected</p>
-                <p className="text-sm text-green-700">
+                <p className="font-medium">Bank Account Connected</p>
+                <p className="text-sm text-muted-foreground">
                   {bankName || 'Bank'} ****{accountLast4}
                 </p>
               </div>
@@ -61,8 +61,8 @@ export function AchDirectDebit({
         {/* Benefits */}
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-full bg-blue-100 mt-0.5">
-              <Shield className="h-4 w-4 text-blue-600" />
+            <div className="p-1.5 rounded-full bg-info/10 mt-0.5">
+              <Shield className="h-4 w-4 text-info" />
             </div>
             <div>
               <p className="font-medium text-sm">Secure Connection</p>
@@ -73,8 +73,8 @@ export function AchDirectDebit({
           </div>
 
           <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-full bg-blue-100 mt-0.5">
-              <Clock className="h-4 w-4 text-blue-600" />
+            <div className="p-1.5 rounded-full bg-info/10 mt-0.5">
+              <Clock className="h-4 w-4 text-info" />
             </div>
             <div>
               <p className="font-medium text-sm">Lower Fees</p>

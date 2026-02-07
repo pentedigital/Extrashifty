@@ -182,15 +182,15 @@ function PaymentSetupPage() {
                 <h3 className="font-medium mb-2">Why set up Stripe Connect?</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-success mt-0.5" />
                     Receive payments directly to your bank account
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-success mt-0.5" />
                     Secure, verified payment processing
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-success mt-0.5" />
                     {isStaff ? 'Get paid every Friday or instantly' : 'Receive earnings from client payments'}
                   </li>
                 </ul>
@@ -211,9 +211,9 @@ function PaymentSetupPage() {
             </div>
           ) : status === 'pending' ? (
             <div className="space-y-4">
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h3 className="font-medium text-yellow-800 mb-2">Verification in Progress</h3>
-                <p className="text-sm text-yellow-700">
+              <div className="p-4 bg-warning/5 border border-warning/30 rounded-lg">
+                <h3 className="font-medium text-warning mb-2">Verification in Progress</h3>
+                <p className="text-sm text-muted-foreground">
                   Your account is being verified. This usually takes 1-2 business days.
                   We'll notify you once verification is complete.
                 </p>
@@ -227,7 +227,7 @@ function PaymentSetupPage() {
                   <ul className="space-y-1 text-sm">
                     {requirements.currently_due.map((req, idx) => (
                       <li key={idx} className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <AlertCircle className="h-4 w-4 text-warning" />
                         {req.replace(/_/g, ' ')}
                       </li>
                     ))}
@@ -241,13 +241,13 @@ function PaymentSetupPage() {
             </div>
           ) : status === 'active' ? (
             <div className="space-y-4">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="p-4 bg-success/5 border border-success/30 rounded-lg flex items-center gap-4">
+                <div className="p-3 bg-success/10 rounded-full">
+                  <CheckCircle className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-green-800">Account Verified</h3>
-                  <p className="text-sm text-green-700">
+                  <h3 className="font-medium">Account Verified</h3>
+                  <p className="text-sm text-muted-foreground">
                     Your account is set up and ready to receive payments.
                   </p>
                 </div>
@@ -258,12 +258,12 @@ function PaymentSetupPage() {
                   <p className="font-medium flex items-center gap-2">
                     {payoutsEnabled ? (
                       <>
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                         Enabled
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <AlertCircle className="h-4 w-4 text-warning" />
                         Pending Setup
                       </>
                     )}
@@ -277,9 +277,9 @@ function PaymentSetupPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h3 className="font-medium text-red-800 mb-2">Account Restricted</h3>
-                <p className="text-sm text-red-700">
+              <div className="p-4 bg-destructive/5 border border-destructive/30 rounded-lg">
+                <h3 className="font-medium text-destructive mb-2">Account Restricted</h3>
+                <p className="text-sm text-muted-foreground">
                   Your account has restrictions. Please update your information to continue receiving payments.
                 </p>
               </div>

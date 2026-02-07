@@ -89,11 +89,11 @@ function SchedulePage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed':
-        return 'bg-green-100 border-green-300 text-green-800'
+        return 'bg-success/10 border-success/40 text-success'
       case 'partial':
-        return 'bg-yellow-100 border-yellow-300 text-yellow-800'
+        return 'bg-warning/10 border-warning/40 text-warning'
       case 'unfilled':
-        return 'bg-red-100 border-red-300 text-red-800'
+        return 'bg-destructive/10 border-destructive/40 text-destructive'
       default:
         return 'bg-gray-100 border-gray-300 text-gray-800'
     }
@@ -286,15 +286,15 @@ function SchedulePage() {
       {/* Legend */}
       <div className="flex items-center gap-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-green-200 border border-green-400" />
+          <div className="h-3 w-3 rounded bg-success/20 border border-success/50" />
           <span>Filled</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-yellow-200 border border-yellow-400" />
+          <div className="h-3 w-3 rounded bg-warning/20 border border-warning/50" />
           <span>Partially Filled</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-red-200 border border-red-400" />
+          <div className="h-3 w-3 rounded bg-destructive/20 border border-destructive/50" />
           <span>Unfilled</span>
         </div>
       </div>

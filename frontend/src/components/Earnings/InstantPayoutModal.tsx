@@ -89,8 +89,8 @@ export function InstantPayoutModal({
         }
       >
         <div className="text-center">
-          <div className="mx-auto p-4 bg-green-100 rounded-full mb-4 w-fit">
-            <Check className="h-8 w-8 text-green-600" />
+          <div className="mx-auto p-4 bg-success/10 rounded-full mb-4 w-fit">
+            <Check className="h-8 w-8 text-success" />
           </div>
         </div>
       </BaseModal>
@@ -116,8 +116,8 @@ export function InstantPayoutModal({
         }
       >
         <div className="text-center">
-          <div className="mx-auto p-4 bg-red-100 rounded-full mb-4 w-fit">
-            <AlertCircle className="h-8 w-8 text-red-600" />
+          <div className="mx-auto p-4 bg-destructive/10 rounded-full mb-4 w-fit">
+            <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
         </div>
       </BaseModal>
@@ -156,7 +156,7 @@ export function InstantPayoutModal({
       onOpenChange={handleClose}
       title={
         <span className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-yellow-500" />
+          <Zap className="h-5 w-5 text-warning" />
           Instant Payout
         </span>
       }
@@ -174,19 +174,19 @@ export function InstantPayoutModal({
             <span className="text-muted-foreground">
               Instant payout fee (1.5%)
             </span>
-            <span className="text-red-600">-{formatCurrency(fee, currency)}</span>
+            <span className="text-destructive">-{formatCurrency(fee, currency)}</span>
           </div>
           <div className="border-t pt-2 flex justify-between font-semibold">
             <span>You receive</span>
-            <span className="text-green-600">{formatCurrency(netAmount, currency)}</span>
+            <span className="text-success">{formatCurrency(netAmount, currency)}</span>
           </div>
         </div>
 
         {/* Minimum check */}
         {availableBalance < MINIMUM_PAYOUT_AMOUNT && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-            <div className="text-sm text-yellow-800">
+          <div className="p-3 bg-warning/5 border border-warning/30 rounded-lg flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
+            <div className="text-sm text-warning">
               Minimum instant payout is {formatCurrency(MINIMUM_PAYOUT_AMOUNT, currency)}.
               You need {formatCurrency(MINIMUM_PAYOUT_AMOUNT - availableBalance, currency)} more.
             </div>

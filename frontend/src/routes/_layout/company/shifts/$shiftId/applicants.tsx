@@ -260,7 +260,7 @@ function ShiftApplicantsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="text-red-600"
+                className="text-destructive"
                 onClick={() => handleReject(String(application.id))}
                 disabled={updateStatus.isPending}
               >
@@ -336,14 +336,14 @@ function ShiftApplicantsPage() {
 
       {/* Wallet Balance Warning */}
       {!hasSufficientFunds && groupedApplicants.pending.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-warning/30 bg-warning/5">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-amber-900">Insufficient Balance</p>
-                  <p className="text-sm text-amber-800">
+                  <p className="font-medium text-warning">Insufficient Balance</p>
+                  <p className="text-sm text-warning">
                     Your available balance ({formatCurrency(availableBalance, currency)}) is not enough
                     to accept workers. Top up to continue.
                   </p>
@@ -386,7 +386,7 @@ function ShiftApplicantsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {groupedApplicants.accepted.map((application) => (
-              <div key={application.id} className="flex items-center justify-between p-3 rounded-lg border bg-green-50 dark:bg-green-950/20">
+              <div key={application.id} className="flex items-center justify-between p-3 rounded-lg border bg-success/5">
                 <div className="flex items-center gap-3">
                   <Avatar aria-label={`Avatar for ${application.applicant?.full_name || 'Unknown'}`}>
                     <AvatarFallback>
@@ -401,7 +401,7 @@ function ShiftApplicantsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                  <Badge variant="outline" className="text-warning border-warning/30 bg-warning/5">
                     <Clock className="h-3 w-3 mr-1" />
                     Payment Pending
                   </Badge>

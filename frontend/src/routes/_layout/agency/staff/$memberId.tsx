@@ -235,7 +235,7 @@ function StaffMemberDetailsPage() {
                 </Avatar>
                 <div
                   className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white ${
-                    staff.isAvailable ? 'bg-green-500' : 'bg-gray-400'
+                    staff.isAvailable ? 'bg-success/50' : 'bg-gray-400'
                   }`}
                 />
               </div>
@@ -252,7 +252,7 @@ function StaffMemberDetailsPage() {
                 )}
               </div>
               <div className="flex items-center gap-1 mt-3">
-                <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                <Star className="h-5 w-5 text-warning fill-warning" />
                 <span className="font-semibold">{staff.rating}</span>
                 <span className="text-muted-foreground">({staff.reviewCount} reviews)</span>
               </div>
@@ -274,7 +274,7 @@ function StaffMemberDetailsPage() {
                 <Button className="w-full" onClick={handleToggleAvailability}>
                   {staff.isAvailable ? 'Mark Unavailable' : 'Mark Available'}
                 </Button>
-                <Button variant="outline" className="w-full text-red-600" onClick={handleRemoveFromAgency}>
+                <Button variant="outline" className="w-full text-destructive" onClick={handleRemoveFromAgency}>
                   Remove from Agency
                 </Button>
               </div>
@@ -326,22 +326,22 @@ function StaffMemberDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.idVerified ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : ''}`}>
-                      <CheckCircle className={`h-5 w-5 ${staff.verifications.idVerified ? 'text-green-600' : 'text-muted-foreground'}`} />
+                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.idVerified ? 'bg-success/5 border-success/30' : ''}`}>
+                      <CheckCircle className={`h-5 w-5 ${staff.verifications.idVerified ? 'text-success' : 'text-muted-foreground'}`} />
                       <div>
                         <p className="font-medium text-sm">ID Verified</p>
                         <p className="text-xs text-muted-foreground">{staff.verifications.idVerified ? 'Confirmed' : 'Pending'}</p>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.backgroundCheck ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : ''}`}>
-                      <CheckCircle className={`h-5 w-5 ${staff.verifications.backgroundCheck ? 'text-green-600' : 'text-muted-foreground'}`} />
+                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.backgroundCheck ? 'bg-success/5 border-success/30' : ''}`}>
+                      <CheckCircle className={`h-5 w-5 ${staff.verifications.backgroundCheck ? 'text-success' : 'text-muted-foreground'}`} />
                       <div>
                         <p className="font-medium text-sm">Background Check</p>
                         <p className="text-xs text-muted-foreground">{staff.verifications.backgroundCheck ? 'Passed' : 'Pending'}</p>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.rightToWork ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : ''}`}>
-                      <CheckCircle className={`h-5 w-5 ${staff.verifications.rightToWork ? 'text-green-600' : 'text-muted-foreground'}`} />
+                    <div className={`flex items-center gap-3 p-3 rounded-lg border ${staff.verifications.rightToWork ? 'bg-success/5 border-success/30' : ''}`}>
+                      <CheckCircle className={`h-5 w-5 ${staff.verifications.rightToWork ? 'text-success' : 'text-muted-foreground'}`} />
                       <div>
                         <p className="font-medium text-sm">Right to Work</p>
                         <p className="text-xs text-muted-foreground">{staff.verifications.rightToWork ? 'Verified' : 'Pending'}</p>
@@ -429,7 +429,7 @@ function StaffMemberDetailsPage() {
                       <div className="text-right">
                         <div className="flex items-center gap-1">
                           {Array.from({ length: shift.rating }).map((_, i) => (
-                            <Star key={i} className="h-4 w-4 text-amber-500 fill-amber-500" />
+                            <Star key={i} className="h-4 w-4 text-warning fill-warning" />
                           ))}
                         </div>
                         <Badge variant="secondary">Completed</Badge>

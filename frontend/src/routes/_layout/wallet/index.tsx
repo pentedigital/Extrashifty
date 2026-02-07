@@ -96,7 +96,7 @@ function WalletIndexPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-3xl font-bold text-success">
                 {formatCurrency(balance, currency)}
               </p>
             </div>
@@ -195,7 +195,7 @@ function WalletIndexPage() {
                     <div className="flex items-center gap-4">
                       <p
                         className={`font-semibold ${
-                          displayAmount >= 0 ? 'text-green-600' : 'text-red-600'
+                          displayAmount >= 0 ? 'text-success' : 'text-destructive'
                         }`}
                       >
                         {displayAmount >= 0 ? '+' : ''}

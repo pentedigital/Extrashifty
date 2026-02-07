@@ -124,11 +124,11 @@ function AdminTransactionsPage() {
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${tx.type === 'refund' ? 'bg-amber-100' : tx.type === 'payout' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                  <div className={`p-2 rounded-full ${tx.type === 'refund' ? 'bg-warning/10' : tx.type === 'payout' ? 'bg-info/10' : 'bg-success/10'}`}>
                     {tx.type === 'payout' || tx.type === 'refund' ? (
-                      <ArrowUpRight className={`h-4 w-4 ${tx.type === 'refund' ? 'text-amber-600' : 'text-blue-600'}`} />
+                      <ArrowUpRight className={`h-4 w-4 ${tx.type === 'refund' ? 'text-warning' : 'text-info'}`} />
                     ) : (
-                      <ArrowDownLeft className="h-4 w-4 text-green-600" />
+                      <ArrowDownLeft className="h-4 w-4 text-success" />
                     )}
                   </div>
                   <div>

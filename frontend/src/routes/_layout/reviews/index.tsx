@@ -159,11 +159,11 @@ function ReviewsPage() {
                     <div key={stars} className="flex items-center gap-2 text-sm">
                       <span className="w-12 flex items-center gap-1">
                         {stars}
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-3 w-3 fill-warning text-warning" />
                       </span>
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-yellow-400 transition-all"
+                          className="h-full bg-warning transition-all"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>

@@ -205,8 +205,8 @@ function NotificationSettingsPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100">
-                  <CreditCard className="h-4 w-4 text-green-600" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10">
+                  <CreditCard className="h-4 w-4 text-success" />
                 </div>
                 <div>
                   <Label htmlFor="payment_updates" className="text-base font-medium cursor-pointer">

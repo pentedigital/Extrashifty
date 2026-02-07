@@ -89,7 +89,7 @@ export function PaymentMethodSelector({
           <div className="flex items-center gap-2">
             {method.is_default && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <Star className="h-3 w-3 fill-warning text-warning" />
                 Default
               </span>
             )}

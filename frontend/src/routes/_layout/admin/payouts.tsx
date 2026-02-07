@@ -152,11 +152,11 @@ function AdminPayoutsPage() {
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${payout.status === 'completed' ? 'bg-green-100' : 'bg-amber-100'}`}>
+                  <div className={`p-2 rounded-full ${payout.status === 'completed' ? 'bg-success/10' : 'bg-warning/10'}`}>
                     {payout.status === 'completed' ? (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     ) : (
-                      <Clock className="h-4 w-4 text-amber-600" />
+                      <Clock className="h-4 w-4 text-warning" />
                     )}
                   </div>
                   <div>

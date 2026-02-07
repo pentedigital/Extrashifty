@@ -149,12 +149,12 @@ function BillingOverviewPage() {
               <>
                 <div className="p-4 bg-white rounded-lg">
                   <p className="text-sm text-muted-foreground">Available</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(availableBalance)}</p>
+                  <p className="text-2xl font-bold text-success">{formatCurrency(availableBalance)}</p>
                   <p className="text-xs text-muted-foreground">Ready to withdraw</p>
                 </div>
                 <div className="p-4 bg-white rounded-lg">
                   <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingBalance)}</p>
+                  <p className="text-2xl font-bold text-warning">{formatCurrency(pendingBalance)}</p>
                   <p className="text-xs text-muted-foreground">Processing</p>
                 </div>
                 <div className="p-4 bg-white rounded-lg">

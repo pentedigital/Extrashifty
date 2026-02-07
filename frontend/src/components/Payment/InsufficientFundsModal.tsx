@@ -65,8 +65,8 @@ export function InsufficientFundsModal({
       footer={footer}
     >
       <div className="text-center sm:text-left">
-        <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 mb-4">
-          <AlertTriangle className="h-6 w-6 text-amber-600" />
+        <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 mb-4">
+          <AlertTriangle className="h-6 w-6 text-warning" />
         </div>
       </div>
 
@@ -85,10 +85,10 @@ export function InsufficientFundsModal({
 
           <div className={cn(
             'flex items-center justify-between p-3 rounded-lg border-2',
-            'bg-red-50 border-red-200'
+            'bg-destructive/5 border-destructive/30'
           )}>
-            <span className="text-red-700 font-medium">Shortfall</span>
-            <span className="text-lg font-bold text-red-600">
+            <span className="text-destructive font-medium">Shortfall</span>
+            <span className="text-lg font-bold text-destructive">
               {formatCurrency(shortfall, currency)}
             </span>
           </div>
@@ -124,14 +124,14 @@ export function InsufficientFundsWarning({
   if (hasSufficientFunds) {
     return (
       <div className={cn(
-        'p-3 rounded-lg bg-green-50 border border-green-200',
+        'p-3 rounded-lg bg-success/5 border border-success/30',
         className
       )}>
-        <div className="flex items-center gap-2 text-green-700">
+        <div className="flex items-center gap-2 text-success">
           <Wallet className="h-4 w-4" />
           <span className="font-medium">Sufficient funds available</span>
         </div>
-        <p className="text-sm text-green-600 mt-1">
+        <p className="text-sm text-success mt-1">
           {formatCurrency(requiredAmount, currency)} will be used for this shift
         </p>
       </div>
@@ -140,17 +140,17 @@ export function InsufficientFundsWarning({
 
   return (
     <div className={cn(
-      'p-3 rounded-lg bg-red-50 border border-red-200',
+      'p-3 rounded-lg bg-destructive/5 border border-destructive/30',
       className
     )}>
-      <div className="flex items-center gap-2 text-red-700">
+      <div className="flex items-center gap-2 text-destructive">
         <AlertTriangle className="h-4 w-4" />
         <span className="font-medium">Insufficient funds</span>
       </div>
-      <p className="text-sm text-red-600 mt-1">
+      <p className="text-sm text-destructive mt-1">
         You need {formatCurrency(shortfall, currency)} more to accept this worker
       </p>
-      <div className="mt-2 text-xs text-red-600 space-y-0.5">
+      <div className="mt-2 text-xs text-destructive space-y-0.5">
         <div className="flex justify-between">
           <span>Current balance:</span>
           <span className="font-medium">{formatCurrency(currentBalance, currency)}</span>

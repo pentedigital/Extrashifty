@@ -202,7 +202,7 @@ function StaffEarningsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-muted rounded-full">
-                      <DollarSign className="h-4 w-4 text-green-600" />
+                      <DollarSign className="h-4 w-4 text-success" />
                     </div>
                     <div>
                       <p className="font-medium">{earning.shift_title}</p>
@@ -212,7 +212,7 @@ function StaffEarningsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-semibold text-green-600">
+                    <span className="font-semibold text-success">
                       {formatCurrency(earning.net_amount)}
                     </span>
                     {earning.status === 'pending' ? (

@@ -193,7 +193,7 @@ function AdminCompaniesPage() {
                           variant="ghost"
                           size="icon"
                           title="Approve"
-                          className="text-green-600"
+                          className="text-success"
                           onClick={() => handleApproveCompany(company.id, company.name)}
                         >
                           <CheckCircle className="h-4 w-4" />
@@ -202,7 +202,7 @@ function AdminCompaniesPage() {
                           variant="ghost"
                           size="icon"
                           title="Reject"
-                          className="text-red-600"
+                          className="text-destructive"
                           onClick={() => handleRejectCompany(company.name)}
                         >
                           <XCircle className="h-4 w-4" />

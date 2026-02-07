@@ -61,7 +61,7 @@ export function BalanceDisplay({
             <span className="text-sm text-muted-foreground">Balance</span>
             <p className={cn(
               'text-lg font-bold',
-              isLowBalance ? 'text-red-600' : 'text-green-600'
+              isLowBalance ? 'text-destructive' : 'text-success'
             )}>
               {formatCurrency(available, currency)}
             </p>
@@ -104,7 +104,7 @@ export function BalanceDisplay({
             </p>
             <p className={cn(
               'text-3xl font-bold',
-              isLowBalance ? 'text-red-600' : 'text-green-600'
+              isLowBalance ? 'text-destructive' : 'text-success'
             )}>
               {formatCurrency(available, currency)}
             </p>
@@ -120,7 +120,7 @@ export function BalanceDisplay({
                 <Lock className="h-3 w-3" />
                 Pending
               </p>
-              <p className="text-xl font-semibold text-amber-600">
+              <p className="text-xl font-semibold text-warning">
                 {formatCurrency(reserved, currency)}
               </p>
             </div>
@@ -166,14 +166,14 @@ export function LowBalanceWarning({
 
   return (
     <div className={cn(
-      'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-amber-50 border border-amber-200',
+      'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-warning/5 border border-warning/30',
       className
     )}>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium text-amber-900">Low Balance Warning</p>
-          <p className="text-sm text-amber-800">
+          <p className="font-medium">Low Balance Warning</p>
+          <p className="text-sm text-muted-foreground">
             Your balance ({formatCurrency(balance, currency)}) is below the recommended threshold
             of {formatCurrency(threshold, currency)}. Top up {formatCurrency(shortfall, currency)} or more
             to continue accepting workers smoothly.
@@ -206,8 +206,8 @@ export function BalanceIndicator({
       <div className={cn(
         'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
         isLow
-          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-          : 'bg-green-100 text-green-700 hover:bg-green-200'
+          ? 'bg-destructive/10 text-destructive hover:bg-destructive/15'
+          : 'bg-success/10 text-success hover:bg-success/15'
       )}>
         <Wallet className="h-4 w-4" />
         {formatCurrency(balance, currency)}

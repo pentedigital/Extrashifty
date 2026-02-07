@@ -139,7 +139,7 @@ function CompanyAgenciesPage() {
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                         <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                          <Star className="h-3 w-3 text-warning fill-warning" />
                           {agency.rating}
                         </span>
                         <span className="flex items-center gap-1">
@@ -153,7 +153,7 @@ function CompanyAgenciesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-600"
+                    className="text-destructive"
                     onClick={() => handleRemoveAgency(agency.id, agency.name)}
                     disabled={removeAgencyMutation.isPending}
                   >
@@ -213,7 +213,7 @@ function CompanyAgenciesPage() {
                       <p className="text-sm text-muted-foreground">{agency.description}</p>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                         <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                          <Star className="h-3 w-3 text-warning fill-warning" />
                           {agency.rating}
                         </span>
                         <span className="flex items-center gap-1">

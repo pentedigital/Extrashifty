@@ -94,7 +94,7 @@ function ReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{formatCurrency(reportSummary.revenue.current)}</p>
-            <p className="text-xs text-green-600 flex items-center gap-1">
+            <p className="text-xs text-success flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +{reportSummary.revenue.change}% vs last month
             </p>
@@ -109,7 +109,7 @@ function ReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{reportSummary.users.current.toLocaleString()}</p>
-            <p className="text-xs text-green-600 flex items-center gap-1">
+            <p className="text-xs text-success flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +{reportSummary.users.change}% vs last month
             </p>
@@ -124,7 +124,7 @@ function ReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{reportSummary.shifts.current.toLocaleString()}</p>
-            <p className="text-xs text-green-600 flex items-center gap-1">
+            <p className="text-xs text-success flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +{reportSummary.shifts.change}% vs last month
             </p>
@@ -139,7 +139,7 @@ function ReportsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{reportSummary.fillRate.current}%</p>
-            <p className="text-xs text-green-600 flex items-center gap-1">
+            <p className="text-xs text-success flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +{reportSummary.fillRate.change}% vs last month
             </p>

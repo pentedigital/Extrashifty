@@ -213,7 +213,7 @@ function UserProfilePage() {
               <p className="text-base flex items-center gap-2">
                 {profile.is_verified ? (
                   <>
-                    <Star className="h-4 w-4 text-green-500" />
+                    <Star className="h-4 w-4 text-success" />
                     Verified Account
                   </>
                 ) : (

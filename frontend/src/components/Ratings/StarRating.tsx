@@ -114,7 +114,7 @@ export function StarRating({
               <Star
                 className={cn(
                   sizeClasses[size],
-                  'absolute inset-0 text-yellow-400 fill-yellow-400',
+                  'absolute inset-0 text-warning fill-warning',
                   isInteractive && 'transition-colors',
                   isPartiallyFilled && 'clip-path-half'
                 )}

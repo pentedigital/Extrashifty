@@ -219,7 +219,7 @@ function AgencyShiftsPage() {
                       ))}
                     </div>
                     {shift.spotsFilled < shift.spotsTotal && (
-                      <span className="text-sm text-amber-600">
+                      <span className="text-sm text-warning">
                         +{shift.spotsTotal - shift.spotsFilled} needed
                       </span>
                     )}

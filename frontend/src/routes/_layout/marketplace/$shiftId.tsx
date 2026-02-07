@@ -241,7 +241,7 @@ function ShiftDetailPage() {
 
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                    <Star className="h-4 w-4 text-warning fill-warning" />
                     <span className="font-medium">{shift.company.average_rating}</span>
                   </div>
                   <span className="text-muted-foreground">

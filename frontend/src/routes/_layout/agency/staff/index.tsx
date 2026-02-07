@@ -147,7 +147,7 @@ function StaffPoolPage() {
                     {member.status === 'active' && (
                       <div
                         className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white ${
-                          member.is_available ? 'bg-green-500' : 'bg-gray-400'
+                          member.is_available ? 'bg-success/50' : 'bg-gray-400'
                         }`}
                       />
                     )}
@@ -160,7 +160,7 @@ function StaffPoolPage() {
                     <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                       {member.rating > 0 && (
                         <>
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <Star className="h-4 w-4 text-warning fill-warning" />
                           <span>{member.rating}</span>
                           <span>-</span>
                         </>

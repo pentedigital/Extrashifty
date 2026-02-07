@@ -78,7 +78,7 @@ function RecoverPasswordPage() {
         <CardContent>
           {isSuccess ? (
             <div className="space-y-4">
-              <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800">
+              <div className="rounded-lg bg-success/5 border border-success/30 p-4 text-sm text-success">
                 <p>
                   Check your email for a link to reset your password. If it
                   doesn't appear within a few minutes, check your spam folder.

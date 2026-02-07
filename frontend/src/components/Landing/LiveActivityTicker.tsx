@@ -32,9 +32,9 @@ function ActivityItem({ activity }: { activity: Activity }) {
   }
 
   const colors = {
-    posted: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-200 dark:border-blue-800',
-    claimed: 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border-amber-200 dark:border-amber-800',
-    filled: 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border-green-200 dark:border-green-800',
+    posted: 'bg-info/10 text-info border-info/30',
+    claimed: 'bg-warning/10 text-warning border-warning/30',
+    filled: 'bg-success/10 text-success border-success/30',
   }
 
   const labels = {
@@ -61,7 +61,7 @@ function ActivityItem({ activity }: { activity: Activity }) {
           {activity.type === 'filled' && `@ ${activity.company}`}
         </span>
         {activity.rate && (
-          <span className="font-semibold text-brand-600 dark:text-brand-400">
+          <span className="font-semibold text-brand-600">
             €{activity.rate}/hr
           </span>
         )}
@@ -82,10 +82,10 @@ export function LiveActivityTicker() {
       {/* Live indicator */}
       <div className="flex items-center gap-2 mb-3 min-w-0">
         <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-600" />
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success/50 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
         </span>
-        <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">
+        <span className="text-xs font-bold text-success uppercase tracking-wider">
           Live Activity
         </span>
       </div>
@@ -145,15 +145,15 @@ export function LiveStatCounter({ label, value, suffix = '', trend, icon: Icon, 
   }, [value])
 
   const colorClasses = {
-    brand: 'bg-brand-500/10 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400',
-    green: 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400',
-    blue: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400',
+    brand: 'bg-brand-500/10 text-brand-600 dark:bg-brand-500/20',
+    green: 'bg-success/50/10 text-success',
+    blue: 'bg-info/10 text-info',
   }
 
   const valueClasses = {
-    brand: 'text-brand-600 dark:text-brand-400',
-    green: 'text-green-600 dark:text-green-400',
-    blue: 'text-blue-600 dark:text-blue-400',
+    brand: 'text-brand-600',
+    green: 'text-success',
+    blue: 'text-info',
   }
 
   return (
@@ -166,7 +166,7 @@ export function LiveStatCounter({ label, value, suffix = '', trend, icon: Icon, 
         {displayValue.toLocaleString()}{suffix}
       </p>
       {trend !== undefined && (
-        <p className="text-xs font-semibold text-green-600 dark:text-green-400 mt-1 flex items-center justify-center gap-1">
+        <p className="text-xs font-semibold text-success mt-1 flex items-center justify-center gap-1">
           <TrendingUp className="h-3 w-3" aria-hidden="true" />
           +{trend} this hour
         </p>
@@ -213,11 +213,11 @@ export function LiveShiftCard({
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               {title}
               {isFilled ? (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-success px-2 py-0.5 rounded-full">
                   FILLED
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-green-600 px-2 py-0.5 rounded-full animate-pulse">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-white bg-success px-2 py-0.5 rounded-full animate-pulse">
                   LIVE
                 </span>
               )}
@@ -225,7 +225,7 @@ export function LiveShiftCard({
             <p className="text-sm text-muted-foreground mt-0.5">{company}</p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-brand-600 dark:text-brand-400">€{rate}</p>
+            <p className="text-lg font-bold text-brand-600">€{rate}</p>
             <p className="text-xs text-muted-foreground">/hour</p>
           </div>
         </div>
@@ -247,13 +247,13 @@ export function LiveShiftCard({
             <span className="text-xs font-medium text-muted-foreground">
               {spotsFilled}/{spotsTotal} filled
             </span>
-            <span className="text-xs font-bold text-green-600 dark:text-green-400">
+            <span className="text-xs font-bold text-success">
               {Math.round(fillPercentage)}%
             </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-brand-500 to-green-500 rounded-full transition-all duration-1000 ease-out"
+              className="h-full bg-gradient-to-r from-brand-500 to-success rounded-full transition-all duration-1000 ease-out"
               style={{ width: `${fillPercentage}%` }}
             />
           </div>

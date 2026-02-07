@@ -401,7 +401,7 @@ function MarketplacePage() {
                               <span
                                 className={cn(
                                   'inline-flex items-center gap-1 text-xs font-medium tabular-nums',
-                                  spotsAvail <= 1 ? 'text-red-600' : spotsAvail <= 3 ? 'text-amber-600' : 'text-green-600'
+                                  spotsAvail <= 1 ? 'text-destructive' : spotsAvail <= 3 ? 'text-warning' : 'text-success'
                                 )}
                               >
                                 <Users className="h-3 w-3" />
@@ -491,7 +491,7 @@ function MarketplacePage() {
                           <span
                             className={cn(
                               'text-xs font-medium tabular-nums',
-                              spotsAvail <= 1 ? 'text-red-600' : spotsAvail <= 3 ? 'text-amber-600' : 'text-green-600'
+                              spotsAvail <= 1 ? 'text-destructive' : spotsAvail <= 3 ? 'text-warning' : 'text-success'
                             )}
                           >
                             {spotsAvail} spot{spotsAvail !== 1 ? 's' : ''} left

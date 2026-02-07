@@ -258,7 +258,7 @@ function TransactionsPage() {
                       <div className="flex items-center gap-4">
                         <p
                           className={`font-semibold ${
-                            displayAmount >= 0 ? 'text-green-600' : 'text-red-600'
+                            displayAmount >= 0 ? 'text-success' : 'text-destructive'
                           }`}
                         >
                           {displayAmount >= 0 ? '+' : ''}

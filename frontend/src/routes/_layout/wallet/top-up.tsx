@@ -381,9 +381,9 @@ function TopUpPage() {
               />
             ) : paymentMethod === 'ach' ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="font-medium text-blue-900">ACH Direct Debit</p>
-                  <p className="text-sm text-blue-700 mt-1">
+                <div className="p-4 rounded-lg bg-info/5 border border-info/30">
+                  <p className="font-medium text-info">ACH Direct Debit</p>
+                  <p className="text-sm text-info mt-1">
                     Connect your US bank account for direct debit payments.
                     Funds typically arrive within 3-5 business days.
                   </p>
@@ -447,7 +447,7 @@ function TopUpPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Current Balance</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {formatCurrency(balance, currency)}
               </p>
             </div>
@@ -647,7 +647,7 @@ function TopUpPage() {
               </div>
               <div className="flex justify-between pt-2 border-t">
                 <span className="text-muted-foreground">New balance</span>
-                <span className="font-semibold text-green-600">
+                <span className="font-semibold text-success">
                   {formatCurrency(balance + finalAmount, currency)}
                 </span>
               </div>

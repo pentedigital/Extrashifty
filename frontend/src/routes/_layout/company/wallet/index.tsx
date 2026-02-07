@@ -122,8 +122,8 @@ function CompanyWalletPage() {
         <Link to="/wallet/top-up">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-2 rounded-full bg-green-100">
-                <Plus className="h-5 w-5 text-green-600" />
+              <div className="p-2 rounded-full bg-success/10">
+                <Plus className="h-5 w-5 text-success" />
               </div>
               <div>
                 <p className="font-medium">Quick Top-up</p>
@@ -136,8 +136,8 @@ function CompanyWalletPage() {
         <Link to="/wallet/transactions">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-2 rounded-full bg-blue-100">
-                <History className="h-5 w-5 text-blue-600" />
+              <div className="p-2 rounded-full bg-info/10">
+                <History className="h-5 w-5 text-info" />
               </div>
               <div>
                 <p className="font-medium">Transactions</p>
@@ -164,8 +164,8 @@ function CompanyWalletPage() {
         <Link to="/wallet/top-up">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-2 rounded-full bg-amber-100">
-                <Settings className="h-5 w-5 text-amber-600" />
+              <div className="p-2 rounded-full bg-warning/10">
+                <Settings className="h-5 w-5 text-warning" />
               </div>
               <div>
                 <p className="font-medium">Auto Top-up</p>
@@ -180,16 +180,16 @@ function CompanyWalletPage() {
 
       {/* Auto Top-up Status */}
       {autoTopupData?.enabled && (
-        <Card className="border-green-200 bg-green-50/50">
+        <Card className="border-success/30 bg-success/5">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-green-100">
-                  <RefreshCw className="h-4 w-4 text-green-600" />
+                <div className="p-2 rounded-full bg-success/10">
+                  <RefreshCw className="h-4 w-4 text-success" />
                 </div>
                 <div>
-                  <p className="font-medium text-green-900">Auto Top-up Enabled</p>
-                  <p className="text-sm text-green-700">
+                  <p className="font-medium">Auto Top-up Enabled</p>
+                  <p className="text-sm text-muted-foreground">
                     Your wallet will automatically top up {formatCurrency(autoTopupData.amount, currency)} when
                     balance falls below {formatCurrency(autoTopupData.threshold, currency)}
                   </p>
@@ -219,8 +219,8 @@ function CompanyWalletPage() {
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-1.5 rounded-full bg-amber-100 mt-0.5">
-                <Clock className="h-4 w-4 text-amber-600" />
+              <div className="p-1.5 rounded-full bg-warning/10 mt-0.5">
+                <Clock className="h-4 w-4 text-warning" />
               </div>
               <div>
                 <p className="font-medium">Worker Accepted</p>
@@ -230,8 +230,8 @@ function CompanyWalletPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="p-1.5 rounded-full bg-blue-100 mt-0.5">
-                <Check className="h-4 w-4 text-blue-600" />
+              <div className="p-1.5 rounded-full bg-info/10 mt-0.5">
+                <Check className="h-4 w-4 text-info" />
               </div>
               <div>
                 <p className="font-medium">Shift Completed</p>
@@ -241,8 +241,8 @@ function CompanyWalletPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="p-1.5 rounded-full bg-green-100 mt-0.5">
-                <Building className="h-4 w-4 text-green-600" />
+              <div className="p-1.5 rounded-full bg-success/10 mt-0.5">
+                <Building className="h-4 w-4 text-success" />
               </div>
               <div>
                 <p className="font-medium">Worker Paid</p>
@@ -313,7 +313,7 @@ function CompanyWalletPage() {
                     <div className="flex items-center gap-4">
                       <p
                         className={`font-semibold ${
-                          displayAmount >= 0 ? 'text-green-600' : 'text-red-600'
+                          displayAmount >= 0 ? 'text-success' : 'text-destructive'
                         }`}
                       >
                         {displayAmount >= 0 ? '+' : ''}

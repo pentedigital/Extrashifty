@@ -345,9 +345,9 @@ function ProcessPayrollPage() {
             </div>
 
             {selectedPreviewData.length === 0 && (
-              <div className="mt-4 p-4 bg-yellow-50 rounded-lg flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-                <p className="text-yellow-700">No staff members selected. Please select at least one to process payroll.</p>
+              <div className="mt-4 p-4 bg-warning/5 rounded-lg flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-warning" />
+                <p className="text-warning">No staff members selected. Please select at least one to process payroll.</p>
               </div>
             )}
           </CardContent>

@@ -172,8 +172,8 @@ function WithdrawPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col items-center py-8">
-              <div className="p-4 bg-green-100 rounded-full mb-4">
-                <Check className="h-10 w-10 text-green-600" />
+              <div className="p-4 bg-success/10 rounded-full mb-4">
+                <Check className="h-10 w-10 text-success" />
               </div>
               <h2 className="text-xl font-semibold mb-2">Withdrawal Initiated!</h2>
               <p className="text-muted-foreground text-center mb-2">
@@ -284,12 +284,12 @@ function WithdrawPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {formatCurrency(balance, currency)}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <ArrowUpFromLine className="h-6 w-6 text-green-600" />
+            <div className="p-3 bg-success/10 rounded-full">
+              <ArrowUpFromLine className="h-6 w-6 text-success" />
             </div>
           </div>
         </CardContent>

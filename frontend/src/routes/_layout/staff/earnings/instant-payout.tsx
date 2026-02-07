@@ -152,8 +152,8 @@ function InstantPayoutPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col items-center py-8">
-              <div className="p-4 bg-green-100 rounded-full mb-4">
-                <Check className="h-10 w-10 text-green-600" />
+              <div className="p-4 bg-success/10 rounded-full mb-4">
+                <Check className="h-10 w-10 text-success" />
               </div>
               <h2 className="text-xl font-semibold mb-2">Payout Initiated!</h2>
               <p className="text-muted-foreground text-center mb-2">
@@ -203,11 +203,11 @@ function InstantPayoutPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Instant payout fee (1.5%)</span>
-                <span className="text-red-600">-{formatCurrency(fee)}</span>
+                <span className="text-destructive">-{formatCurrency(fee)}</span>
               </div>
               <div className="border-t pt-3 flex justify-between font-semibold text-lg">
                 <span>You receive</span>
-                <span className="text-green-600">{formatCurrency(netAmount)}</span>
+                <span className="text-success">{formatCurrency(netAmount)}</span>
               </div>
             </div>
 
@@ -276,12 +276,12 @@ function InstantPayoutPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Available for Instant Payout</p>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-3xl font-bold text-success">
                 {formatCurrency(availableBalance)}
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <Zap className="h-6 w-6 text-yellow-600" />
+            <div className="p-3 bg-warning/10 rounded-full">
+              <Zap className="h-6 w-6 text-warning" />
             </div>
           </div>
         </CardContent>
@@ -297,11 +297,11 @@ function InstantPayoutPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {availableBalance < MINIMUM_PAYOUT_AMOUNT ? (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div className="p-4 bg-warning/5 border border-warning/30 rounded-lg flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
               <div>
-                <p className="font-medium text-yellow-800">Minimum not met</p>
-                <p className="text-sm text-yellow-700">
+                <p className="font-medium text-warning">Minimum not met</p>
+                <p className="text-sm text-warning">
                   The minimum instant payout is {formatCurrency(MINIMUM_PAYOUT_AMOUNT)}.
                   You need {formatCurrency(MINIMUM_PAYOUT_AMOUNT - availableBalance)} more.
                 </p>
@@ -319,18 +319,18 @@ function InstantPayoutPage() {
                   <span className="text-muted-foreground">
                     Instant payout fee (1.5%)
                   </span>
-                  <span className="text-red-600">-{formatCurrency(fee)}</span>
+                  <span className="text-destructive">-{formatCurrency(fee)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between font-semibold">
                   <span>You receive</span>
-                  <span className="text-green-600">{formatCurrency(netAmount)}</span>
+                  <span className="text-success">{formatCurrency(netAmount)}</span>
                 </div>
               </div>
 
               {/* Info Note */}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
-                <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                <p className="text-sm text-blue-800">
+              <div className="p-3 bg-info/5 border border-info/30 rounded-lg flex items-start gap-3">
+                <Info className="h-4 w-4 text-info mt-0.5" />
+                <p className="text-sm text-info">
                   Standard payouts (no fee) are processed every Friday. Use instant payout to get paid now.
                 </p>
               </div>

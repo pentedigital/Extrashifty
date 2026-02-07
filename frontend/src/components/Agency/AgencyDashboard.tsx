@@ -296,7 +296,7 @@ export function AgencyDashboard() {
         {/* Unfilled Shifts */}
         <Card className="border-warning/30 bg-warning/5">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-yellow-800">
+            <CardTitle className="flex items-center gap-2 text-warning">
               <AlertCircle className="h-5 w-5" />
               Unfilled Shifts
             </CardTitle>

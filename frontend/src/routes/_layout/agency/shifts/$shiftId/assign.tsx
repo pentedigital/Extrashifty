@@ -396,7 +396,7 @@ function AssignStaffPage() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   {shift.requirements.map((req, index) => (
                     <li key={index} className="flex items-center gap-2">
-                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      <CheckCircle className="h-3 w-3 text-success" />
                       {req}
                     </li>
                   ))}
@@ -533,7 +533,7 @@ function AssignStaffPage() {
                         </div>
                         <div className="text-right">
                           <div className="flex items-center gap-1 justify-end">
-                            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                            <Star className="h-4 w-4 text-warning fill-warning" />
                             <span className="font-medium">{staff.rating}</span>
                           </div>
                           <p className="text-sm text-muted-foreground">

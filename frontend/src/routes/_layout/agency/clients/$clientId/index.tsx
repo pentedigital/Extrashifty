@@ -129,7 +129,7 @@ function ClientDetailsPage() {
               <h2 className="mt-4 text-xl font-semibold">{client.businessName}</h2>
               <Badge variant="success" className="mt-2">Active Client</Badge>
               <div className="flex items-center gap-1 mt-3">
-                <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                <Star className="h-5 w-5 text-warning fill-warning" />
                 <span className="font-semibold">{client.rating}</span>
                 <span className="text-muted-foreground">({client.reviewCount} reviews)</span>
               </div>
@@ -197,7 +197,7 @@ function ClientDetailsPage() {
                 </Card>
                 <Card>
                   <CardContent className="pt-6 text-center">
-                    <p className="text-2xl font-bold text-amber-600">{formatCurrency(client.stats.outstandingBalance)}</p>
+                    <p className="text-2xl font-bold text-warning">{formatCurrency(client.stats.outstandingBalance)}</p>
                     <p className="text-sm text-muted-foreground">Outstanding</p>
                   </CardContent>
                 </Card>
@@ -253,7 +253,7 @@ function ClientDetailsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                      <p className="text-2xl font-bold text-amber-600">{formatCurrency(client.stats.outstandingBalance)}</p>
+                      <p className="text-2xl font-bold text-warning">{formatCurrency(client.stats.outstandingBalance)}</p>
                     </div>
                     <Button onClick={handleGenerateInvoice}>
                       <FileText className="mr-2 h-4 w-4" />
@@ -289,7 +289,7 @@ function ClientDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                          <Star className="h-4 w-4 text-warning fill-warning" />
                           <span className="font-medium">{staff.rating}</span>
                         </div>
                       </div>

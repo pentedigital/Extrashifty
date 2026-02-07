@@ -152,8 +152,8 @@ function AgencyEarningsPage() {
                     <p className="text-sm text-muted-foreground">Total Earnings</p>
                     <p className="text-2xl font-bold">{formatCurrency(totalEarnings)}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <DollarSign className="h-5 w-5 text-green-600" />
+                  <div className="p-3 bg-success/10 rounded-full">
+                    <DollarSign className="h-5 w-5 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -165,8 +165,8 @@ function AgencyEarningsPage() {
                     <p className="text-sm text-muted-foreground">Active Staff</p>
                     <p className="text-2xl font-bold">{byStaff.length}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <Users className="h-5 w-5 text-blue-600" />
+                  <div className="p-3 bg-info/10 rounded-full">
+                    <Users className="h-5 w-5 text-info" />
                   </div>
                 </div>
               </CardContent>
@@ -290,7 +290,7 @@ function AgencyEarningsPage() {
                               <span className="font-medium">{staff.staff_name}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-semibold text-green-600">
+                          <td className="py-3 px-4 text-right font-semibold text-success">
                             {formatCurrency(staff.total_earnings)}
                           </td>
                           <td className="py-3 px-4 text-right text-muted-foreground">
@@ -305,7 +305,7 @@ function AgencyEarningsPage() {
                     <tfoot>
                       <tr className="bg-muted/50">
                         <td className="py-3 px-4 font-semibold">Total</td>
-                        <td className="py-3 px-4 text-right font-bold text-green-600">
+                        <td className="py-3 px-4 text-right font-bold text-success">
                           {formatCurrency(byStaff.reduce((sum, s) => sum + s.total_earnings, 0))}
                         </td>
                         <td className="py-3 px-4 text-right font-medium">
@@ -356,7 +356,7 @@ function AgencyEarningsPage() {
                               <span className="font-medium">{client.client_name}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-semibold text-green-600">
+                          <td className="py-3 px-4 text-right font-semibold text-success">
                             {formatCurrency(client.total_earnings)}
                           </td>
                           <td className="py-3 px-4 text-right text-muted-foreground">
@@ -371,7 +371,7 @@ function AgencyEarningsPage() {
                     <tfoot>
                       <tr className="bg-muted/50">
                         <td className="py-3 px-4 font-semibold">Total</td>
-                        <td className="py-3 px-4 text-right font-bold text-green-600">
+                        <td className="py-3 px-4 text-right font-bold text-success">
                           {formatCurrency(byClient.reduce((sum, c) => sum + c.total_earnings, 0))}
                         </td>
                         <td className="py-3 px-4 text-right font-medium">

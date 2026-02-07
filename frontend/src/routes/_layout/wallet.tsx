@@ -117,13 +117,13 @@ function WalletPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-3xl font-bold text-success">
                 {formatCurrency(balance, currency)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pending Earnings</p>
-              <p className="text-2xl font-semibold text-yellow-600">
+              <p className="text-2xl font-semibold text-warning">
                 {formatCurrency(pending, currency)}
               </p>
             </div>
@@ -192,7 +192,7 @@ function WalletPage() {
                     <div className="flex items-center gap-4">
                       <p
                         className={`font-semibold ${
-                          transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                          transaction.amount >= 0 ? 'text-success' : 'text-destructive'
                         }`}
                       >
                         {transaction.amount >= 0 ? '+' : ''}
@@ -220,8 +220,8 @@ function WalletPage() {
 
           {withdrawSuccess ? (
             <div className="flex flex-col items-center py-8">
-              <div className="p-3 bg-green-100 rounded-full mb-4">
-                <Check className="h-8 w-8 text-green-600" />
+              <div className="p-3 bg-success/10 rounded-full mb-4">
+                <Check className="h-8 w-8 text-success" />
               </div>
               <p className="text-lg font-semibold">Withdrawal Initiated!</p>
               <p className="text-muted-foreground">
@@ -249,7 +249,7 @@ function WalletPage() {
                     Available: {formatCurrency(balance, currency)}
                   </p>
                   {withdrawError && (
-                    <p className="text-sm text-red-600">{withdrawError}</p>
+                    <p className="text-sm text-destructive">{withdrawError}</p>
                   )}
                 </div>
 

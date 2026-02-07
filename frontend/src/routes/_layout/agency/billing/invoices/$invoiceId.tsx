@@ -245,8 +245,8 @@ function InvoiceDetailPage() {
               </div>
 
               {invoice.paid_date && (
-                <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                  <p className="text-green-700 font-medium flex items-center gap-2">
+                <div className="mt-4 p-4 bg-success/5 rounded-lg">
+                  <p className="text-success font-medium flex items-center gap-2">
                     <Check className="h-5 w-5" />
                     Paid on {formatDate(invoice.paid_date)}
                   </p>
@@ -295,7 +295,7 @@ function InvoiceDetailPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 mt-2 rounded-full bg-green-500" />
+                  <div className="w-2 h-2 mt-2 rounded-full bg-success/50" />
                   <div>
                     <p className="font-medium">Created</p>
                     <p className="text-sm text-muted-foreground">{formatDate(invoice.created_at)}</p>
@@ -303,7 +303,7 @@ function InvoiceDetailPage() {
                 </div>
                 {invoice.status !== 'draft' && (
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
+                    <div className="w-2 h-2 mt-2 rounded-full bg-info" />
                     <div>
                       <p className="font-medium">Sent</p>
                       <p className="text-sm text-muted-foreground">Sent to client</p>
@@ -312,7 +312,7 @@ function InvoiceDetailPage() {
                 )}
                 {invoice.status === 'overdue' && (
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-red-500" />
+                    <div className="w-2 h-2 mt-2 rounded-full bg-destructive/50" />
                     <div>
                       <p className="font-medium">Overdue</p>
                       <p className="text-sm text-muted-foreground">Was due {formatDate(invoice.due_date)}</p>
@@ -321,7 +321,7 @@ function InvoiceDetailPage() {
                 )}
                 {invoice.paid_date && (
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 mt-2 rounded-full bg-green-500" />
+                    <div className="w-2 h-2 mt-2 rounded-full bg-success/50" />
                     <div>
                       <p className="font-medium">Paid</p>
                       <p className="text-sm text-muted-foreground">{formatDate(invoice.paid_date)}</p>
