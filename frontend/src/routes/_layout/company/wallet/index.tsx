@@ -16,7 +16,7 @@ import {
   Calendar,
   Building,
 } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { getTransactionIcon, getTransactionColor, getTransactionDisplayAmount } from '@/lib/transactionUtils'
 import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 import {

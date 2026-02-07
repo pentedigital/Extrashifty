@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Building2, Plus, Search, FileText, Calendar, AlertCircle, Loader2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -42,7 +42,7 @@ function ClientsPage() {
   const updateClientMutation = useUpdateClient()
 
   // Transform API data to display format
-  const transformClientData = (items: NonNullable<typeof clientsData>['items'] | undefined): ClientDisplay[] => {
+  const transformClientData = useCallback((items: NonNullable<typeof clientsData>['items'] | undefined): ClientDisplay[] => {
     if (!items) return []
     return items.map((client) => ({
       id: client.id,
@@ -56,10 +56,10 @@ function ClientsPage() {
       has_unfilled: false, // Would come from shifts API
       status: client.status ?? (client.is_active ? 'active' : 'inactive'),
     }))
-  }
+  }, [])
 
   // Filter clients by status
-  const allClients = useMemo(() => transformClientData(clientsData?.items), [clientsData])
+  const allClients = useMemo(() => transformClientData(clientsData?.items), [clientsData, transformClientData])
   const activeClients = useMemo(() => allClients.filter(c => c.status === 'active'), [allClients])
   const pendingClients = useMemo(() => allClients.filter(c => c.status === 'pending'), [allClients])
   const inactiveClients = useMemo(() => allClients.filter(c => c.status === 'inactive'), [allClients])

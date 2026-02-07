@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils'
 import { getTransactionStatusBadge } from '@/lib/badgeUtils'
 import { getTransactionIcon, getTransactionColor, getTransactionDisplayAmount } from '@/lib/transactionUtils'
-import type { TransactionType, TransactionStatus } from '@/hooks/api/useWalletApi'
+
 
 export const Route = createFileRoute('/_layout/wallet/')({
   component: WalletIndexPage,

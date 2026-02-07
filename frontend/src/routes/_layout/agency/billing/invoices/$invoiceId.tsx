@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Send, Check, Download, FileText, Building2, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { ArrowLeft, Send, Check, Download, FileText, Building2, Clock, AlertCircle, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +16,6 @@ export const Route = createFileRoute('/_layout/agency/billing/invoices/$invoiceI
 
 function InvoiceDetailPage() {
   const { invoiceId } = Route.useParams()
-  const navigate = useNavigate()
   const { addToast } = useToast()
 
   const { data: invoice, isLoading, error } = useAgencyInvoice(invoiceId)

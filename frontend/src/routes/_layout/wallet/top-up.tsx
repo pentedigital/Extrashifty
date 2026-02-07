@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -72,19 +72,20 @@ function TopUpPage() {
   const [error, setError] = useState('')
   const [showAutoTopup, setShowAutoTopup] = useState(false)
 
-  // Auto-topup state
-  const [autoTopupEnabled, setAutoTopupEnabled] = useState(false)
-  const [autoTopupThreshold, setAutoTopupThreshold] = useState('100')
-  const [autoTopupAmount, setAutoTopupAmount] = useState('500')
+  // Auto-topup local edit state (null = use API value, non-null = user has edited)
+  const [autoTopupEnabledOverride, setAutoTopupEnabledOverride] = useState<boolean | null>(null)
+  const [autoTopupThresholdOverride, setAutoTopupThresholdOverride] = useState<string | null>(null)
+  const [autoTopupAmountOverride, setAutoTopupAmountOverride] = useState<string | null>(null)
 
-  // Load auto-topup settings
-  useEffect(() => {
-    if (autoTopupData) {
-      setAutoTopupEnabled(autoTopupData.enabled)
-      setAutoTopupThreshold(String(autoTopupData.threshold))
-      setAutoTopupAmount(String(autoTopupData.amount))
-    }
-  }, [autoTopupData])
+  // Derive effective values: user edits take priority over API data
+  const autoTopupEnabled = autoTopupEnabledOverride ?? autoTopupData?.enabled ?? false
+  const autoTopupThreshold = autoTopupThresholdOverride ?? String(autoTopupData?.threshold ?? 100)
+  const autoTopupAmount = autoTopupAmountOverride ?? String(autoTopupData?.amount ?? 500)
+
+  // Setters that mark user has edited
+  const setAutoTopupEnabled = (v: boolean) => setAutoTopupEnabledOverride(v)
+  const setAutoTopupThreshold = (v: string) => setAutoTopupThresholdOverride(v)
+  const setAutoTopupAmount = (v: string) => setAutoTopupAmountOverride(v)
 
   const balance = walletData?.available ?? 0
   const currency = walletData?.currency ?? 'EUR'
@@ -94,8 +95,8 @@ function TopUpPage() {
   // Calculate the final amount
   const finalAmount = customAmount ? parseFloat(customAmount) : parseFloat(amount) || 0
 
-  // Generate bank transfer reference
-  const bankReference = `TOPUP-${Date.now().toString(36).toUpperCase()}`
+  // Generate bank transfer reference (stable across renders)
+  const [bankReference] = useState(() => `TOPUP-${Date.now().toString(36).toUpperCase()}`)
 
   // Handle quick amount selection
   const handleQuickAmount = (quickAmount: number) => {

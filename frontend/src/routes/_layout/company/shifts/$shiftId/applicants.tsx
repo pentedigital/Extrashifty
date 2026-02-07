@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -62,7 +62,7 @@ function ShiftApplicantsPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const applicants = applicantsData?.items ?? []
+  const applicants = useMemo(() => applicantsData?.items ?? [], [applicantsData])
   const shift = shiftData
   const availableBalance = walletData?.available ?? 0
   const currency = walletData?.currency ?? 'EUR'

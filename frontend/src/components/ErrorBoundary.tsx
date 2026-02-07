@@ -83,5 +83,5 @@ export function ErrorBoundary({
   )
 }
 
-// Re-export hook from react-error-boundary for programmatic control
+// eslint-disable-next-line react-refresh/only-export-components
 export { useErrorBoundary } from 'react-error-boundary'

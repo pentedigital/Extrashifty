@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
 
-// Re-export core error boundary components for convenience
+/* eslint-disable react-refresh/only-export-components */
 export {
   ErrorBoundary,
   ErrorFallback,
@@ -20,6 +20,7 @@ export {
   type ErrorBoundaryProps,
   type ErrorFallbackProps,
 } from '@/components/ErrorBoundary'
+/* eslint-enable react-refresh/only-export-components */
 
 interface ErrorDisplayProps {
   /** The error that occurred */

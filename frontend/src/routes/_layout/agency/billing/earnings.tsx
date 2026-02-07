@@ -13,17 +13,13 @@ import {
   Users,
   Building,
   Download,
-  Calendar,
   Filter,
-  TrendingUp,
-  Clock,
   AlertCircle,
-  Loader2,
 } from 'lucide-react'
 import { useAgencyEarnings } from '@/hooks/api/usePaymentsApi'
 import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils'
-import { EarningsChart, generateChartData } from '@/components/Earnings'
+import { EarningsChart } from '@/components/Earnings'
 
 export const Route = createFileRoute('/_layout/agency/billing/earnings')({
   component: AgencyEarningsPage,
@@ -35,7 +31,7 @@ function AgencyEarningsPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'staff' | 'client'>('staff')
 
-  const { data, isLoading, error } = useAgencyEarnings({
+  const { data, isLoading } = useAgencyEarnings({
     start_date: startDate || undefined,
     end_date: endDate || undefined,
   })
@@ -51,13 +47,13 @@ function AgencyEarningsPage() {
 
   const hasFilters = startDate || endDate
 
-  // Generate mock chart data
+  // Generate mock chart data with deterministic distribution
   const chartData = useMemo(() => {
-    // Create mock weekly data for demonstration
+    const weights = [0.22, 0.28, 0.25, 0.25]
     const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-    return weeks.map((label, idx) => ({
+    return weeks.map((label, i) => ({
       label,
-      amount: Math.floor((totalEarnings / 4) * (0.7 + Math.random() * 0.6)),
+      amount: Math.floor(totalEarnings * weights[i]),
     }))
   }, [totalEarnings])
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Search, MoreVertical, Shield, Ban, Mail, Loader2 } from 'lucide-react'
+import { Search, Shield, Ban, Mail, Loader2 } from 'lucide-react'
 import { useAdminUsers } from '@/hooks/api/useAdminApi'
 import { EmptyState } from '@/components/ui/empty-state'
 

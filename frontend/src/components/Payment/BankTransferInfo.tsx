@@ -5,6 +5,33 @@ import { Badge } from '@/components/ui/badge'
 import { Building, Copy, Check, Info } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 
+function CopyButton({
+  value,
+  field,
+  copiedField,
+  onCopy,
+}: {
+  value: string
+  field: string
+  copiedField: string | null
+  onCopy: (value: string, field: string) => void
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-8 px-2"
+      onClick={() => onCopy(value, field)}
+    >
+      {copiedField === field ? (
+        <Check className="h-4 w-4 text-green-600" />
+      ) : (
+        <Copy className="h-4 w-4" />
+      )}
+    </Button>
+  )
+}
+
 interface BankTransferInfoProps {
   amount: number
   currency?: string
@@ -46,21 +73,6 @@ export function BankTransferInfo({
     }
   }
 
-  const CopyButton = ({ value, field }: { value: string; field: string }) => (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-8 px-2"
-      onClick={() => copyToClipboard(value, field)}
-    >
-      {copiedField === field ? (
-        <Check className="h-4 w-4 text-green-600" />
-      ) : (
-        <Copy className="h-4 w-4" />
-      )}
-    </Button>
-  )
-
   return (
     <div className="space-y-6">
       {/* Amount Card */}
@@ -91,7 +103,7 @@ export function BankTransferInfo({
               <p className="text-sm text-muted-foreground">Account Name</p>
               <p className="font-medium">{accountDetails.account_name}</p>
             </div>
-            <CopyButton value={accountDetails.account_name} field="account_name" />
+            <CopyButton value={accountDetails.account_name} field="account_name" copiedField={copiedField} onCopy={copyToClipboard} />
           </div>
 
           {/* IBAN */}
@@ -100,7 +112,7 @@ export function BankTransferInfo({
               <p className="text-sm text-muted-foreground">IBAN</p>
               <p className="font-mono font-medium">{accountDetails.iban}</p>
             </div>
-            <CopyButton value={accountDetails.iban.replace(/\s/g, '')} field="iban" />
+            <CopyButton value={accountDetails.iban.replace(/\s/g, '')} field="iban" copiedField={copiedField} onCopy={copyToClipboard} />
           </div>
 
           {/* BIC */}
@@ -109,7 +121,7 @@ export function BankTransferInfo({
               <p className="text-sm text-muted-foreground">BIC/SWIFT</p>
               <p className="font-mono font-medium">{accountDetails.bic}</p>
             </div>
-            <CopyButton value={accountDetails.bic} field="bic" />
+            <CopyButton value={accountDetails.bic} field="bic" copiedField={copiedField} onCopy={copyToClipboard} />
           </div>
 
           {/* Bank Name */}
@@ -126,7 +138,7 @@ export function BankTransferInfo({
               <p className="text-sm text-yellow-800">Payment Reference (Required)</p>
               <p className="font-mono font-bold text-yellow-900">{reference}</p>
             </div>
-            <CopyButton value={reference} field="reference" />
+            <CopyButton value={reference} field="reference" copiedField={copiedField} onCopy={copyToClipboard} />
           </div>
         </CardContent>
       </Card>

@@ -36,7 +36,7 @@ function PayoutsHistoryPage() {
     end_date: endDate || undefined,
   })
 
-  const payouts = data?.items ?? []
+  const payouts = useMemo(() => data?.items ?? [], [data])
 
   // Apply status filter
   const filteredPayouts = useMemo(() => {

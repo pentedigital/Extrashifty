@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Calculator, CreditCard, Users, Loader2, Check, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Calculator, CreditCard, Users, Loader2, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/components/ui/toast'
 import { formatCurrency } from '@/lib/utils'
-import { useAgencyStaff, useProcessPayroll, useAgencyAssignments } from '@/hooks/api/useAgencyApi'
+import { useAgencyStaff, useProcessPayroll } from '@/hooks/api/useAgencyApi'
 
 export const Route = createFileRoute('/_layout/agency/billing/payroll/process')({
   component: ProcessPayrollPage,

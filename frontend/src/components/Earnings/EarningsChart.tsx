@@ -91,7 +91,7 @@ export function EarningsChart({
   )
 }
 
-// Generate chart data from earnings
+// eslint-disable-next-line react-refresh/only-export-components
 export function generateChartData(
   earnings: Array<{ date: string; amount: number }>,
   groupBy: 'day' | 'week' | 'month' = 'day',
@@ -104,11 +104,12 @@ export function generateChartData(
     let key: string
 
     switch (groupBy) {
-      case 'week':
+      case 'week': {
         const weekStart = new Date(date)
         weekStart.setDate(date.getDate() - date.getDay())
         key = weekStart.toLocaleDateString('en-IE', { month: 'short', day: 'numeric' })
         break
+      }
       case 'month':
         key = date.toLocaleDateString('en-IE', { month: 'short', year: '2-digit' })
         break

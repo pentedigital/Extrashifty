@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAppStore } from '@/stores/app'
 import { authKeys } from './useAuthApi'
-import type { User } from '@/types/user'
+
 
 export const usersKeys = {
   all: ['users'] as const,

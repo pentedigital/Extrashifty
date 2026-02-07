@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { UserPlus, Search, Users, Loader2, AlertCircle } from 'lucide-react'
+import { UserPlus, Search, Users, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +37,7 @@ function StaffPoolPage() {
   const { data: inactiveStaffData, isLoading: inactiveLoading } = useAgencyStaff({ status: 'inactive' })
 
   // Transform API data to display format
-  const transformStaffData = (items: NonNullable<typeof activeStaffData>['items'] | undefined): StaffMember[] => {
+  const transformStaffData = useCallback((items: NonNullable<typeof activeStaffData>['items'] | undefined): StaffMember[] => {
     if (!items) return []
     return items.map((member) => ({
       id: member.id,
@@ -49,11 +49,11 @@ function StaffPoolPage() {
       is_available: member.is_available,
       status: member.status,
     }))
-  }
+  }, [])
 
-  const activeStaff = useMemo(() => transformStaffData(activeStaffData?.items), [activeStaffData])
-  const pendingStaff = useMemo(() => transformStaffData(pendingStaffData?.items), [pendingStaffData])
-  const inactiveStaff = useMemo(() => transformStaffData(inactiveStaffData?.items), [inactiveStaffData])
+  const activeStaff = useMemo(() => transformStaffData(activeStaffData?.items), [activeStaffData, transformStaffData])
+  const pendingStaff = useMemo(() => transformStaffData(pendingStaffData?.items), [pendingStaffData, transformStaffData])
+  const inactiveStaff = useMemo(() => transformStaffData(inactiveStaffData?.items), [inactiveStaffData, transformStaffData])
 
   const getStatusBadge = (status: string, isAvailable?: boolean) => {
     if (status === 'pending') return <Badge variant="warning">Pending</Badge>

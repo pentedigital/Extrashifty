@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Plus, Search, Calendar, MapPin, Clock, Euro, Users, Building2, Loader2 } from 'lucide-react'
-import { useToast } from '@/components/ui/toast'
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useAgencyShifts } from '@/hooks/api/useAgencyApi'
@@ -36,7 +35,6 @@ type AgencyShiftDisplay = {
 function AgencyShiftsPage() {
   const [activeTab, setActiveTab] = useState('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
-  const { addToast } = useToast()
   const navigate = useNavigate()
   const { data: shiftsData, isLoading, error } = useAgencyShifts()
 

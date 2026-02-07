@@ -65,13 +65,6 @@ function ProfilePage() {
   const agencyProfile = agencyProfileQuery.data
   const agencyStats = agencyStatsQuery.data
 
-  // Format member since date
-  const formatMemberSince = (dateStr?: string) => {
-    if (!dateStr) return 'N/A'
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-IE', { year: 'numeric', month: 'short' })
-  }
-
   if (isLoading) {
     return (
       <div className="max-w-3xl space-y-6">

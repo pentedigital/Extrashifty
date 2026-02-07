@@ -18,7 +18,7 @@ interface EarningsSummaryProps {
 export function EarningsSummary({
   thisWeek,
   thisMonth,
-  allTime,
+  allTime: _allTime,
   availableBalance,
   pendingEarnings,
   nextPayoutDate,

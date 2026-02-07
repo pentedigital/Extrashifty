@@ -8,7 +8,6 @@ import { ArrowLeft, Edit, MapPin, Clock, Euro, Users, Calendar, AlertCircle } fr
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
 import { getShiftStatusBadge } from '@/lib/badgeUtils'
 import { useShift } from '@/hooks/api/useShiftsApi'
-import type { ShiftStatus } from '@/types/shift'
 
 export const Route = createFileRoute('/_layout/company/shifts/$shiftId/')({
   component: ShiftDetailsPage,

@@ -7,14 +7,11 @@ import { LiveActivityTicker, LiveStatCounter, LiveShiftCard } from '@/components
 import {
   Users,
   TrendingUp,
-  Shield,
   CheckCircle,
-  BadgeCheck,
   Lock,
   ArrowRight,
   ArrowDown,
   Briefcase,
-  Star,
   Quote,
   Menu,
   Wallet,
@@ -593,26 +590,6 @@ function FeatureItem({
         {children}
       </span>
     </li>
-  )
-}
-
-function TrustCard({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType
-  title: string
-  description: string
-}) {
-  return (
-    <div className="bg-slate-800 rounded-xl p-5 md:p-6 border border-slate-700">
-      <div className="h-10 w-10 mb-4 rounded-lg bg-brand-500/30 flex items-center justify-center">
-        <Icon className="h-5 w-5 text-brand-400" aria-hidden="true" />
-      </div>
-      <h3 className="font-semibold mb-2 text-white">{title}</h3>
-      <p className="text-slate-300 text-sm">{description}</p>
-    </div>
   )
 }
 

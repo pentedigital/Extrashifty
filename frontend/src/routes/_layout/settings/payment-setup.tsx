@@ -33,7 +33,6 @@ function PaymentSetupPage() {
   const getOnboardingLink = useConnectOnboardingLink()
 
   const status = connectStatus?.status ?? 'not_started'
-  const isOnboardingComplete = connectStatus?.is_onboarding_complete ?? false
   const payoutsEnabled = connectStatus?.payouts_enabled ?? false
   const bankAccounts = connectStatus?.bank_accounts ?? []
   const requirements = connectStatus?.requirements
@@ -83,7 +82,7 @@ function PaymentSetupPage() {
         title: 'Opening Stripe...',
         description: 'Complete your account setup in the new window.',
       })
-    } catch (err) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Error',

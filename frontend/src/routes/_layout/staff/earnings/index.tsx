@@ -13,7 +13,6 @@ import {
   Clock,
   DollarSign,
   ArrowRight,
-  Loader2,
   AlertCircle,
 } from 'lucide-react'
 import { useEarnings, useEarningsSummary } from '@/hooks/api/usePaymentsApi'
@@ -30,9 +29,9 @@ function StaffEarningsPage() {
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useEarningsSummary()
   const { data: earningsData, isLoading: earningsLoading } = useEarnings()
 
-  const earnings = earningsData?.items ?? []
-
   // Generate chart data from last 7 days of earnings
+  const earnings = useMemo(() => earningsData?.items ?? [], [earningsData])
+
   const chartData = useMemo(() => {
     return generateChartData(
       earnings.map(e => ({ date: e.date, amount: e.net_amount })),

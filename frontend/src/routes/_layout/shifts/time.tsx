@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Clock, Play, Square, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Clock, Play, Square, CheckCircle, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,7 +41,7 @@ function TimeTrackingPage() {
     return map
   }, [shiftsData])
 
-  const currentShift = currentShiftData || { clocked_in: false }
+  const currentShift = useMemo(() => currentShiftData || { clocked_in: false }, [currentShiftData])
   const loading = isLoadingRecords || isLoadingShift
   const clockingOut = clockOutMutation.isPending
 

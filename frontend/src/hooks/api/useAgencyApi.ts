@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { STALE_TIME } from '@/constants/queryConfig'
-import type { AgencyProfile, AgencyStaffMember, AgencyClient, StaffAssignment, AgencyShift } from '@/types/agency'
+import type { AgencyProfile, StaffAssignment } from '@/types/agency'
 
 export const agencyKeys = {
   all: ['agency'] as const,

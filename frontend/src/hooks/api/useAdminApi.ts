@@ -223,9 +223,9 @@ export function useAdminDeleteUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (userId: number) => {
+    mutationFn: async (_userId: number) => {
       // Backend endpoint not implemented: DELETE /admin/users/:id
-      // When available, replace with: return await api.admin.deleteUser(userId)
+      // When available, replace with: return await api.admin.deleteUser(_userId)
       return { success: true }
     },
     onSuccess: () => {
@@ -280,9 +280,9 @@ export function useAdminVerifyCompany() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (companyId: number) => {
+    mutationFn: async (_companyId: number) => {
       // Backend endpoint not implemented: POST /admin/companies/:id/verify
-      // When available, replace with: return await api.admin.verifyCompany(companyId)
+      // When available, replace with: return await api.admin.verifyCompany(_companyId)
       return { success: true }
     },
     onSuccess: () => {
@@ -309,9 +309,9 @@ export function useAdminVerifyAgency() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (agencyId: number) => {
+    mutationFn: async (_agencyId: number) => {
       // Backend endpoint not implemented: POST /admin/agencies/:id/verify
-      // When available, replace with: return await api.admin.verifyAgency(agencyId)
+      // When available, replace with: return await api.admin.verifyAgency(_agencyId)
       return { success: true }
     },
     onSuccess: () => {
@@ -364,9 +364,9 @@ export function useAdminProcessPayout() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payoutId: number) => {
+    mutationFn: async (_payoutId: number) => {
       // Backend endpoint not implemented: POST /admin/payouts/:id/process
-      // When available, replace with: return await api.admin.processPayout(payoutId)
+      // When available, replace with: return await api.admin.processPayout(_payoutId)
       return { success: true }
     },
     onSuccess: () => {

@@ -50,6 +50,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const connectRef = useRef<() => void>(() => {})
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
 
@@ -151,7 +152,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
               30000 // Max 30 seconds
             )
             if (import.meta.env.DEV) console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
-            reconnectTimeoutRef.current = setTimeout(connect, delay)
+            reconnectTimeoutRef.current = setTimeout(() => connectRef.current(), delay)
           } else {
             if (import.meta.env.DEV) console.error('Max reconnection attempts reached')
           }
@@ -211,17 +212,31 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     }
   }, [enabled, clearTimers, startPingPong, onConnect, onDisconnect, onError, queryClient])
 
+  // Keep ref in sync with latest connect (must be in an effect, not during render)
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
+
   // Manual reconnect function
   const reconnect = useCallback(() => {
     reconnectAttemptsRef.current = 0
-    connect()
-  }, [connect])
+    connectRef.current()
+  }, [])
 
   // Effect to manage connection lifecycle
   useEffect(() => {
     const token = tokenManager.getAccessToken()
     if (enabled && token) {
-      connect()
+      // Schedule connection asynchronously to avoid synchronous setState in effect body
+      const timer = setTimeout(() => connect(), 0)
+      return () => {
+        clearTimeout(timer)
+        clearTimers()
+        if (wsRef.current) {
+          wsRef.current.close(1000, 'Component unmounting')
+          wsRef.current = null
+        }
+      }
     }
 
     return () => {

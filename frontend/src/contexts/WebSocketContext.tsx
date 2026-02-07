@@ -36,6 +36,7 @@ export interface WebSocketContextValue {
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocketContext(): WebSocketContextValue {
   const context = useContext(WebSocketContext)
   if (!context) {
@@ -44,7 +45,7 @@ export function useWebSocketContext(): WebSocketContextValue {
   return context
 }
 
-// Optional hook that doesn't throw if context is missing
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocketOptional(): WebSocketContextValue | null {
   return useContext(WebSocketContext)
 }
@@ -62,6 +63,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const connectRef = useRef<() => void>(() => {})
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
 
@@ -187,7 +189,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
               30000 // Max 30 seconds
             )
             if (import.meta.env.DEV) console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
-            reconnectTimeoutRef.current = setTimeout(connect, delay)
+            reconnectTimeoutRef.current = setTimeout(() => connectRef.current(), delay)
           } else {
             if (import.meta.env.DEV) console.error('Max reconnection attempts reached, using polling fallback')
           }
@@ -247,17 +249,32 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }, [clearTimers, stopPolling, startPolling, startPingPong, queryClient])
 
+  // Keep ref in sync with latest connect (must be in an effect, not during render)
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
+
   // Manual reconnect function
   const reconnect = useCallback(() => {
     reconnectAttemptsRef.current = 0
-    connect()
-  }, [connect])
+    connectRef.current()
+  }, [])
 
   // Effect to manage connection lifecycle
   useEffect(() => {
     const token = tokenManager.getAccessToken()
     if (token) {
-      connect()
+      // Schedule connection asynchronously to avoid synchronous setState in effect body
+      const timer = setTimeout(() => connect(), 0)
+      return () => {
+        clearTimeout(timer)
+        clearTimers()
+        stopPolling()
+        if (wsRef.current) {
+          wsRef.current.close(1000, 'Component unmounting')
+          wsRef.current = null
+        }
+      }
     }
 
     return () => {

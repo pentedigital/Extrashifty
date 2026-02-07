@@ -39,7 +39,7 @@ function InstantPayoutPage() {
 
   const { data: summaryData, isLoading: summaryLoading } = useEarningsSummary()
   const { data: paymentMethodsData, isLoading: methodsLoading } = usePaymentMethods()
-  const { data: connectStatus, isLoading: connectLoading } = useConnectAccountStatus()
+  const { isLoading: connectLoading } = useConnectAccountStatus()
   const instantPayout = useRequestInstantPayout()
 
   const [selectedMethodId, setSelectedMethodId] = useState<string>('')

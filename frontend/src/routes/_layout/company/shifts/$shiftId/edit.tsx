@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,53 +47,86 @@ const statusOptions = [
 const shiftTypeSchema = z.enum(['bar', 'server', 'kitchen', 'chef', 'host', 'general'])
 const statusSchema = z.enum(['draft', 'open', 'cancelled'])
 
+interface ShiftData {
+  title: string
+  description: string | null
+  shift_type: string
+  date: string
+  start_time: string
+  end_time: string
+  hourly_rate: number
+  location_name: string
+  address: string | null
+  city: string
+  spots_total: number
+  spots_filled: number
+  status: string
+  created_at: string
+  [key: string]: unknown
+}
+
 function EditShiftPage() {
   const { shiftId } = Route.useParams()
-  const navigate = useNavigate()
-  const { addToast } = useToast()
 
   // Fetch shift data
   const { data: shift, isLoading, error } = useShift(shiftId)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error || !shift) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link to="/company/shifts">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Edit Shift</h1>
+          </div>
+        </div>
+        <EmptyState
+          icon={AlertCircle}
+          title="Shift not found"
+          description="This shift may have been removed or you don't have permission to view it."
+        />
+      </div>
+    )
+  }
+
+  return <EditShiftForm shift={shift} shiftId={shiftId} />
+}
+
+function EditShiftForm({ shift, shiftId }: { shift: ShiftData; shiftId: string }) {
+  const navigate = useNavigate()
+  const { addToast } = useToast()
 
   // Mutations
   const updateShift = useUpdateShift()
   const deleteShift = useDeleteShift()
 
-  // Form state
+  // Form state - initialized directly from shift prop (component only mounts when shift is loaded)
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    shift_type: '',
-    date: '',
-    start_time: '',
-    end_time: '',
-    hourly_rate: '',
-    location_name: '',
-    address: '',
-    city: '',
-    spots_total: '1',
-    status: 'open',
+    title: shift.title || '',
+    description: shift.description || '',
+    shift_type: shift.shift_type || '',
+    date: shift.date || '',
+    start_time: shift.start_time || '',
+    end_time: shift.end_time || '',
+    hourly_rate: String(shift.hourly_rate || ''),
+    location_name: shift.location_name || '',
+    address: shift.address || '',
+    city: shift.city || '',
+    spots_total: String(shift.spots_total || 1),
+    status: shift.status || 'open',
   })
-
-  // Populate form when shift data loads
-  useEffect(() => {
-    if (shift) {
-      setFormData({
-        title: shift.title || '',
-        description: shift.description || '',
-        shift_type: shift.shift_type || '',
-        date: shift.date || '',
-        start_time: shift.start_time || '',
-        end_time: shift.end_time || '',
-        hourly_rate: String(shift.hourly_rate || ''),
-        location_name: shift.location_name || '',
-        address: shift.address || '',
-        city: shift.city || '',
-        spots_total: String(shift.spots_total || 1),
-        status: shift.status || 'open',
-      })
-    }
-  }, [shift])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -177,36 +210,6 @@ function EditShiftPage() {
         description: 'Please try again or contact support if the problem persists.',
       })
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error || !shift) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link to="/company/shifts">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Edit Shift</h1>
-          </div>
-        </div>
-        <EmptyState
-          icon={AlertCircle}
-          title="Shift not found"
-          description="This shift may have been removed or you don't have permission to view it."
-        />
-      </div>
-    )
   }
 
   const canEdit = shift.status === 'draft' || shift.status === 'open'

@@ -91,6 +91,7 @@ export function StripeProvider({ children, clientSecret }: StripeProviderProps) 
 /**
  * Hook to check if Stripe is configured and available
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStripeAvailable(): boolean {
   return !!STRIPE_PUBLISHABLE_KEY
 }
