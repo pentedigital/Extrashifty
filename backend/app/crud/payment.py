@@ -1,6 +1,6 @@
 """CRUD operations for Payment, Transaction, FundsHold, Payout, and Dispute models."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
@@ -164,7 +164,7 @@ class CRUDTransaction:
         if transaction:
             transaction.status = status
             if status == TransactionStatus.COMPLETED:
-                transaction.completed_at = datetime.utcnow()
+                transaction.completed_at = datetime.now(UTC)
             if stripe_payment_intent_id:
                 transaction.stripe_payment_intent_id = stripe_payment_intent_id
             if stripe_transfer_id:
@@ -269,7 +269,7 @@ class CRUDFundsHold:
     ) -> list[FundsHold]:
         """Get all expired but still active funds holds."""
         if as_of is None:
-            as_of = datetime.utcnow()
+            as_of = datetime.now(UTC)
         return list(
             db.exec(
                 select(FundsHold).where(
@@ -304,7 +304,7 @@ class CRUDFundsHold:
         wallet = db.get(Wallet, wallet_id)
         if wallet:
             wallet.reserved_balance += amount
-            wallet.updated_at = datetime.utcnow()
+            wallet.updated_at = datetime.now(UTC)
             db.add(wallet)
 
         db.commit()
@@ -321,14 +321,14 @@ class CRUDFundsHold:
         funds_hold = db.get(FundsHold, funds_hold_id)
         if funds_hold and funds_hold.status == FundsHoldStatus.ACTIVE:
             funds_hold.status = FundsHoldStatus.RELEASED
-            funds_hold.released_at = datetime.utcnow()
+            funds_hold.released_at = datetime.now(UTC)
             db.add(funds_hold)
 
             # Update wallet reserved balance
             wallet = db.get(Wallet, funds_hold.wallet_id)
             if wallet:
                 wallet.reserved_balance -= funds_hold.amount
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 db.add(wallet)
 
             db.commit()
@@ -345,7 +345,7 @@ class CRUDFundsHold:
         funds_hold = db.get(FundsHold, funds_hold_id)
         if funds_hold and funds_hold.status == FundsHoldStatus.ACTIVE:
             funds_hold.status = FundsHoldStatus.SETTLED
-            funds_hold.released_at = datetime.utcnow()
+            funds_hold.released_at = datetime.now(UTC)
             db.add(funds_hold)
 
             # Update wallet balances (remove from both balance and reserved)
@@ -353,7 +353,7 @@ class CRUDFundsHold:
             if wallet:
                 wallet.balance -= funds_hold.amount
                 wallet.reserved_balance -= funds_hold.amount
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 db.add(wallet)
 
             db.commit()
@@ -370,14 +370,14 @@ class CRUDFundsHold:
         funds_hold = db.get(FundsHold, funds_hold_id)
         if funds_hold and funds_hold.status == FundsHoldStatus.ACTIVE:
             funds_hold.status = FundsHoldStatus.EXPIRED
-            funds_hold.released_at = datetime.utcnow()
+            funds_hold.released_at = datetime.now(UTC)
             db.add(funds_hold)
 
             # Update wallet reserved balance
             wallet = db.get(Wallet, funds_hold.wallet_id)
             if wallet:
                 wallet.reserved_balance -= funds_hold.amount
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 db.add(wallet)
 
             db.commit()
@@ -524,7 +524,7 @@ class CRUDPayout:
         if payout:
             payout.status = status
             if status == PayoutStatus.PAID:
-                payout.paid_at = datetime.utcnow()
+                payout.paid_at = datetime.now(UTC)
             if stripe_payout_id:
                 payout.stripe_payout_id = stripe_payout_id
             db.add(payout)
@@ -714,7 +714,7 @@ class CRUDDispute:
                 else DisputeStatus.RESOLVED_AGAINST_RAISER
             )
             dispute.resolution_notes = resolution_notes
-            dispute.resolved_at = datetime.utcnow()
+            dispute.resolved_at = datetime.now(UTC)
             db.add(dispute)
             db.commit()
             db.refresh(dispute)
@@ -732,7 +732,7 @@ class CRUDDispute:
         if dispute:
             dispute.status = DisputeStatus.CLOSED
             dispute.resolution_notes = resolution_notes
-            dispute.resolved_at = datetime.utcnow()
+            dispute.resolved_at = datetime.now(UTC)
             db.add(dispute)
             db.commit()
             db.refresh(dispute)
@@ -787,7 +787,7 @@ class CRUDDispute:
                 dispute.status = DisputeStatus.CLOSED
 
             dispute.resolution_notes = resolution_notes or f"Resolved by Stripe with status: {stripe_status}"
-            dispute.resolved_at = datetime.utcnow()
+            dispute.resolved_at = datetime.now(UTC)
             db.add(dispute)
             db.commit()
             db.refresh(dispute)

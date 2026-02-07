@@ -1,6 +1,6 @@
 """Dispute endpoints for ExtraShifty dispute handling."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -41,7 +41,7 @@ def _build_dispute_response(dispute: Dispute, db) -> DisputeResponse:
         deadline_at = dispute.created_at + timedelta(
             days=dispute_service.RESOLUTION_DEADLINE_DAYS
         )
-    days_until = (deadline_at - datetime.utcnow()).total_seconds() / (24 * 3600)
+    days_until = (deadline_at - datetime.now(UTC)).total_seconds() / (24 * 3600)
 
     # Count evidence entries (simple count based on separator)
     evidence_count = 0

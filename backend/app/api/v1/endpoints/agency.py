@@ -1,7 +1,7 @@
 """Agency endpoints for staff invitations and client management."""
 
 import logging
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any, List, Optional
 
@@ -575,7 +575,7 @@ def add_client(
             existing.is_active = True
             existing.billing_rate_markup = client_in.billing_rate_markup
             existing.notes = client_in.notes
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
             session.add(existing)
             session.commit()
             session.refresh(existing)
@@ -937,7 +937,7 @@ def update_agency_profile(
     if profile_update.agency_name is not None:
         current_user.full_name = profile_update.agency_name
 
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now(UTC)
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
@@ -1172,7 +1172,7 @@ def update_staff(
     if staff_update_in.notes is not None:
         staff_member.notes = staff_update_in.notes
 
-    staff_member.updated_at = datetime.utcnow()
+    staff_member.updated_at = datetime.now(UTC)
     session.add(staff_member)
     session.commit()
     session.refresh(staff_member)
@@ -1270,7 +1270,7 @@ def update_staff_availability(
     staff_member.is_available = availability_in.is_available
     if availability_in.notes is not None:
         staff_member.notes = availability_in.notes
-    staff_member.updated_at = datetime.utcnow()
+    staff_member.updated_at = datetime.now(UTC)
 
     session.add(staff_member)
     session.commit()
@@ -1321,7 +1321,7 @@ def update_client(
     if client_update_in.is_active is not None:
         client.is_active = client_update_in.is_active
 
-    client.updated_at = datetime.utcnow()
+    client.updated_at = datetime.now(UTC)
     session.add(client)
     session.commit()
     session.refresh(client)
@@ -1355,7 +1355,7 @@ def remove_client(
     require_found(client, "Client")
 
     client.is_active = False
-    client.updated_at = datetime.utcnow()
+    client.updated_at = datetime.now(UTC)
     session.add(client)
     session.commit()
 
@@ -1915,7 +1915,7 @@ def generate_invoice_number(agency_id: int, session: SessionDep) -> str:
         AgencyClientInvoice.agency_id == agency_id
     )
     count = session.exec(count_stmt).one() or 0
-    year = datetime.utcnow().year
+    year = datetime.now(UTC).year
     return f"INV-{agency_id}-{year}-{count + 1:04d}"
 
 
@@ -2152,7 +2152,7 @@ def send_invoice(
         raise_bad_request(f"Cannot send invoice with status '{invoice.status}'. Only draft invoices can be sent.")
 
     invoice.status = "sent"
-    invoice.updated_at = datetime.utcnow()
+    invoice.updated_at = datetime.now(UTC)
     session.add(invoice)
     session.commit()
     session.refresh(invoice)
@@ -2221,7 +2221,7 @@ def mark_invoice_paid(
 
     invoice.status = "paid"
     invoice.paid_date = date.today()
-    invoice.updated_at = datetime.utcnow()
+    invoice.updated_at = datetime.now(UTC)
     session.add(invoice)
     session.commit()
     session.refresh(invoice)
@@ -2679,7 +2679,7 @@ def process_payroll(
             # Update staff member total hours
             staff.total_hours += float(hours_worked)
             staff.shifts_completed += len(shifts_in_period) if 'shifts_in_period' in dir() else 0
-            staff.updated_at = datetime.utcnow()
+            staff.updated_at = datetime.now(UTC)
             session.add(staff)
 
             created_entries.append((entry, staff))
@@ -2870,7 +2870,7 @@ def update_agency_mode_profile(
     for field, value in update_data.items():
         setattr(profile, field, value)
 
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now(UTC)
     session.add(profile)
     session.commit()
     session.refresh(profile)
@@ -3026,7 +3026,7 @@ def update_agency_mode(
         from_mode=profile.mode,
         to_mode=new_mode,
         status="approved",  # Auto-approved if requirements met
-        processed_at=datetime.utcnow(),
+        processed_at=datetime.now(UTC),
         requirements_met=True,
         requirements_details=str(requirements_result.requirements),
     )
@@ -3035,7 +3035,7 @@ def update_agency_mode(
     # Update profile
     profile.mode = new_mode
     profile.can_post_for_clients = (new_mode == AgencyMode.FULL_INTERMEDIARY)
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now(UTC)
     session.add(profile)
 
     session.commit()
@@ -3103,7 +3103,7 @@ def get_agency_dashboard(
         active_shifts = session.exec(active_shifts_stmt).one() or 0
 
     # Completed shifts this month
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     completed_this_month = 0
     if agency_shift_ids:
         completed_stmt = select(func.count()).select_from(Shift).where(

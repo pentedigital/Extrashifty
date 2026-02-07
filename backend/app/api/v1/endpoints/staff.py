@@ -1,6 +1,6 @@
 """Staff endpoints for ExtraShifty."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -273,7 +273,7 @@ def update_staff_profile(
     # Update user's full_name if provided
     if profile_update.full_name is not None:
         current_user.full_name = profile_update.full_name
-        current_user.updated_at = datetime.utcnow()
+        current_user.updated_at = datetime.now(UTC)
         session.add(current_user)
 
     # Get or create staff profile
@@ -298,7 +298,7 @@ def update_staff_profile(
     if profile_update.is_available is not None:
         profile.is_available = profile_update.is_available
 
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now(UTC)
     session.add(profile)
     session.commit()
     session.refresh(current_user)
@@ -558,7 +558,7 @@ def clock_in(
     clock_record = ClockRecordModel(
         shift_id=clock_in_data.shift_id,
         staff_user_id=current_user.id,
-        clock_in=datetime.utcnow(),
+        clock_in=datetime.now(UTC),
         clock_in_notes=clock_in_data.notes,
         status="clocked_in",
     )
@@ -568,7 +568,7 @@ def clock_in(
     shift = session.get(Shift, clock_in_data.shift_id)
     if shift and shift.status in (ShiftStatus.OPEN, ShiftStatus.FILLED):
         shift.status = ShiftStatus.IN_PROGRESS
-        shift.clock_in_at = datetime.utcnow()
+        shift.clock_in_at = datetime.now(UTC)
         session.add(shift)
 
     session.commit()
@@ -628,7 +628,7 @@ def clock_out(
         )
 
     # Update clock record
-    clock_out_time = datetime.utcnow()
+    clock_out_time = datetime.now(UTC)
     clock_record.clock_out = clock_out_time
     clock_record.clock_out_notes = clock_out_data.notes
     clock_record.status = "clocked_out"
@@ -637,7 +637,7 @@ def clock_out(
     time_diff = clock_out_time - clock_record.clock_in
     hours_worked = Decimal(str(time_diff.total_seconds() / 3600))
     clock_record.hours_worked = hours_worked.quantize(Decimal("0.01"))
-    clock_record.updated_at = datetime.utcnow()
+    clock_record.updated_at = datetime.now(UTC)
 
     session.add(clock_record)
 

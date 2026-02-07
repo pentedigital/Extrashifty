@@ -1,6 +1,6 @@
 """CRUD operations for Wallet and PaymentMethod models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -77,7 +77,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Update wallet balance by adding amount (can be negative for withdrawals)."""
         wallet.balance += amount
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -92,7 +92,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Update wallet reserved balance by adding amount (can be negative to release)."""
         wallet.reserved_balance += amount
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -107,7 +107,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Set the Stripe Connect account ID for a wallet."""
         wallet.stripe_account_id = stripe_account_id
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -121,7 +121,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Mark Stripe onboarding as complete."""
         wallet.stripe_onboarding_complete = True
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -140,7 +140,7 @@ class CRUDWallet:
         wallet.auto_topup_enabled = enabled
         wallet.auto_topup_threshold = threshold
         wallet.auto_topup_amount = amount
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -154,7 +154,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Deactivate a wallet."""
         wallet.is_active = False
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -168,7 +168,7 @@ class CRUDWallet:
     ) -> Wallet:
         """Activate a wallet."""
         wallet.is_active = True
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         db.add(wallet)
         db.commit()
         db.refresh(wallet)

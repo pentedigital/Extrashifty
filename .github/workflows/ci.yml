@@ -207,7 +207,7 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          VITE_API_URL: http://localhost:8001
+          VITE_API_URL: http://localhost:8001/api/v1
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -243,6 +243,6 @@ jobs:
           push: false
           tags: extrashifty-frontend:test
           build-args: |
-            VITE_API_URL=http://localhost:8001
+            VITE_API_URL=http://localhost:8001/api/v1
           cache-from: type=gha
           cache-to: type=gha,mode=max

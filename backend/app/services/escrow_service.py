@@ -1,7 +1,7 @@
 """Escrow service for ExtraShifty dispute fund management."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -47,8 +47,10 @@ class EscrowService:
         Returns:
             FundsHold record representing the escrowed funds
         """
-        # Get the wallet
-        wallet = db.get(Wallet, wallet_id)
+        # Get the wallet with row lock to prevent race conditions
+        wallet = db.exec(
+            select(Wallet).where(Wallet.id == wallet_id).with_for_update()
+        ).first()
         if not wallet:
             raise ValueError(f"Wallet {wallet_id} not found")
 
@@ -81,7 +83,7 @@ class EscrowService:
             idempotency_key=idempotency_key,
             related_shift_id=shift_id,
             description=f"{self.ESCROW_DESCRIPTION_PREFIX} Funds held for dispute on shift #{shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         db.add(escrow_transaction)
 
@@ -116,23 +118,27 @@ class EscrowService:
 
         amount = escrow_hold.amount
 
-        # Update worker wallet balance
-        worker_wallet = db.get(Wallet, worker_wallet_id)
+        # Update worker wallet balance (with row lock)
+        worker_wallet = db.exec(
+            select(Wallet).where(Wallet.id == worker_wallet_id).with_for_update()
+        ).first()
         if not worker_wallet:
             raise ValueError(f"Worker wallet {worker_wallet_id} not found")
 
         worker_wallet.balance += amount
-        worker_wallet.updated_at = datetime.utcnow()
+        worker_wallet.updated_at = datetime.now(UTC)
 
-        # Update company wallet reserved balance
-        company_wallet = db.get(Wallet, escrow_hold.wallet_id)
+        # Update company wallet reserved balance (with row lock)
+        company_wallet = db.exec(
+            select(Wallet).where(Wallet.id == escrow_hold.wallet_id).with_for_update()
+        ).first()
         if company_wallet:
             company_wallet.reserved_balance -= amount
-            company_wallet.updated_at = datetime.utcnow()
+            company_wallet.updated_at = datetime.now(UTC)
 
         # Mark escrow as settled
         escrow_hold.status = FundsHoldStatus.SETTLED
-        escrow_hold.released_at = datetime.utcnow()
+        escrow_hold.released_at = datetime.now(UTC)
 
         # Create settlement transaction for worker
         idempotency_key = f"escrow_release_worker_{shift_id}_{uuid.uuid4().hex[:8]}"
@@ -146,7 +152,7 @@ class EscrowService:
             idempotency_key=idempotency_key,
             related_shift_id=shift_id,
             description=f"Dispute resolution: Full payment for shift #{shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         db.add(settlement_transaction)
 
@@ -179,18 +185,20 @@ class EscrowService:
 
         amount = escrow_hold.amount
 
-        # Update company wallet - move from reserved to available
-        company_wallet = db.get(Wallet, escrow_hold.wallet_id)
+        # Update company wallet - move from reserved to available (with row lock)
+        company_wallet = db.exec(
+            select(Wallet).where(Wallet.id == escrow_hold.wallet_id).with_for_update()
+        ).first()
         if not company_wallet:
             raise ValueError(f"Company wallet {escrow_hold.wallet_id} not found")
 
         company_wallet.reserved_balance -= amount
         company_wallet.balance += amount  # Add back to available balance
-        company_wallet.updated_at = datetime.utcnow()
+        company_wallet.updated_at = datetime.now(UTC)
 
         # Mark escrow as released
         escrow_hold.status = FundsHoldStatus.RELEASED
-        escrow_hold.released_at = datetime.utcnow()
+        escrow_hold.released_at = datetime.now(UTC)
 
         # Create refund transaction
         idempotency_key = f"escrow_release_company_{shift_id}_{uuid.uuid4().hex[:8]}"
@@ -204,7 +212,7 @@ class EscrowService:
             idempotency_key=idempotency_key,
             related_shift_id=shift_id,
             description=f"Dispute resolution: Refund for shift #{shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         db.add(refund_transaction)
 
@@ -246,9 +254,13 @@ class EscrowService:
         worker_amount = (total_amount * Decimal(str(worker_pct))) / Decimal("100")
         company_amount = total_amount - worker_amount
 
-        # Get wallets
-        worker_wallet = db.get(Wallet, worker_wallet_id)
-        company_wallet = db.get(Wallet, escrow_hold.wallet_id)
+        # Get wallets (with row locks)
+        worker_wallet = db.exec(
+            select(Wallet).where(Wallet.id == worker_wallet_id).with_for_update()
+        ).first()
+        company_wallet = db.exec(
+            select(Wallet).where(Wallet.id == escrow_hold.wallet_id).with_for_update()
+        ).first()
 
         if not worker_wallet:
             raise ValueError(f"Worker wallet {worker_wallet_id} not found")
@@ -257,16 +269,16 @@ class EscrowService:
 
         # Update worker wallet
         worker_wallet.balance += worker_amount
-        worker_wallet.updated_at = datetime.utcnow()
+        worker_wallet.updated_at = datetime.now(UTC)
 
         # Update company wallet
         company_wallet.reserved_balance -= total_amount
         company_wallet.balance += company_amount  # Add refund portion back
-        company_wallet.updated_at = datetime.utcnow()
+        company_wallet.updated_at = datetime.now(UTC)
 
         # Mark escrow as settled
         escrow_hold.status = FundsHoldStatus.SETTLED
-        escrow_hold.released_at = datetime.utcnow()
+        escrow_hold.released_at = datetime.now(UTC)
 
         # Create worker transaction
         worker_idempotency_key = f"escrow_split_worker_{shift_id}_{uuid.uuid4().hex[:8]}"
@@ -280,7 +292,7 @@ class EscrowService:
             idempotency_key=worker_idempotency_key,
             related_shift_id=shift_id,
             description=f"Dispute resolution: {worker_pct}% payment for shift #{shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         db.add(worker_transaction)
 
@@ -296,7 +308,7 @@ class EscrowService:
             idempotency_key=company_idempotency_key,
             related_shift_id=shift_id,
             description=f"Dispute resolution: {100 - worker_pct}% refund for shift #{shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         db.add(company_transaction)
 

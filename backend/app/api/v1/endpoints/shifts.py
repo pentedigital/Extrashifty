@@ -1,6 +1,6 @@
 """Shift endpoints."""
 
-from datetime import date
+from datetime import UTC, date
 from decimal import Decimal
 from typing import Any
 
@@ -296,7 +296,7 @@ def clock_in(
         raise_bad_request(f"Cannot clock in to shift with status: {shift.status.value}")
 
     # Record clock in
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     shift.clock_in_at = now
     shift.status = ShiftStatus.IN_PROGRESS
     session.add(shift)
@@ -355,7 +355,7 @@ def clock_out(
         raise_bad_request(f"Cannot clock out from shift with status: {shift.status.value}")
 
     # Record clock out and calculate hours worked
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     shift.clock_out_at = now
 
     # Calculate actual hours worked

@@ -1,6 +1,6 @@
 """Shared utility functions for ExtraShifty."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 
@@ -24,5 +24,5 @@ def calculate_shift_cost(hours: Decimal, hourly_rate: Decimal) -> Decimal:
 
 def calculate_days_until(deadline: datetime) -> float:
     """Calculate days until a deadline from now."""
-    delta = deadline - datetime.utcnow()
+    delta = deadline - datetime.now(UTC)
     return delta.total_seconds() / (24 * 3600)

@@ -1,6 +1,6 @@
 """Appeal endpoints for penalty dispute resolution."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
@@ -46,9 +46,9 @@ def _build_appeal_response(appeal: Appeal, db) -> AppealResponse:
     # Calculate days until deadline
     if appeal.appeal_type == AppealType.SUSPENSION:
         # Suspension appeal deadline is from submission window
-        days_until = (appeal.appeal_deadline - datetime.utcnow()).total_seconds() / (24 * 3600)
+        days_until = (appeal.appeal_deadline - datetime.now(UTC)).total_seconds() / (24 * 3600)
     else:
-        days_until = (appeal.appeal_deadline - datetime.utcnow()).total_seconds() / (24 * 3600)
+        days_until = (appeal.appeal_deadline - datetime.now(UTC)).total_seconds() / (24 * 3600)
 
     return AppealResponse(
         id=appeal.id,

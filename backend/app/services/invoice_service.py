@@ -1,7 +1,7 @@
 """Invoice service for ExtraShifty invoice/receipt auto-generation."""
 
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -60,7 +60,7 @@ class InvoiceService:
         Format: INV-YYYY-NNNNNN
         Example: INV-2024-000001
         """
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(UTC).year
 
         # Get the max invoice number for this year
         result = self.db.exec(
@@ -130,8 +130,8 @@ class InvoiceService:
             status=InvoiceStatus.PAID,  # Receipts are already paid
             payment_method=payment_method,
             transaction_id=transaction_id,
-            issued_at=datetime.utcnow(),
-            paid_at=datetime.utcnow(),
+            issued_at=datetime.now(UTC),
+            paid_at=datetime.now(UTC),
         )
 
         self.db.add(invoice)
@@ -222,8 +222,8 @@ class InvoiceService:
             gross_earnings=gross_amount,
             platform_fee=platform_fee,  # Hidden from display
             net_earnings=net_amount,
-            issued_at=datetime.utcnow(),
-            paid_at=datetime.utcnow(),
+            issued_at=datetime.now(UTC),
+            paid_at=datetime.now(UTC),
         )
 
         self.db.add(invoice)
@@ -283,7 +283,7 @@ class InvoiceService:
             total_amount=amount,
             status=InvoiceStatus.DRAFT,
             due_date=due_date,
-            issued_at=datetime.utcnow(),
+            issued_at=datetime.now(UTC),
             extra_data={"description": description} if description else None,
         )
 
@@ -492,7 +492,7 @@ class InvoiceService:
             raise InvoiceServiceError("Invoice not found", "invoice_not_found")
 
         invoice.status = InvoiceStatus.PAID
-        invoice.paid_at = datetime.utcnow()
+        invoice.paid_at = datetime.now(UTC)
         self.db.add(invoice)
         self.db.commit()
         self.db.refresh(invoice)

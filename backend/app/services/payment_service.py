@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -226,13 +226,13 @@ class PaymentService:
             status=TransactionStatus.COMPLETED,
             idempotency_key=idempotency_key,
             description=f"Wallet top-up via {payment_method.type.value} ending in {payment_method.last_four}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(transaction)
 
         # Update wallet balance
         wallet.balance += amount
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
 
         self.db.commit()
@@ -371,7 +371,7 @@ class PaymentService:
         else:
             wallet.auto_topup_enabled = False
 
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
         self.db.commit()
         self.db.refresh(wallet)
@@ -487,7 +487,7 @@ class PaymentService:
 
         # Update wallet reserved balance
         wallet.reserved_balance += shift_cost
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
 
         # Create reserve transaction
@@ -501,7 +501,7 @@ class PaymentService:
             idempotency_key=idempotency_key or self._generate_idempotency_key("reserve"),
             related_shift_id=shift_id,
             description=f"Funds reserved for shift {shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(transaction)
 
@@ -616,12 +616,12 @@ class PaymentService:
 
         # 1. Release the hold
         hold.status = FundsHoldStatus.SETTLED
-        hold.released_at = datetime.utcnow()
+        hold.released_at = datetime.now(UTC)
         self.db.add(hold)
 
         # Update payer reserved balance
         payer_wallet.reserved_balance -= hold.amount
-        payer_wallet.updated_at = datetime.utcnow()
+        payer_wallet.updated_at = datetime.now(UTC)
 
         # 2. If actual is less than reserved, refund the difference
         refund_amount = hold.amount - gross_amount
@@ -637,14 +637,14 @@ class PaymentService:
                 idempotency_key=f"{idempotency_base}_refund",
                 related_shift_id=shift_id,
                 description=f"Partial refund for shift {shift_id} (actual hours: {hours_to_use})",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(UTC),
             )
             self.db.add(refund_tx)
             transactions.append(refund_tx)
 
         # 3. Pay the recipient (worker or agency)
         recipient_wallet.balance += recipient_amount
-        recipient_wallet.updated_at = datetime.utcnow()
+        recipient_wallet.updated_at = datetime.now(UTC)
         self.db.add(recipient_wallet)
 
         recipient_tx = Transaction(
@@ -657,7 +657,7 @@ class PaymentService:
             idempotency_key=f"{idempotency_base}_recipient",
             related_shift_id=shift_id,
             description=settlement_description,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
             metadata={
                 "gross_amount": str(gross_amount),
                 "platform_fee": str(platform_fee),
@@ -682,7 +682,7 @@ class PaymentService:
             idempotency_key=f"{idempotency_base}_commission",
             related_shift_id=shift_id,
             description=f"Platform commission for shift {shift_id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(commission_tx)
         transactions.append(commission_tx)
@@ -723,7 +723,7 @@ class PaymentService:
         if not shift:
             raise PaymentError("Shift not found", "shift_not_found")
 
-        cancellation_time = cancellation_time or datetime.utcnow()
+        cancellation_time = cancellation_time or datetime.now(UTC)
         shift_start = datetime.combine(shift.date, shift.start_time)
         hours_until_shift = (shift_start - cancellation_time).total_seconds() / 3600
 
@@ -769,12 +769,12 @@ class PaymentService:
 
         # Release hold
         hold.status = FundsHoldStatus.RELEASED
-        hold.released_at = datetime.utcnow()
+        hold.released_at = datetime.now(UTC)
         self.db.add(hold)
 
         # Update company wallet
         company_wallet.reserved_balance -= hold.amount
-        company_wallet.updated_at = datetime.utcnow()
+        company_wallet.updated_at = datetime.now(UTC)
 
         # Process refund
         if refund_amount > 0:
@@ -789,7 +789,7 @@ class PaymentService:
                 idempotency_key=f"{idempotency_base}_refund",
                 related_shift_id=shift_id,
                 description=f"Cancellation refund for shift {shift_id}",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(UTC),
                 metadata={
                     "cancelled_by": cancelled_by,
                     "hours_until_shift": hours_until_shift,
@@ -836,7 +836,7 @@ class PaymentService:
                         self.db.add(agency_wallet)
 
                     agency_wallet.balance += worker_compensation
-                    agency_wallet.updated_at = datetime.utcnow()
+                    agency_wallet.updated_at = datetime.now(UTC)
                     self.db.add(agency_wallet)
 
                     agency_tx = Transaction(
@@ -849,7 +849,7 @@ class PaymentService:
                         idempotency_key=f"{idempotency_base}_agency",
                         related_shift_id=shift_id,
                         description=f"Late cancellation compensation for shift {shift_id} - Agency responsible for worker distribution",
-                        completed_at=datetime.utcnow(),
+                        completed_at=datetime.now(UTC),
                         metadata={
                             "cancelled_by": cancelled_by,
                             "compensation_type": "late_cancellation_agency",
@@ -877,7 +877,7 @@ class PaymentService:
                         self.db.add(worker_wallet)
 
                     worker_wallet.balance += worker_compensation
-                    worker_wallet.updated_at = datetime.utcnow()
+                    worker_wallet.updated_at = datetime.now(UTC)
                     self.db.add(worker_wallet)
 
                     worker_tx = Transaction(
@@ -890,7 +890,7 @@ class PaymentService:
                         idempotency_key=f"{idempotency_base}_worker",
                         related_shift_id=shift_id,
                         description=f"Cancellation compensation for shift {shift_id}",
-                        completed_at=datetime.utcnow(),
+                        completed_at=datetime.now(UTC),
                         metadata={
                             "cancelled_by": cancelled_by,
                             "compensation_type": "late_cancellation",
@@ -1031,7 +1031,7 @@ class PaymentService:
         # Deduct full amount from wallet (original amount, not effective)
         # because the penalty offset was already applied to the negative balance
         wallet.balance -= amount
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
 
         # Create payout transaction record
@@ -1062,7 +1062,7 @@ class PaymentService:
             await tax_service.record_earnings(
                 user_id=wallet.user_id,
                 amount=net_amount,
-                tax_year=datetime.utcnow().year,
+                tax_year=datetime.now(UTC).year,
             )
             logger.info(f"Recorded earnings for tax tracking: user {wallet.user_id}, amount {net_amount}")
         except Exception as e:
@@ -1164,7 +1164,7 @@ class PaymentService:
                     # Still deduct from wallet for penalty offset
                     if penalty_offset > 0:
                         wallet.balance -= penalty_offset
-                        wallet.updated_at = datetime.utcnow()
+                        wallet.updated_at = datetime.now(UTC)
                         self.db.add(wallet)
                     continue
 
@@ -1185,7 +1185,7 @@ class PaymentService:
 
                 # Deduct full original amount from wallet (penalty offset already applied)
                 wallet.balance -= available
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 self.db.add(wallet)
 
                 # Create transaction
@@ -1244,7 +1244,7 @@ class PaymentService:
                         await tax_service.record_earnings(
                             user_id=wallet.user_id,
                             amount=payout.net_amount,
-                            tax_year=datetime.utcnow().year,
+                            tax_year=datetime.now(UTC).year,
                         )
                         logger.info(f"Recorded earnings for tax tracking: user {wallet.user_id}, amount {payout.net_amount}")
                     except Exception as e:
@@ -1438,7 +1438,7 @@ class PaymentService:
             logger.info(f"Wallet {wallet_id} already suspended, skipping grace period")
             return
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         grace_period_ends = now + timedelta(hours=self.GRACE_PERIOD_HOURS)
 
         # Update wallet status
@@ -1472,7 +1472,7 @@ class PaymentService:
         """
         from app.services.email_service import EmailService
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         suspended_wallet_ids = []
 
         # Find wallets where grace period has ended
@@ -1513,7 +1513,7 @@ class PaymentService:
         """
         from app.services.email_service import EmailService
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         warning_threshold = now + timedelta(hours=self.SUSPENSION_WARNING_HOURS)
         warned_wallet_ids = []
 
@@ -1580,7 +1580,7 @@ class PaymentService:
         wallet.last_failed_topup_at = None
         wallet.grace_period_ends_at = None
         wallet.suspension_reason = None
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
         self.db.commit()
         self.db.refresh(wallet)
@@ -1600,7 +1600,7 @@ class PaymentService:
         Called periodically by scheduler.
         """
         approved_shift_ids = []
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=24)
 
         # Find shifts that completed more than 24 hours ago
         # and haven't been settled yet
@@ -1628,7 +1628,7 @@ class PaymentService:
 
             # Check if shift end time + 24 hours has passed
             shift_end = datetime.combine(shift.date, shift.end_time)
-            if datetime.utcnow() > shift_end + timedelta(hours=24):
+            if datetime.now(UTC) > shift_end + timedelta(hours=24):
                 try:
                     # Calculate full shift hours for auto-approval
                     start = datetime.combine(shift.date, shift.start_time)
@@ -1706,12 +1706,12 @@ class PaymentService:
             execute_at = day_start - timedelta(hours=48)
 
             # Don't schedule if execute time is in the past
-            if execute_at <= datetime.utcnow():
+            if execute_at <= datetime.now(UTC):
                 logger.warning(
                     f"Scheduled reserve for shift {shift_id} day {day_date} "
                     f"would be in the past, executing immediately"
                 )
-                execute_at = datetime.utcnow()
+                execute_at = datetime.now(UTC)
 
             # Create scheduled reserve record
             scheduled_reserve = ScheduledReserve(
@@ -1808,7 +1808,7 @@ class PaymentService:
 
             # Update wallet reserved balance
             wallet.reserved_balance += scheduled_reserve.amount
-            wallet.updated_at = datetime.utcnow()
+            wallet.updated_at = datetime.now(UTC)
             self.db.add(wallet)
 
             # Create reserve transaction
@@ -1823,13 +1823,13 @@ class PaymentService:
                 related_shift_id=scheduled_reserve.shift_id,
                 description=f"Scheduled reserve for shift {scheduled_reserve.shift_id} "
                            f"day {scheduled_reserve.shift_date}",
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(UTC),
             )
             self.db.add(transaction)
 
             # Mark scheduled reserve as completed
             scheduled_reserve.status = ScheduledReserveStatus.COMPLETED
-            scheduled_reserve.executed_at = datetime.utcnow()
+            scheduled_reserve.executed_at = datetime.now(UTC)
             self.db.add(scheduled_reserve)
 
             self.db.commit()
@@ -1897,7 +1897,7 @@ class PaymentService:
         from app.models.payment import ScheduledReserve, ScheduledReserveStatus
 
         if execute_before is None:
-            execute_before = datetime.utcnow() + timedelta(hours=1)
+            execute_before = datetime.now(UTC) + timedelta(hours=1)
 
         return list(
             self.db.exec(

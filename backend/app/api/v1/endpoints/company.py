@@ -1,7 +1,7 @@
 """Company endpoints for ExtraShifty."""
 
 import datetime as dt
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -360,7 +360,7 @@ def update_company_profile(
     # Update user's business name if provided
     if profile_update.business_name is not None:
         current_user.full_name = profile_update.business_name
-        current_user.updated_at = datetime.utcnow()
+        current_user.updated_at = datetime.now(UTC)
         session.add(current_user)
 
     # Get or create company profile
@@ -387,7 +387,7 @@ def update_company_profile(
     if profile_update.website is not None:
         profile.website = profile_update.website
 
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now(UTC)
     session.add(profile)
     session.commit()
     session.refresh(current_user)
@@ -643,7 +643,7 @@ def update_venue(
                 session.add(v)
         venue.is_primary = venue_update.is_primary
 
-    venue.updated_at = datetime.utcnow()
+    venue.updated_at = datetime.now(UTC)
     session.add(venue)
     session.commit()
     session.refresh(venue)
@@ -684,7 +684,7 @@ def delete_venue(
 
     # Soft delete
     venue.is_active = False
-    venue.updated_at = datetime.utcnow()
+    venue.updated_at = datetime.now(UTC)
     session.add(venue)
     session.commit()
 

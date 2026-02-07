@@ -38,14 +38,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         else:
             response.headers["Cache-Control"] = "no-store"
 
-        # Content Security Policy - adjust as needed for your frontend
+        # Content Security Policy
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline' https://js.stripe.com; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https:; "
+            "connect-src 'self' https://api.stripe.com https:; "
+            "frame-src https://js.stripe.com https://hooks.stripe.com; "
             "frame-ancestors 'none'"
         )
 

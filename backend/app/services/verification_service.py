@@ -1,7 +1,7 @@
 """Verification service for ExtraShifty shift verification and auto-approval."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -39,7 +39,7 @@ class VerificationService:
         Returns:
             List of shift IDs that were auto-approved
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=self.AUTO_APPROVE_HOURS)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=self.AUTO_APPROVE_HOURS)
 
         # Find shifts that are completed, have clock_out_at set, and are past the auto-approve window
         # Only auto-approve shifts where the worker actually clocked out
@@ -269,7 +269,7 @@ class VerificationService:
             # Only shifts with clock_out_at will have an auto-approve time
             if shift.clock_out_at:
                 auto_approve_at = shift.clock_out_at + timedelta(hours=self.AUTO_APPROVE_HOURS)
-                hours_since = (datetime.utcnow() - shift.clock_out_at).total_seconds() / 3600
+                hours_since = (datetime.now(UTC) - shift.clock_out_at).total_seconds() / 3600
             else:
                 # No clock-out time yet, no auto-approve scheduled
                 auto_approve_at = None
@@ -406,15 +406,15 @@ class VerificationService:
 
             # Update hold status
             hold.status = FundsHoldStatus.SETTLED
-            hold.released_at = datetime.utcnow()
+            hold.released_at = datetime.now(UTC)
 
             # Update company wallet
             company_wallet.reserved_balance -= hold.amount
-            company_wallet.updated_at = datetime.utcnow()
+            company_wallet.updated_at = datetime.now(UTC)
 
             # Update worker wallet
             worker_wallet.balance += worker_amount
-            worker_wallet.updated_at = datetime.utcnow()
+            worker_wallet.updated_at = datetime.now(UTC)
 
             db.commit()
 

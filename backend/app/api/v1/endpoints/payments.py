@@ -196,13 +196,13 @@ def update_minimum_balance(
 
     This helps companies ensure they always have enough funds for operations.
     """
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     wallet = wallet_crud.get_or_create(session, user_id=current_user.id)
 
     # Update the minimum balance
     wallet.minimum_balance = body.minimum_balance
-    wallet.updated_at = datetime.utcnow()
+    wallet.updated_at = datetime.now(UTC)
     session.add(wallet)
     session.commit()
     session.refresh(wallet)

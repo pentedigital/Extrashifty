@@ -194,9 +194,9 @@ async def download_data_export(
             detail="No data export available",
         )
 
-    from datetime import datetime
+    from datetime import UTC, datetime
 
-    if deletion_req.data_export_expires_at and datetime.utcnow() > deletion_req.data_export_expires_at:
+    if deletion_req.data_export_expires_at and datetime.now(UTC) > deletion_req.data_export_expires_at:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="Data export has expired. Please request a new export.",
@@ -296,7 +296,7 @@ async def admin_process_deletion(
 
         # Temporarily adjust requested_at to bypass grace period
         original_requested_at = deletion_request.requested_at
-        deletion_request.requested_at = datetime.utcnow() - timedelta(
+        deletion_request.requested_at = datetime.now(UTC) - timedelta(
             days=GDPRService.DELETION_GRACE_PERIOD_DAYS + 1
         )
         session.add(deletion_request)

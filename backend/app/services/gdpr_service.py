@@ -6,7 +6,7 @@ Handles account deletion requests, data export, and wallet closure cascade.
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -100,13 +100,13 @@ class GDPRService:
             user_id=user_id,
             status=DeletionRequestStatus.PENDING,
             reason=reason,
-            requested_at=datetime.utcnow(),
+            requested_at=datetime.now(UTC),
         )
         self.db.add(deletion_request)
 
         # Update user record
-        user.deletion_requested_at = datetime.utcnow()
-        user.updated_at = datetime.utcnow()
+        user.deletion_requested_at = datetime.now(UTC)
+        user.updated_at = datetime.now(UTC)
         self.db.add(user)
 
         self.db.commit()
@@ -156,7 +156,7 @@ class GDPRService:
         grace_period_end = deletion_request.requested_at + timedelta(
             days=self.DELETION_GRACE_PERIOD_DAYS
         )
-        if datetime.utcnow() > grace_period_end:
+        if datetime.now(UTC) > grace_period_end:
             raise GDPRServiceError(
                 "Grace period has expired, deletion cannot be cancelled",
                 "grace_period_expired",
@@ -164,14 +164,14 @@ class GDPRService:
 
         # Cancel the request
         deletion_request.status = DeletionRequestStatus.CANCELLED
-        deletion_request.updated_at = datetime.utcnow()
+        deletion_request.updated_at = datetime.now(UTC)
         self.db.add(deletion_request)
 
         # Update user record
         user = self.db.get(User, user_id)
         if user:
             user.deletion_requested_at = None
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(UTC)
             self.db.add(user)
 
         self.db.commit()
@@ -209,7 +209,7 @@ class GDPRService:
         )
         can_cancel = (
             deletion_request.status == DeletionRequestStatus.PENDING
-            and datetime.utcnow() < grace_period_end
+            and datetime.now(UTC) < grace_period_end
         )
 
         return {
@@ -255,7 +255,7 @@ class GDPRService:
 
         # Gather all user data
         export_data = {
-            "export_date": datetime.utcnow().isoformat(),
+            "export_date": datetime.now(UTC).isoformat(),
             "user_id": user_id,
         }
 
@@ -426,12 +426,12 @@ class GDPRService:
         # Generate a temporary URL (in production, use S3 presigned URL)
         export_id = uuid.uuid4().hex
         export_url = f"/api/v1/gdpr/export-data/download?export_id={export_id}"
-        expires_at = datetime.utcnow() + timedelta(hours=self.DATA_EXPORT_EXPIRY_HOURS)
+        expires_at = datetime.now(UTC) + timedelta(hours=self.DATA_EXPORT_EXPIRY_HOURS)
 
         if deletion_request:
             deletion_request.data_export_url = export_url
             deletion_request.data_export_expires_at = expires_at
-            deletion_request.updated_at = datetime.utcnow()
+            deletion_request.updated_at = datetime.now(UTC)
             self.db.add(deletion_request)
         else:
             # Create a new request just for export tracking
@@ -492,7 +492,7 @@ class GDPRService:
         grace_period_end = deletion_request.requested_at + timedelta(
             days=self.DELETION_GRACE_PERIOD_DAYS
         )
-        if datetime.utcnow() < grace_period_end:
+        if datetime.now(UTC) < grace_period_end:
             raise GDPRServiceError(
                 "Grace period has not ended yet",
                 "grace_period_active",
@@ -505,8 +505,8 @@ class GDPRService:
 
         # Mark as processing
         deletion_request.status = DeletionRequestStatus.PROCESSING
-        deletion_request.processing_started_at = datetime.utcnow()
-        deletion_request.updated_at = datetime.utcnow()
+        deletion_request.processing_started_at = datetime.now(UTC)
+        deletion_request.updated_at = datetime.now(UTC)
         self.db.add(deletion_request)
         self.db.commit()
 
@@ -551,15 +551,15 @@ class GDPRService:
             user.full_name = "Deleted User"
             user.is_active = False
             user.is_deleted = True
-            user.deleted_at = datetime.utcnow()
+            user.deleted_at = datetime.now(UTC)
             user.anonymized_id = anonymized_id
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(UTC)
             self.db.add(user)
 
             # Mark deletion as completed
             deletion_request.status = DeletionRequestStatus.COMPLETED
-            deletion_request.completed_at = datetime.utcnow()
-            deletion_request.updated_at = datetime.utcnow()
+            deletion_request.completed_at = datetime.now(UTC)
+            deletion_request.updated_at = datetime.now(UTC)
             self.db.add(deletion_request)
 
             self.db.commit()
@@ -574,7 +574,7 @@ class GDPRService:
             # Mark as failed
             deletion_request.status = DeletionRequestStatus.FAILED
             deletion_request.error_message = str(e)[:2000]
-            deletion_request.updated_at = datetime.utcnow()
+            deletion_request.updated_at = datetime.now(UTC)
             self.db.add(deletion_request)
             self.db.commit()
 
@@ -621,7 +621,7 @@ class GDPRService:
 
         for hold in active_holds:
             hold.status = FundsHoldStatus.RELEASED
-            hold.released_at = datetime.utcnow()
+            hold.released_at = datetime.now(UTC)
             self.db.add(hold)
 
             # Return reserved funds to available balance
@@ -689,7 +689,7 @@ class GDPRService:
         wallet.balance = Decimal("0.00")
         wallet.reserved_balance = Decimal("0.00")
         wallet.stripe_account_id = None
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         self.db.add(wallet)
 
         return result
@@ -879,7 +879,7 @@ class GDPRService:
 
     async def get_ready_for_deletion(self) -> list[DeletionRequest]:
         """Get deletion requests ready to be processed (past grace period)."""
-        cutoff = datetime.utcnow() - timedelta(days=self.DELETION_GRACE_PERIOD_DAYS)
+        cutoff = datetime.now(UTC) - timedelta(days=self.DELETION_GRACE_PERIOD_DAYS)
 
         return list(
             self.db.exec(

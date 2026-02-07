@@ -1,7 +1,7 @@
 """Dispute service for ExtraShifty dispute handling."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -118,7 +118,7 @@ class DisputeService:
             raise ValueError(f"Company wallet not found for user {shift.company_id}")
 
         # Calculate resolution deadline (3 business days from now)
-        created_at = datetime.utcnow()
+        created_at = datetime.now(UTC)
         resolution_deadline = add_business_days(created_at, self.RESOLUTION_DEADLINE_DAYS)
 
         # Create the dispute
@@ -191,7 +191,7 @@ class DisputeService:
         # Append evidence (with timestamp and user info)
         user = db.get(User, user_id)
         user_name = user.full_name if user else f"User {user_id}"
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         new_evidence = f"\n\n--- Evidence from {user_name} at {timestamp} ---\n{evidence}"
 
@@ -312,7 +312,7 @@ class DisputeService:
                     dispute.status = DisputeStatus.RESOLVED_AGAINST_RAISER
 
         dispute.resolution_notes = admin_notes
-        dispute.resolved_at = datetime.utcnow()
+        dispute.resolved_at = datetime.now(UTC)
 
         db.commit()
         db.refresh(dispute)
@@ -398,7 +398,7 @@ class DisputeService:
             List of disputes within 24 hours of deadline
         """
         # Use the new resolution_deadline field if available, otherwise fall back to calculation
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         deadline_in_24hrs = now + timedelta(hours=24)
 
         statement = select(Dispute).where(
@@ -425,7 +425,7 @@ class DisputeService:
         Returns:
             List of overdue disputes (still open/under_review but past deadline)
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         statement = select(Dispute).where(
             Dispute.status.in_([DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]),
@@ -456,7 +456,7 @@ class DisputeService:
         Returns:
             List of disputes approaching deadline
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         threshold = now + timedelta(hours=hours)
 
         statement = select(Dispute).where(
@@ -521,7 +521,7 @@ class DisputeService:
                     "AUTO-RESOLVED: Platform arbitration deadline (3 business days) exceeded. "
                     "Per platform policy, dispute automatically resolved in favor of the worker."
                 )
-                dispute.resolved_at = datetime.utcnow()
+                dispute.resolved_at = datetime.now(UTC)
 
                 db.add(dispute)
                 resolved_disputes.append(dispute)
@@ -553,7 +553,7 @@ class DisputeService:
         completion_time = shift.created_at
         window_end = completion_time + timedelta(days=self.DISPUTE_WINDOW_DAYS)
 
-        return datetime.utcnow() <= window_end
+        return datetime.now(UTC) <= window_end
 
     def _calculate_shift_amount(self, shift: Shift) -> Decimal:
         """Calculate the total amount for a shift."""

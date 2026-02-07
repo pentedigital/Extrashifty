@@ -13,7 +13,7 @@ Handles:
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
@@ -123,7 +123,7 @@ class PenaltyService:
         shift_start = datetime.combine(shift.date, shift.start_time)
         noshow_threshold = shift_start + timedelta(minutes=self.GRACE_PERIOD_MINUTES)
 
-        if datetime.utcnow() < noshow_threshold:
+        if datetime.now(UTC) < noshow_threshold:
             return False
 
         # Check for existing penalty to avoid duplicate processing
@@ -160,7 +160,7 @@ class PenaltyService:
         - Shift start + 30min has passed
         - No existing penalty
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         grace_cutoff = now - timedelta(minutes=self.GRACE_PERIOD_MINUTES)
 
         filled_shifts = self.db.exec(
@@ -293,7 +293,7 @@ class PenaltyService:
 
     async def _apply_first_offense_warning(self, user_id: int, shift_id: int) -> None:
         """Apply first offense warning (no penalty, creates warning strike)."""
-        expires_at = datetime.utcnow() + timedelta(days=self.STRIKE_EXPIRY_DAYS)
+        expires_at = datetime.now(UTC) + timedelta(days=self.STRIKE_EXPIRY_DAYS)
 
         # Create a warning-only strike (doesn't count toward 3-strike limit)
         warning_strike = Strike(
@@ -330,13 +330,13 @@ class PenaltyService:
 
         # Release hold and refund full amount
         hold.status = FundsHoldStatus.RELEASED
-        hold.released_at = datetime.utcnow()
+        hold.released_at = datetime.now(UTC)
         self.db.add(hold)
 
         # Update wallet balances
         company_wallet.reserved_balance -= hold.amount
         company_wallet.balance += hold.amount  # Refund to available balance
-        company_wallet.updated_at = datetime.utcnow()
+        company_wallet.updated_at = datetime.now(UTC)
         self.db.add(company_wallet)
 
         # Create refund transaction
@@ -350,7 +350,7 @@ class PenaltyService:
             idempotency_key=f"noshow_refund_{uuid.uuid4().hex}",
             related_shift_id=shift.id,
             description=f"Full refund for no-show on shift {shift.id}",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(transaction)
 
@@ -385,7 +385,7 @@ class PenaltyService:
 
         Returns dict with strike_added and strike_count.
         """
-        today = datetime.utcnow().date()
+        today = datetime.now(UTC).date()
 
         # Check for same-day strike cap
         existing_today = self.db.exec(
@@ -408,7 +408,7 @@ class PenaltyService:
             }
 
         # Create new strike
-        expires_at = datetime.utcnow() + timedelta(days=self.STRIKE_EXPIRY_DAYS)
+        expires_at = datetime.now(UTC) + timedelta(days=self.STRIKE_EXPIRY_DAYS)
         strike = Strike(
             user_id=user_id,
             shift_id=shift_id,
@@ -432,7 +432,7 @@ class PenaltyService:
 
     def get_active_strike_count(self, user_id: int) -> int:
         """Count active (non-expired, non-warning) strikes for a user."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         count = self.db.exec(
             select(func.count(Strike.id)).where(
                 Strike.user_id == user_id,
@@ -445,7 +445,7 @@ class PenaltyService:
 
     def get_active_strikes(self, user_id: int) -> list[Strike]:
         """Get all active strikes for a user."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         return list(
             self.db.exec(
                 select(Strike).where(
@@ -458,7 +458,7 @@ class PenaltyService:
 
     def expire_old_strikes(self) -> int:
         """Expire strikes past their expiration date. Returns count of expired."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         expired_strikes = self.db.exec(
             select(Strike).where(
                 Strike.is_active == True,
@@ -508,7 +508,7 @@ class PenaltyService:
             }
 
         # Create new suspension
-        suspended_until = datetime.utcnow() + timedelta(days=self.SUSPENSION_DAYS)
+        suspended_until = datetime.now(UTC) + timedelta(days=self.SUSPENSION_DAYS)
         suspension = UserSuspension(
             user_id=user_id,
             reason=f"Automatic suspension: {active_count} no-show strikes in 90 days",
@@ -556,7 +556,7 @@ class PenaltyService:
             return None
 
         suspension.is_active = False
-        suspension.lifted_at = datetime.utcnow()
+        suspension.lifted_at = datetime.now(UTC)
         suspension.lifted_by_user_id = lifted_by_user_id
         suspension.lift_reason = reason
         self.db.add(suspension)
@@ -602,7 +602,7 @@ class PenaltyService:
             # Deduct from available wallet balance
             deductible = min(wallet.available_balance, remaining)
             wallet.balance -= deductible
-            wallet.updated_at = datetime.utcnow()
+            wallet.updated_at = datetime.now(UTC)
             self.db.add(wallet)
 
             remaining -= deductible
@@ -621,14 +621,14 @@ class PenaltyService:
                 )
             else:
                 negative_balance.amount += remaining
-                negative_balance.updated_at = datetime.utcnow()
+                negative_balance.updated_at = datetime.now(UTC)
 
             self.db.add(negative_balance)
             collected_from.append({"source": "negative_balance", "amount": remaining})
 
         # Update penalty status
         penalty.status = PenaltyStatus.COLLECTED
-        penalty.collected_at = datetime.utcnow()
+        penalty.collected_at = datetime.now(UTC)
         penalty.collected_amount = amount - remaining
         self.db.add(penalty)
 
@@ -672,8 +672,8 @@ class PenaltyService:
         remaining_earnings = earnings - offset
 
         negative_balance.amount -= offset
-        negative_balance.updated_at = datetime.utcnow()
-        negative_balance.last_activity_at = datetime.utcnow()
+        negative_balance.updated_at = datetime.now(UTC)
+        negative_balance.last_activity_at = datetime.now(UTC)
         self.db.add(negative_balance)
 
         logger.info(
@@ -696,7 +696,7 @@ class PenaltyService:
         Writes off the balance and suspends the account.
         Returns list of affected user IDs.
         """
-        cutoff = datetime.utcnow() - timedelta(days=self.INACTIVITY_WRITEOFF_DAYS)
+        cutoff = datetime.now(UTC) - timedelta(days=self.INACTIVITY_WRITEOFF_DAYS)
 
         inactive_balances = self.db.exec(
             select(NegativeBalance).where(
@@ -711,7 +711,7 @@ class PenaltyService:
             # Write off the balance
             writeoff_amount = nb.amount
             nb.amount = Decimal("0.00")
-            nb.updated_at = datetime.utcnow()
+            nb.updated_at = datetime.now(UTC)
             self.db.add(nb)
 
             # Update any pending penalties to WRITTEN_OFF
@@ -724,7 +724,7 @@ class PenaltyService:
 
             for penalty in pending_penalties:
                 penalty.status = PenaltyStatus.WRITTEN_OFF
-                penalty.written_off_at = datetime.utcnow()
+                penalty.written_off_at = datetime.now(UTC)
                 self.db.add(penalty)
 
             # Suspend the account
@@ -788,7 +788,7 @@ class PenaltyService:
 
         # Check appeal window
         appeal_deadline = penalty.created_at + timedelta(days=self.APPEAL_WINDOW_DAYS)
-        if datetime.utcnow() > appeal_deadline:
+        if datetime.now(UTC) > appeal_deadline:
             raise PenaltyError(
                 f"Appeal window expired. Appeals must be submitted within {self.APPEAL_WINDOW_DAYS} days.",
                 "appeal_window_expired",
@@ -835,7 +835,7 @@ class PenaltyService:
         appeal.status = AppealStatus.APPROVED if approved else AppealStatus.REJECTED
         appeal.reviewed_by_user_id = reviewed_by_user_id
         appeal.review_notes = review_notes
-        appeal.reviewed_at = datetime.utcnow()
+        appeal.reviewed_at = datetime.now(UTC)
         self.db.add(appeal)
 
         if approved:
@@ -843,7 +843,7 @@ class PenaltyService:
             penalty = self.db.get(Penalty, appeal.penalty_id)
             if penalty:
                 penalty.status = PenaltyStatus.WAIVED
-                penalty.waived_at = datetime.utcnow()
+                penalty.waived_at = datetime.now(UTC)
                 penalty.waived_by_user_id = reviewed_by_user_id
                 penalty.waive_reason = f"Appeal approved: {review_notes}"
                 self.db.add(penalty)
@@ -855,7 +855,7 @@ class PenaltyService:
                     ).first()
                     if wallet:
                         wallet.balance += penalty.collected_amount
-                        wallet.updated_at = datetime.utcnow()
+                        wallet.updated_at = datetime.now(UTC)
                         self.db.add(wallet)
 
                 # Also remove the associated strike
@@ -910,7 +910,7 @@ class PenaltyService:
             return penalty
 
         penalty.status = PenaltyStatus.WAIVED
-        penalty.waived_at = datetime.utcnow()
+        penalty.waived_at = datetime.now(UTC)
         penalty.waived_by_user_id = waived_by_user_id
         penalty.waive_reason = reason
         self.db.add(penalty)
@@ -922,7 +922,7 @@ class PenaltyService:
             ).first()
             if wallet:
                 wallet.balance += penalty.collected_amount
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 self.db.add(wallet)
 
                 # Create refund transaction
@@ -936,7 +936,7 @@ class PenaltyService:
                     idempotency_key=self._generate_idempotency_key("waive_refund"),
                     related_shift_id=penalty.shift_id,
                     description=f"Penalty waiver refund - Appeal approved: {reason}",
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(UTC),
                 )
                 self.db.add(refund_tx)
 
@@ -1128,7 +1128,7 @@ class PenaltyService:
 
         # Deduct penalty from agency wallet
         agency_wallet.balance -= penalty_amount
-        agency_wallet.updated_at = datetime.utcnow()
+        agency_wallet.updated_at = datetime.now(UTC)
         self.db.add(agency_wallet)
 
         # Create penalty transaction
@@ -1143,7 +1143,7 @@ class PenaltyService:
             idempotency_key=idempotency_key,
             related_shift_id=shift_id,
             description=f"No-show penalty for shift {shift_id} - Worker {worker_id} (agency-supplied)",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(penalty_tx)
 
@@ -1268,7 +1268,7 @@ class PenaltyService:
             self.db.refresh(agency_wallet)
 
         agency_wallet.balance += compensation_amount
-        agency_wallet.updated_at = datetime.utcnow()
+        agency_wallet.updated_at = datetime.now(UTC)
         self.db.add(agency_wallet)
 
         idempotency_key = self._generate_idempotency_key("late_cancel_comp")
@@ -1285,7 +1285,7 @@ class PenaltyService:
                 f"Late cancellation compensation for shift {shift_id} - "
                 f"Agency responsible for worker distribution"
             ),
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
         )
         self.db.add(compensation_tx)
 

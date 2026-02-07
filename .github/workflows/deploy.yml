@@ -136,15 +136,15 @@ jobs:
             # Create backup of database before deployment
             docker compose exec -T db pg_dump -U postgres extrashifty > backup_$(date +%Y%m%d_%H%M%S).sql || true
 
+            # Run database migrations BEFORE deploying new containers
+            docker compose run --rm --no-deps backend alembic upgrade head
+
             # Deploy with zero-downtime rolling update
             docker compose up -d --no-deps --scale backend=2 backend
             sleep 10
             docker compose up -d --no-deps --scale backend=1 backend
 
             docker compose up -d --no-deps frontend
-
-            # Run database migrations
-            docker compose exec -T backend alembic upgrade head
 
             # Cleanup old images
             docker image prune -f
@@ -218,15 +218,15 @@ jobs:
             # Create backup of database before deployment
             docker compose exec -T db pg_dump -U postgres extrashifty > backup_$(date +%Y%m%d_%H%M%S).sql
 
+            # Run database migrations BEFORE deploying new containers
+            docker compose run --rm --no-deps backend alembic upgrade head
+
             # Deploy with zero-downtime rolling update
             docker compose up -d --no-deps --scale backend=2 backend
             sleep 15
             docker compose up -d --no-deps --scale backend=1 backend
 
             docker compose up -d --no-deps frontend
-
-            # Run database migrations
-            docker compose exec -T backend alembic upgrade head
 
             # Cleanup old images
             docker image prune -f

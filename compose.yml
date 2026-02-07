@@ -34,7 +34,8 @@ services:
       - PROJECT_NAME=ExtraShifty
       - DEBUG=${DEBUG:-false}
       - SECRET_KEY=${SECRET_KEY:-changeme-in-production-use-openssl-rand-hex-32}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY:-changeme-refresh-secret-key-different-from-access}
       - ALGORITHM=HS256
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=5432
@@ -94,7 +95,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8001}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8001/api/v1}
     container_name: extrashifty-frontend
     restart: unless-stopped
     ports:
@@ -115,7 +116,7 @@ services:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8001
+      - VITE_API_URL=http://localhost:8001/api/v1
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     ports:
       - "5173:5173"

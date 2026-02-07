@@ -1,6 +1,6 @@
 """Penalty API endpoints for ExtraShifty no-show system."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -57,7 +57,7 @@ def get_user_strikes(
     Returns all strikes (active and inactive) for the current user,
     with counts of active and warning-only strikes.
     """
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     # Get all strikes for user
     all_strikes = session.exec(
@@ -153,7 +153,7 @@ def get_penalty_history(
     total_amount = total_amount_result or Decimal("0.00")
 
     # Build response with appeal info
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     appeal_window_days = penalty_service.APPEAL_WINDOW_DAYS
 
     penalty_responses = []
@@ -246,7 +246,7 @@ def get_penalty_summary(
         )
 
     # Convert strikes to response format
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     strike_responses = []
     for s in summary["strikes"]:
         days_until_expiry = (s["expires_at"] - now).days if s["expires_at"] > now else 0
@@ -311,7 +311,7 @@ def get_negative_balance(
         return None
 
     # Calculate days until write-off
-    days_since_activity = (datetime.utcnow() - nb.last_activity_at).days
+    days_since_activity = (datetime.now(UTC) - nb.last_activity_at).days
     days_until_writeoff = max(0, penalty_service.INACTIVITY_WRITEOFF_DAYS - days_since_activity)
 
     return NegativeBalanceResponse(
@@ -461,13 +461,13 @@ def get_admin_penalty_summary(
     total_negative = total_negative_result or Decimal("0.00")
 
     # Penalties last 30 days
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
     penalties_last_30 = session.exec(
         select(func.count(Penalty.id)).where(Penalty.created_at >= thirty_days_ago)
     ).one()
 
     # Write-off candidates (6 months inactive)
-    cutoff = datetime.utcnow() - timedelta(days=penalty_service.INACTIVITY_WRITEOFF_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=penalty_service.INACTIVITY_WRITEOFF_DAYS)
     writeoff_candidates = session.exec(
         select(func.count(NegativeBalance.id)).where(
             NegativeBalance.amount > 0,
@@ -649,7 +649,7 @@ def get_user_penalties_admin(
     ).one()
     total_amount = total_amount_result or Decimal("0.00")
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     appeal_window_days = penalty_service.APPEAL_WINDOW_DAYS
 
     penalty_responses = []
@@ -720,7 +720,7 @@ def get_user_penalty_summary_admin(
         else:
             warning_message = "User suspended indefinitely"
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     strike_responses = []
     for s in summary["strikes"]:
         days_until_expiry = (s["expires_at"] - now).days if s["expires_at"] > now else 0

@@ -41,7 +41,7 @@ class StripeService:
     def create_custom_account(
         self,
         email: str,
-        country: str = "US",
+        country: str = "IE",
         business_type: str = "company",
         company_name: str | None = None,
         metadata: dict[str, str] | None = None,
@@ -100,7 +100,7 @@ class StripeService:
     def create_express_account(
         self,
         email: str,
-        country: str = "US",
+        country: str = "IE",
         business_type: str = "individual",
         metadata: dict[str, str] | None = None,
     ) -> stripe.Account:
@@ -147,7 +147,7 @@ class StripeService:
     def create_standard_account(
         self,
         email: str,
-        country: str = "US",
+        country: str = "IE",
         metadata: dict[str, str] | None = None,
     ) -> stripe.Account:
         """
@@ -188,7 +188,7 @@ class StripeService:
         self,
         user_type: UserType,
         email: str,
-        country: str = "US",
+        country: str = "IE",
         company_name: str | None = None,
         metadata: dict[str, str] | None = None,
     ) -> stripe.Account:

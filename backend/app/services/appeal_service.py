@@ -1,7 +1,7 @@
 """Appeal service for penalty dispute resolution."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -135,7 +135,7 @@ class AppealService:
             raise InvalidAppealError(f"Invalid appeal type: {appeal_type}")
 
         # Check if within appeal window
-        if datetime.utcnow() > appeal_deadline:
+        if datetime.now(UTC) > appeal_deadline:
             raise AppealWindowClosedError(
                 f"Appeal window has closed. Appeals must be submitted within "
                 f"{PENALTY_APPEAL_WINDOW_DAYS} days for penalties/strikes or "
@@ -241,7 +241,7 @@ class AppealService:
 
         appeal.reviewer_notes = reviewer_notes
         appeal.reviewed_by = reviewer_id
-        appeal.reviewed_at = datetime.utcnow()
+        appeal.reviewed_at = datetime.now(UTC)
 
         db.commit()
         db.refresh(appeal)
@@ -305,7 +305,7 @@ class AppealService:
         Returns:
             True if waiver is available for current year
         """
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(UTC).year
 
         statement = select(EmergencyWaiver).where(
             EmergencyWaiver.user_id == user_id,
@@ -326,7 +326,7 @@ class AppealService:
         Returns:
             Dictionary with waiver availability and usage info
         """
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(UTC).year
 
         statement = select(EmergencyWaiver).where(
             EmergencyWaiver.user_id == user_id,
@@ -361,7 +361,7 @@ class AppealService:
         if not appeal.emergency_type:
             raise InvalidAppealError("Appeal does not have an emergency type")
 
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(UTC).year
 
         # Check eligibility again
         if not await self.check_emergency_waiver_eligibility(db, appeal.user_id):
@@ -454,7 +454,7 @@ class AppealService:
         hours_threshold: int = 24,
     ) -> list[Appeal]:
         """Get pending appeals approaching their review deadline."""
-        deadline_threshold = datetime.utcnow() + timedelta(hours=hours_threshold)
+        deadline_threshold = datetime.now(UTC) + timedelta(hours=hours_threshold)
 
         statement = (
             select(Appeal)
@@ -480,7 +480,7 @@ class AppealService:
         penalty = db.get(Penalty, penalty_id)
         if penalty:
             penalty.status = PenaltyStatus.WAIVED
-            penalty.waived_at = datetime.utcnow()
+            penalty.waived_at = datetime.now(UTC)
             penalty.waived_by_user_id = waived_by
             penalty.waive_reason = f"Appeal approved: {reason}"
             db.commit()
@@ -513,7 +513,7 @@ class AppealService:
         suspension = db.get(UserSuspension, suspension_id)
         if suspension:
             suspension.is_active = False
-            suspension.lifted_at = datetime.utcnow()
+            suspension.lifted_at = datetime.now(UTC)
             suspension.lifted_by_user_id = lifted_by
             suspension.lift_reason = f"Appeal approved: {reason}"
             db.commit()
@@ -559,7 +559,7 @@ class AppealService:
 
         if negative_balance:
             negative_balance.amount += FRIVOLOUS_APPEAL_FEE
-            negative_balance.updated_at = datetime.utcnow()
+            negative_balance.updated_at = datetime.now(UTC)
         else:
             # Try to deduct from wallet first
             wallet_statement = select(Wallet).where(Wallet.user_id == user_id)

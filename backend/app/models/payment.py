@@ -1,6 +1,6 @@
 """Payment, transaction, and dispute models for ExtraShifty."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
@@ -219,7 +219,7 @@ class Dispute(SQLModel, table=True):
             return False
         if self.status not in [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]:
             return False
-        return datetime.utcnow() > self.resolution_deadline
+        return datetime.now(UTC) > self.resolution_deadline
 
     @property
     def is_approaching_deadline(self) -> bool:
@@ -228,7 +228,7 @@ class Dispute(SQLModel, table=True):
             return False
         if self.status not in [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW]:
             return False
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         hours_until_deadline = (self.resolution_deadline - now).total_seconds() / 3600
         return 0 < hours_until_deadline <= 24
 

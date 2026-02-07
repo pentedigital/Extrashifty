@@ -1,7 +1,7 @@
 """Stripe webhook endpoints for ExtraShifty."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -97,7 +97,7 @@ async def handle_payment_intent_succeeded(
     if db_transaction:
         # Update transaction status to COMPLETED
         db_transaction.status = TransactionStatus.COMPLETED
-        db_transaction.completed_at = datetime.utcnow()
+        db_transaction.completed_at = datetime.now(UTC)
         session.add(db_transaction)
 
         # Add funds to wallet balance (amount is in cents, convert to decimal)
@@ -105,7 +105,7 @@ async def handle_payment_intent_succeeded(
         if wallet:
             amount_decimal = Decimal(str(amount)) / Decimal("100")
             wallet.balance += amount_decimal
-            wallet.updated_at = datetime.utcnow()
+            wallet.updated_at = datetime.now(UTC)
             session.add(wallet)
 
             # Create notification for user
@@ -319,7 +319,7 @@ async def handle_payout_failed(
         if wallet:
             # Return the original payout amount (before fees) to wallet
             wallet.balance += db_payout.amount
-            wallet.updated_at = datetime.utcnow()
+            wallet.updated_at = datetime.now(UTC)
             session.add(wallet)
             session.commit()
 
@@ -409,7 +409,7 @@ async def handle_account_updated(
         # Update wallet.is_active based on payouts_enabled
         wallet.is_active = payouts_enabled
 
-        wallet.updated_at = datetime.utcnow()
+        wallet.updated_at = datetime.now(UTC)
         session.add(wallet)
         session.commit()
         wallet_updated = True
@@ -550,7 +550,7 @@ async def handle_charge_dispute_created(
             # This prevents the disputed funds from being withdrawn
             if wallet.available_balance >= amount_decimal:
                 wallet.reserved_balance += amount_decimal
-                wallet.updated_at = datetime.utcnow()
+                wallet.updated_at = datetime.now(UTC)
                 session.add(wallet)
                 session.commit()
                 funds_moved_to_escrow = True
@@ -701,7 +701,7 @@ async def handle_charge_dispute_closed(
                     # The funds were already in the wallet, just remove from reserved
                     if wallet.reserved_balance >= amount_decimal:
                         wallet.reserved_balance -= amount_decimal
-                        wallet.updated_at = datetime.utcnow()
+                        wallet.updated_at = datetime.now(UTC)
                         session.add(wallet)
                         session.commit()
                         escrow_released = True
@@ -732,7 +732,7 @@ async def handle_charge_dispute_closed(
                     if wallet.reserved_balance >= amount_decimal:
                         wallet.reserved_balance -= amount_decimal
                     wallet.balance -= amount_decimal
-                    wallet.updated_at = datetime.utcnow()
+                    wallet.updated_at = datetime.now(UTC)
                     session.add(wallet)
                     session.commit()
                     funds_transferred = True
@@ -761,7 +761,7 @@ async def handle_charge_dispute_closed(
                     # Other status (warning_closed, etc.) - just release escrow
                     if wallet.reserved_balance >= amount_decimal:
                         wallet.reserved_balance -= amount_decimal
-                        wallet.updated_at = datetime.utcnow()
+                        wallet.updated_at = datetime.now(UTC)
                         session.add(wallet)
                         session.commit()
                         escrow_released = True
@@ -908,17 +908,7 @@ async def stripe_webhook(
     # Idempotency check: Skip if already processed
     if is_event_already_processed(session, event_id):
         logger.info(f"Event {event_id} already processed, skipping (idempotency)")
-        return {
-            "received": True,
-            "event_id": event_id,
-            "event_type": event_type,
-            "processed_at": datetime.utcnow().isoformat(),
-            "result": {
-                "action": event_type,
-                "skipped": True,
-                "reason": "Event already processed (idempotency)",
-            },
-        }
+        return {"received": True}
 
     # Process the event
     handler = EVENT_HANDLERS.get(event_type)
@@ -956,13 +946,7 @@ async def stripe_webhook(
 
     # Always return 200 to acknowledge receipt
     # Stripe will retry if we return an error status
-    return {
-        "received": True,
-        "event_id": event_id,
-        "event_type": event_type,
-        "processed_at": datetime.utcnow().isoformat(),
-        "result": result,
-    }
+    return {"received": True}
 
 
 @router.get("/stripe/health", status_code=status.HTTP_200_OK)

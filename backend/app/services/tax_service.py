@@ -7,7 +7,7 @@ Handles:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -40,7 +40,7 @@ class TaxService:
 
     def _get_current_tax_year(self) -> int:
         """Get the current tax year."""
-        return datetime.utcnow().year
+        return datetime.now(UTC).year
 
     def _get_or_create_tax_year(
         self,
@@ -103,7 +103,7 @@ class TaxService:
         # Update total earnings
         previous_earnings = tax_year_record.total_earnings
         tax_year_record.total_earnings += amount
-        tax_year_record.updated_at = datetime.utcnow()
+        tax_year_record.updated_at = datetime.now(UTC)
 
         # Check if threshold was just crossed
         if (
@@ -111,7 +111,7 @@ class TaxService:
             and tax_year_record.total_earnings >= self.US_1099_THRESHOLD
         ):
             tax_year_record.threshold_reached = True
-            tax_year_record.threshold_reached_at = datetime.utcnow()
+            tax_year_record.threshold_reached_at = datetime.now(UTC)
             tax_year_record.status = TaxFormStatus.PENDING_W9
 
             logger.info(
@@ -242,9 +242,9 @@ class TaxService:
         tax_year_record.state = w9_data.state
         tax_year_record.zip_code = w9_data.zip_code
 
-        tax_year_record.w9_submitted_at = datetime.utcnow()
+        tax_year_record.w9_submitted_at = datetime.now(UTC)
         tax_year_record.status = TaxFormStatus.W9_RECEIVED
-        tax_year_record.updated_at = datetime.utcnow()
+        tax_year_record.updated_at = datetime.now(UTC)
 
         self.db.add(tax_year_record)
 
@@ -325,9 +325,9 @@ class TaxService:
         self.db.add(form_1099)
 
         # Update tax year status
-        tax_year_record.form_generated_at = datetime.utcnow()
+        tax_year_record.form_generated_at = datetime.now(UTC)
         tax_year_record.status = TaxFormStatus.FORM_GENERATED
-        tax_year_record.updated_at = datetime.utcnow()
+        tax_year_record.updated_at = datetime.now(UTC)
         self.db.add(tax_year_record)
 
         self.db.commit()

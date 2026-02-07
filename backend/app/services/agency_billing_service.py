@@ -7,7 +7,7 @@ When agency is in FULL_INTERMEDIARY mode (Mode B):
 """
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
@@ -57,7 +57,7 @@ class AgencyBillingService:
         ).one() or 0
 
         # Format: INV-{agency_id}-{YYYYMM}-{sequence}
-        year_month = datetime.utcnow().strftime("%Y%m")
+        year_month = datetime.now(UTC).strftime("%Y%m")
         sequence = str(count + 1).zfill(4)
         return f"INV-{agency_id}-{year_month}-{sequence}"
 
@@ -545,7 +545,7 @@ class AgencyBillingService:
                     invoice = self.db.get(AgencyClientInvoice, invoice_data["invoice_id"])
                     if invoice:
                         invoice.status = "sent"
-                        invoice.updated_at = datetime.utcnow()
+                        invoice.updated_at = datetime.now(UTC)
                         self.db.add(invoice)
                         self.db.commit()
                         invoice_data["status"] = "sent"
@@ -596,7 +596,7 @@ class AgencyBillingService:
         marked_ids = []
         for invoice in overdue_invoices:
             invoice.status = "overdue"
-            invoice.updated_at = datetime.utcnow()
+            invoice.updated_at = datetime.now(UTC)
             self.db.add(invoice)
             marked_ids.append(invoice.id)
 

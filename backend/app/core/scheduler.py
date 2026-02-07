@@ -9,7 +9,7 @@ This module sets up background tasks for:
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Callable, Coroutine
 
 from sqlmodel import Session
@@ -44,7 +44,7 @@ class ScheduledTask:
         try:
             logger.info(f"Running scheduled task: {self.name}")
             await self.func()
-            self.last_run = datetime.utcnow()
+            self.last_run = datetime.now(UTC)
             logger.info(f"Completed scheduled task: {self.name}")
         except Exception as e:
             logger.error(f"Error in scheduled task {self.name}: {e}", exc_info=True)
@@ -125,7 +125,7 @@ async def weekly_payout_job() -> None:
     with balance >= $50.
     """
     # Check if today is Friday
-    if datetime.utcnow().weekday() != 4:  # 4 = Friday
+    if datetime.now(UTC).weekday() != 4:  # 4 = Friday
         logger.debug("Skipping weekly payout job - not Friday")
         return
 
@@ -195,7 +195,7 @@ async def expire_funds_holds_job() -> None:
         expired_holds = session.exec(
             select(FundsHold).where(
                 FundsHold.status == FundsHoldStatus.ACTIVE,
-                FundsHold.expires_at < datetime.utcnow(),
+                FundsHold.expires_at < datetime.now(UTC),
             )
         ).all()
 
@@ -203,14 +203,14 @@ async def expire_funds_holds_job() -> None:
             try:
                 # Release the hold
                 hold.status = FundsHoldStatus.EXPIRED
-                hold.released_at = datetime.utcnow()
+                hold.released_at = datetime.now(UTC)
                 session.add(hold)
 
                 # Return reserved funds to wallet
                 wallet = session.get(Wallet, hold.wallet_id)
                 if wallet:
                     wallet.reserved_balance -= hold.amount
-                    wallet.updated_at = datetime.utcnow()
+                    wallet.updated_at = datetime.now(UTC)
                     session.add(wallet)
 
                 logger.info(f"Expired funds hold {hold.id} for shift {hold.shift_id}")
@@ -303,7 +303,7 @@ async def dispute_deadline_check_job() -> None:
                 # Log alerts for each dispute
                 for dispute in approaching:
                     hours_left = (
-                        (dispute.resolution_deadline - datetime.utcnow()).total_seconds() / 3600
+                        (dispute.resolution_deadline - datetime.now(UTC)).total_seconds() / 3600
                         if dispute.resolution_deadline else 0
                     )
                     logger.warning(
@@ -446,7 +446,7 @@ async def check_w9_reminders_job() -> None:
     with Session(engine) as session:
         try:
             # Get current tax year
-            current_year = datetime.utcnow().year
+            current_year = datetime.now(UTC).year
 
             # Find users with pending W9 status
             pending_w9_records = session.exec(
@@ -471,7 +471,7 @@ async def check_w9_reminders_job() -> None:
                 try:
                     # Calculate days since threshold was reached
                     if tax_year_record.threshold_reached_at:
-                        days_since = (datetime.utcnow() - tax_year_record.threshold_reached_at).days
+                        days_since = (datetime.now(UTC) - tax_year_record.threshold_reached_at).days
                     else:
                         days_since = 0
 
@@ -563,7 +563,7 @@ async def cleanup_expired_exports_job() -> None:
             expired_exports = session.exec(
                 select(DeletionRequest).where(
                     DeletionRequest.data_export_url.isnot(None),
-                    DeletionRequest.data_export_expires_at < datetime.utcnow(),
+                    DeletionRequest.data_export_expires_at < datetime.now(UTC),
                 )
             ).all()
 
@@ -583,7 +583,7 @@ async def cleanup_expired_exports_job() -> None:
                 # Clear the URL
                 request.data_export_url = None
                 request.data_export_expires_at = None
-                request.updated_at = datetime.utcnow()
+                request.updated_at = datetime.now(UTC)
                 session.add(request)
                 count += 1
 
@@ -608,7 +608,7 @@ async def monthly_agency_invoice_generation_job() -> None:
     from app.services.agency_billing_service import AgencyBillingService
 
     # Check if it's the 1st of the month
-    today = datetime.utcnow()
+    today = datetime.now(UTC)
     if today.day != 1:
         logger.debug("Skipping monthly invoice generation - not the 1st of the month")
         return

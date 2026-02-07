@@ -1,7 +1,7 @@
 """Admin endpoints for ExtraShifty platform management."""
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Query, Request
@@ -78,7 +78,7 @@ async def get_admin_stats(
     if cached is not None:
         return AdminStatsResponse(**cached)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     week_ago = now - timedelta(days=7)
 
     total_users = session.exec(
@@ -185,7 +185,7 @@ async def get_admin_reports(
     Returns revenue, user, shift, and fill rate data broken down by period,
     plus summary with current vs previous period comparisons.
     """
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     if not end_date:
         end_date = now.date()

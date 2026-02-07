@@ -1,7 +1,7 @@
 """Tax compliance API endpoints for ExtraShifty."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
@@ -113,7 +113,7 @@ async def submit_w9(
         )
 
     tax_service = TaxService(session)
-    tax_year = year or datetime.utcnow().year
+    tax_year = year or datetime.now(UTC).year
 
     try:
         tax_year_record = await tax_service.submit_w9(
